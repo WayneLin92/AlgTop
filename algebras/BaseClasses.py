@@ -393,7 +393,7 @@ class BaseExteriorMulti(GradedRing, ABC):
     # -- Ring --------------
     @staticmethod
     def mul_mons(mon1: frozenset, mon2: frozenset) -> frozenset:
-        return mon1 ^ mon2
+        return set() if mon1 & mon2 else mon1 | mon2
 
     @classmethod
     def str_mon(cls, mon: frozenset) -> str:
@@ -781,7 +781,7 @@ class BaseExteriorMod2(BaseExteriorMulti, GradedRingMod2, ABC):
         if type(data) is set:
             self.data = data
         elif type(data) is frozenset:  # monomial
-            self.data = {data}  # type: Set[tuple]
+            self.data = {data}  # type: Set[frozenset]
         else:
             raise MyTypeError("{} can not initialize {}".format(data, type(self).__name__))
 

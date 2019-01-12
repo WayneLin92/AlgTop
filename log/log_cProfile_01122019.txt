@@ -1,3 +1,5 @@
+Ext(15, 47)
+
          20946237 function calls (20919270 primitive calls) in 19.896 seconds
 
    Ordered by: cumulative time

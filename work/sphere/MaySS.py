@@ -1,4 +1,5 @@
 from algebras import BaseClasses as BC, linalg, mymath
+import itertools
 
 
 class MaySS(BC.BasePolyMod2):
@@ -54,6 +55,7 @@ class MaySS(BC.BasePolyMod2):
         return (cls(m) for m in MaySS.basis_mons(length, deg, may_filtr))
 
     def diff(self):
+        """ return the coboundary of the cochain """
         result = self.zero()
         for m in self.data:
             for ind in range(len(m)):
@@ -105,13 +107,13 @@ class DualMaySS(BC.BaseExteriorMod2):
 
     @classmethod
     def str_mon(cls, mon: frozenset):
-        d = {}
+        mon_dict = {}
         for deg, n in mon:
-            if deg in d:
-                d[deg] += n
+            if deg in mon_dict:
+                mon_dict[deg] += n
             else:
-                d[deg] = n
-        result = "".join(map(cls.str_gen, d.items()))
+                mon_dict[deg] = n
+        result = "".join(map(cls.str_gen, mon_dict.items()))
         return result if result else "1"
 
     # methods -----------------
@@ -151,7 +153,28 @@ class DualMaySS(BC.BaseExteriorMod2):
         return (cls(m) for m in DualMaySS.basis_mons(length, deg, may_filtr))
 
     def diff(self):
-        pass
+        """ return the boundary of the chain """
+        result = self.zero()
+        for mon in self.data:
+            mon_min_gamma = {}
+            for deg, n in mon:
+                if deg in mon_min_gamma:
+                    if mon_min_gamma[deg] > n:
+                        mon_min_gamma[deg] = n
+                else:
+                    mon_min_gamma[deg] = n
+            for gs, gt in itertools.combinations(mon_min_gamma.items(), 2):
+                deg_s, r_s = gs
+                deg_t, r_t = gt
+                i_s, j_s = deg2ij(deg_s)
+                i_t, j_t = deg2ij(deg_t)
+                if j_s == i_t + j_t or j_t == i_s + j_s:
+                    factor1 = type(self).gen(i_s + i_t, min(j_s, j_t), 1)
+                    gs_minus = set((deg_s, 1 << k) for k in range(r_s.bit_length() - 1))
+                    gt_minus = set((deg_t, 1 << k) for k in range(r_t.bit_length() - 1))
+                    factor2 = type(self)(mon - {gs, gt} | gs_minus | gt_minus)
+                    result += factor1 * factor2
+        return result
 
 
 # functions
