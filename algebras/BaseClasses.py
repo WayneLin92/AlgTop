@@ -866,4 +866,20 @@ class HopfAlgWithDualMod2(HopfAlgebra, GradedRingMod2, ABC):
         return result % 2
 
 
-# 670, 615, 627, 643, 660, 693, 756, 764, 845, 851, 888, 884, 868
+# Monitor ---------------------------------------
+class Monitor:
+    dict_num_function_calls = {}
+
+    @classmethod
+    def count(cls, fun_name):
+        if fun_name not in cls.dict_num_function_calls:
+            cls.dict_num_function_calls[fun_name] = 1
+        else:
+            cls.dict_num_function_calls[fun_name] += 1
+
+    @classmethod
+    def present(cls):
+        print("\nnumber of function calls = {}".format(cls.dict_num_function_calls))
+
+
+# 670, 615, 627, 643, 660, 693, 756, 764, 845, 851, 888, 884, 868, 885
