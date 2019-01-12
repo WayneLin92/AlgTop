@@ -1,0 +1,43 @@
+test_ext
+10/14/2018 10:37PM 1.254s
+10/15/2018 12:30AM 1.242s
+10/22/2018  1:02AM 1.951s (new FreeModule)
+10/22/2018 02:10PM 1.219s (Surface FreeModuleMod2))
+11/20/2018 12:25PM 1.923s (PC)
+11/20/2018 01:43PM 2.439s (PC 2.8GHz)
+11/20/2018 09:53PM 2.250s (PC 3.0GHz)
+11/20/2018 09:57PM 1.641s (Surface)
+11/20/2018 10:16PM 1.778s (PC 3.8GHz)
+11/20/2018 10:36PM 1.644s (PC 4.0GHz)
+11/25/2018 08:34PM 2.197s (PC 3.4GHz)
+11/26/2018 10:03PM 1.980s (PC 3.5GHz)
+12/18/2018 10:03PM 1.879s (PC 3.5GHz)
+12/03/2018 03:51PM 1.310s (Surface with binom improved)
+01/01/2019 08:09PM 1.757s (PC 3.6GHz)
+01/01/2019 10:41PM 0.907s (PC linalg)
+    number of function calls = {'Steenrod.adem': 40061}
+
+test_ext1
+10/14/2018 10:58PM 47.511s
+10/15/2018 12:34AM 48.099s
+10/15/2018 12:42AM 47.761s
+10/22/2018 01:02AM 87.809s (new FreeModule)
+10/22/2018 01:26PM 65.481s (Surface new FreeModule)
+10/22/2018 02:21PM 52.115s (Surface FreeModuleMod2)
+11/20/2018 12:24PM 74.360s (PC FreeModuleMod2)
+11/20/2018 13:40PM 103.360s (PC 2.8GHz))
+11/20/2018 10:37PM 67.839S (PC 4.0GHz)
+12/03/2018 03:40PM 52.195s (Surface with binom improved)
+01/01/2019 10:42PM 14.526s (PC 3.6GHz linalg)
+    number of function calls = {'Steenrod.adem': 861148}
+
+
+test_sq_benchmark
+12/22/2018 10:29PM 2.238s (using _is_good)
+    number of function calls = {'MyDyerLashof.adem': 5127, '_my_adem': 3970, 'sQ2Q': 230358, 'PQ_mon': 265607, 'DyerLashof.adem': 19202}
+12/28/2018 10:27PM 14.728s (partly using simplify_sQ)
+    number of function calls = {'MyDyerLashof.adem': 2530, '_my_adem': 2273, 'sQ2Q': 326451, 'PQ_mon': 822736, 'DyerLashof.adem': 7134}
+
+test_simplify_sQ_benchmark
+12/29/2018 11:24PM 0.189s
+    number of function calls = {'sQ2Q': 6400, 'PQ_mon': 8782, 'DyerLashof.adem': 322}

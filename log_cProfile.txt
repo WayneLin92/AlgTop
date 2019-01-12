@@ -1,0 +1,59 @@
+         20946237 function calls (20919270 primitive calls) in 19.896 seconds
+
+   Ordered by: cumulative time
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000   19.896   19.896 resolution.py:62(test_ext)
+        1    0.039    0.039   19.896   19.896 resolution.py:14(compute_minimal)
+     3286    0.873    0.000   19.299    0.006 linalg.py:195(add_maps)
+    49214    0.212    0.000   17.962    0.000 resolution.py:36(<genexpr>)
+    93642    0.866    0.000   17.325    0.000 constructions.py:236(__rmul__)
+   342583    0.488    0.000   16.086    0.000 operations.py:227(__mul__)
+   342583    0.555    0.000   15.598    0.000 BaseClasses.py:790(__mul__)
+   248941    3.198    0.000   13.266    0.000 BaseClasses.py:805(simplify)
+   861148    2.371    0.000    7.416    0.000 operations.py:272(adem)
+  1879092    2.788    0.000    4.548    0.000 operations.py:275(<genexpr>)
+  1235623    1.857    0.000    2.020    0.000 operations.py:261(is_admissible)
+  2738740    1.096    0.000    1.760    0.000 mymath.py:6(choose_mod2)
+   248941    0.728    0.000    1.258    0.000 BaseClasses.py:697(__mul__)
+   591524    0.370    0.000    0.852    0.000 {built-in method builtins.isinstance}
+  2738740    0.664    0.000    0.664    0.000 mymath.py:11(binom_mod2)
+   861148    0.497    0.000    0.497    0.000 BaseClasses.py:874(count)
+   591524    0.199    0.000    0.482    0.000 abc.py:137(__instancecheck__)
+      705    0.440    0.001    0.443    0.001 linalg.py:61(quotient)
+   248941    0.294    0.000    0.437    0.000 {method 'symmetric_difference_update' of 'set' objects}
+    22301    0.336    0.000    0.385    0.000 linalg.py:36(add_v)
+  2721597    0.361    0.000    0.361    0.000 {built-in method builtins.len}
+   499669    0.352    0.000    0.352    0.000 BaseClasses.py:664(__init__)
+   591524    0.283    0.000    0.283    0.000 {built-in method _abc._abc_instancecheck}
+  1235623    0.194    0.000    0.194    0.000 operations.py:245(is_null)
+  1235623    0.173    0.000    0.173    0.000 {method 'pop' of 'set' objects}
+   600116    0.142    0.000    0.142    0.000 constructions.py:241(<genexpr>)
+   141563    0.104    0.000    0.104    0.000 constructions.py:211(__init__)
+   342583    0.100    0.000    0.100    0.000 {method 'copy' of 'set' objects}
+    47920    0.090    0.000    0.090    0.000 {built-in method builtins.max}
+    47715    0.032    0.000    0.082    0.000 constructions.py:264(gen)
+   248941    0.069    0.000    0.069    0.000 BaseClasses.py:796(mul_mons)
+     2162    0.002    0.000    0.066    0.000 linalg.py:13(__init__)
+       47    0.010    0.000    0.064    0.001 linalg.py:26(add_algs)
+     1833    0.004    0.000    0.052    0.000 resolution.py:30(<genexpr>)
+    46633    0.052    0.000    0.052    0.000 {method 'format' of 'str' objects}
+     1835    0.002    0.000    0.030    0.000 operations.py:379(<genexpr>)
+28798/1835    0.026    0.000    0.026    0.000 operations.py:367(basis_mons)
+      705    0.001    0.000    0.010    0.000 linalg.py:221(get_image)
+    48174    0.009    0.000    0.009    0.000 {method 'append' of 'list' objects}
+      705    0.008    0.000    0.008    0.000 {built-in method builtins.print}
+      705    0.008    0.000    0.008    0.000 linalg.py:223(<listcomp>)
+      705    0.001    0.000    0.001    0.000 linalg.py:186(__init__)
+      705    0.001    0.000    0.001    0.000 linalg.py:77(get_basis)
+      705    0.001    0.000    0.001    0.000 {method 'copy' of 'list' objects}
+      911    0.000    0.000    0.000    0.000 linalg.py:78(<genexpr>)
+       48    0.000    0.000    0.000    0.000 operations.py:377(basis)
+      5/3    0.000    0.000    0.000    0.000 abc.py:141(__subclasscheck__)
+      5/3    0.000    0.000    0.000    0.000 {built-in method _abc._abc_subclasscheck}
+        1    0.000    0.000    0.000    0.000 resolution.py:9(__init__)
+        1    0.000    0.000    0.000    0.000 resolution.py:12(<listcomp>)
+        1    0.000    0.000    0.000    0.000 constructions.py:260(set_ring)
+        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+
+
