@@ -14,15 +14,3 @@ psi_Sq = Steenrod.coprod_gen
 xi = DualSteenrod.gen
 psi_xi = DualSteenrod.coprod_gen
 xto = PolySingZ.gen
-
-
-pre_defined = \
-    [choose_mod2, binom_mod2, multi_nom_mod2,
-     Steenrod, DyerLashof, AR, DualSteenrod,
-     PolySingZ, PolyAnyVarMod2, PolyAnyVarModP, PolyAnyVarZ, poincare_series,
-     SubRing, QuoRing, FreeModule, FreeModuleMod2,
-     VectorSpaceMod2, GradedVectorSpaceMod2, LinearMapMod2, LinearMapKernelMod2,
-     Q, Sq, conj_Sq, psi_Sq, xi, psi_xi, xto,
-     HBOZ,
-     MyDyerLashof, simplify_sQ
-     ]
