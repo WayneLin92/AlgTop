@@ -1,6 +1,6 @@
 import unittest
-from other.specseq import SpecSeq, MyPoly
-from other.resolution import Ext
+from spec.specseq import SpecSeq, MyPoly
+from spec.resolution import Ext
 from notations import *
 
 

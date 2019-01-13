@@ -2,7 +2,7 @@ import cProfile
 import io
 import pstats
 from pstats import SortKey
-from other.resolution import test_ext
+from spec.resolution import test_ext
 
 pr = cProfile.Profile()
 pr.enable()
