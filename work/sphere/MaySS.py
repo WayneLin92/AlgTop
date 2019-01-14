@@ -76,12 +76,12 @@ class MaySS(BC.BasePolyMod2):
         my_map2 = linalg.LinearMapKernelMod2()
         my_map1.add_maps((r, r.diff()) for r in cls.basis(s, t, u))
         print("kernel dim:", my_map1.kernel.get_dim())
-        for r in my_map1.kernel.get_basis(MaySS):
-            print(r)
+        # for r in my_map1.kernel.get_basis(MaySS):
+        #     print(r)
         my_map2.add_maps((r, r.diff()) for r in cls.basis(s - 1, t, u))
         print("image: dim", my_map2.get_image().get_dim())
-        for r in my_map2.get_image().get_basis(MaySS):
-            print(r)
+        # for r in my_map2.get_image().get_basis(MaySS):
+        #     print(r)
         print("quotient:")
         for r in my_map1.kernel.quotient(my_map2.get_image()).get_basis(MaySS):
             print(r)
@@ -175,6 +175,22 @@ class DualMaySS(BC.BaseExteriorMod2):
                     factor2 = type(self)(mon - {gs, gt} | gs_minus | gt_minus)
                     result += factor1 * factor2
         return result
+
+    @classmethod
+    def homology(cls, s, t, u):
+        my_map1 = linalg.LinearMapKernelMod2()
+        my_map2 = linalg.LinearMapKernelMod2()
+        my_map1.add_maps((r, r.diff()) for r in cls.basis(s, t, u))
+        print("kernel dim:", my_map1.kernel.get_dim())
+        # for r in my_map1.kernel.get_basis(MaySS):
+        #     print(r)
+        my_map2.add_maps((r, r.diff()) for r in cls.basis(s + 1, t, u))
+        print("image: dim", my_map2.get_image().get_dim())
+        # for r in my_map2.get_image().get_basis(MaySS):
+        #     print(r)
+        print("quotient:")
+        for r in my_map1.kernel.quotient(my_map2.get_image()).get_basis(DualMaySS):
+            print(r)
 
 
 # functions
