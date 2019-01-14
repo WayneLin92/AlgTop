@@ -194,11 +194,11 @@ class DualMaySS(BC.BaseExteriorMod2):
 
 
 # functions
-def ij2deg(key) -> int:
+def ij2deg(key: tuple) -> int:
     return (1 << key[0]) - 1 << key[1]
 
 
-def deg2ij(n: int):
+def deg2ij(n: int) -> tuple:
     i = bin(n).count('1')
     j = n.bit_length() - i
     return i, j
