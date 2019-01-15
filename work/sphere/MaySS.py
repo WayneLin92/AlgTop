@@ -192,6 +192,21 @@ class DualMaySS(BC.BaseExteriorMod2):
         for r in my_map1.kernel.quotient(my_map2.get_image()).get_basis(DualMaySS):
             print(r)
 
+    @classmethod
+    def cycles(cls, s_max, t_max, u_max):
+        for s in range(s_max + 1):
+            for t in range(s, t_max + 1):
+                for u in range(s, u_max + 1):
+                    my_map1 = linalg.LinearMapKernelMod2()
+                    my_map1.add_maps((r, r.diff()) for r in cls.basis(s, t, u))
+                    my_map2 = linalg.LinearMapKernelMod2()
+                    my_map2.add_maps((r, r.diff()) for r in cls.basis(s + 1, t, u))
+                    for r in my_map1.kernel.quotient(my_map2.get_image()).simplify().get_basis(DualMaySS):
+                        if len(r.data) > 1:
+                            print("${}$\\\\".format(r))
+
+    # TODO: search for primitives
+
 
 # functions
 def ij2deg(key: tuple) -> int:
