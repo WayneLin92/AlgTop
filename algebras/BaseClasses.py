@@ -871,15 +871,16 @@ class Monitor:
     dict_num_function_calls = {}
 
     @classmethod
-    def count(cls, fun_name):
-        if fun_name not in cls.dict_num_function_calls:
-            cls.dict_num_function_calls[fun_name] = 1
+    def count(cls, key):
+        if key not in cls.dict_num_function_calls:
+            cls.dict_num_function_calls[key] = 1
         else:
-            cls.dict_num_function_calls[fun_name] += 1
+            cls.dict_num_function_calls[key] += 1
 
     @classmethod
     def present(cls):
-        print("\nnumber of function calls = {}".format(cls.dict_num_function_calls))
+        frequent_functions = sorted(cls.dict_num_function_calls.items(), key=lambda item: -item[1])
+        print("\nnumber of function calls = {}".format(frequent_functions[:30]))
 
 
 # 670, 615, 627, 643, 660, 693, 756, 764, 845, 851, 888, 884, 868, 885

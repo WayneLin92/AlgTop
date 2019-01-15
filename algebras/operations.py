@@ -242,7 +242,7 @@ class Steenrod(BC.HopfAlgWithDualMod2, BC.OperationsMod2):
     @staticmethod
     def is_null(mon, degree=None):
         """ determine if mon is zero for degree reason """
-        if degree is None:
+        if degree is None:  # todo: create a cache for which Sq^iSq^j=0
             return False
         partial_sum = degree
         if mon == ():
@@ -268,6 +268,7 @@ class Steenrod(BC.HopfAlgWithDualMod2, BC.OperationsMod2):
 
     @staticmethod
     def adem(mon, index):
+        # BC.Monitor.count(mon)
         return set((mon[:index] + ((mon[index] + mon[index + 1] - k, k) if k > 0 else (mon[index] + mon[index + 1],)) +
                     mon[index + 2:]) for k in range(mon[index] // 2 + 1)
                    if choose_mod2(mon[index + 1] - k - 1, mon[index] - 2 * k) == 1)
