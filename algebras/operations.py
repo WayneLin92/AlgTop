@@ -394,7 +394,7 @@ class DualSteenrod(BC.HopfAlgWithDualMod2, BC.BasePolyMod2):
     """ This is for the dual Steenrod algebra of xi_n~ """
     # -- BasePolyMod2 -------------
     @classmethod
-    def gen(cls, n: int, e: int=1):
+    def gen(cls, n: int, e: int = 1):
         return cls(cls._mon_gen(n, e))
 
     @staticmethod
@@ -451,10 +451,8 @@ class DualSteenrod(BC.HopfAlgWithDualMod2, BC.BasePolyMod2):
         result = self.type_T2().zero()
         for m in self.data:
             product = result.unit()
-            index = 1
             for gen, exp in m:
                 product = product * (self.coprod_gen(gen) ** exp)
-                index += 1
             result += product
         return result
 

@@ -742,7 +742,7 @@ class GradedRingT2Mod2(GradedRingMod2, ABC):
     type_c1: GradedRingMod2 = None
 
     # -- GradedRingMod2 --------------
-    def mul_mons(self, mon1: tuple, mon2: tuple):
+    def mul_mons(self, mon1: tuple, mon2: tuple):  # TODO: return type
         prod0 = self.type_c0.mul_mons(mon1[0], mon2[0])
         prod1 = self.type_c1.mul_mons(mon1[1], mon2[1])
         if type(prod0) is tuple:  # assume type(prod1) is type(prod2)

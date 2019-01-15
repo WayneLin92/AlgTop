@@ -89,6 +89,11 @@ class MaySS(BC.BasePolyMod2):
 
 class DualMaySS(BC.BaseExteriorMod2):
     """ This is the dual of the May spectral sequence """
+    _maps = None
+    _s_max = None
+    _t_max = None
+    _u_max = None
+
     # ----- BasePolyMod2 ----------------
     @classmethod
     def gen(cls, *key: int):
@@ -120,7 +125,6 @@ class DualMaySS(BC.BaseExteriorMod2):
     @staticmethod
     def basis_mons(length, deg, may_filtr, ij_max=None):
         """ return monomials h_ij^k...h_index_max^e with given length, deg, may_filtr """
-        cls = DualMaySS
         if length == 0 or deg == 0 or may_filtr == 0:
             if length == deg == may_filtr:
                 yield frozenset()
@@ -141,8 +145,8 @@ class DualMaySS(BC.BaseExteriorMod2):
         for e in range(min(length, deg // ij2deg(ij_max), may_filtr // ij_max[0]), -1, -1):
             # print(length, deg, may_filtr, "{}^{}".format(ij_max, e))
             index_next = (ij_max[0] - 1, ij_max[1] + 1) if ij_max[0] > 1 else (sum(ij_max) - 1, 0)
-            for mon in cls.basis_mons(length - e, deg - e * ij2deg(ij_max),
-                                      may_filtr - e * ij_max[0], index_next):
+            for mon in DualMaySS.basis_mons(length - e, deg - e * ij2deg(ij_max),
+                                            may_filtr - e * ij_max[0], index_next):
                 if e > 0:
                     yield mon ^ frozenset({(ij2deg(ij_max), e)})
                 else:
@@ -151,6 +155,23 @@ class DualMaySS(BC.BaseExteriorMod2):
     @classmethod
     def basis(cls, length, deg, may_filtr):
         return (cls(m) for m in DualMaySS.basis_mons(length, deg, may_filtr))
+
+    @staticmethod
+    def coprod_gen(gen):
+        deg, r = gen
+        data = {(frozenset((deg, 1 << e) for e in mymath.two_expansion(k)),
+                 frozenset((deg, 1 << e) for e in mymath.two_expansion(r - k)))
+                for k in range(r + 1)}
+        return DualMaySST2(data)
+
+    def coprod(self):
+        result = DualMaySST2.zero()
+        for m in self.data:
+            product = result.unit()
+            for gen in m:
+                product = product * self.coprod_gen(gen)
+            result += product
+        return result
 
     def diff(self):
         """ return the boundary of the chain """
@@ -193,19 +214,32 @@ class DualMaySS(BC.BaseExteriorMod2):
             print(r)
 
     @classmethod
-    def cycles(cls, s_max, t_max, u_max):
-        for s in range(s_max + 1):
+    def load(cls, s_max, t_max, u_max):
+        cls._s_max, cls._t_max, cls._u_max = s_max, t_max, u_max
+        cls._maps = {}
+        for s in range(s_max + 2):
             for t in range(s, t_max + 1):
                 for u in range(s, u_max + 1):
-                    my_map1 = linalg.LinearMapKernelMod2()
-                    my_map1.add_maps((r, r.diff()) for r in cls.basis(s, t, u))
-                    my_map2 = linalg.LinearMapKernelMod2()
-                    my_map2.add_maps((r, r.diff()) for r in cls.basis(s + 1, t, u))
-                    for r in my_map1.kernel.quotient(my_map2.get_image()).simplify().get_basis(DualMaySS):
-                        if len(r.data) > 1:
-                            print("${}$\\\\".format(r))
+                    cls._maps[(s, t, u)] = linalg.LinearMapKernelMod2()
+                    cls._maps[(s, t, u)].add_maps((r, r.diff()) for r in cls.basis(s, t, u))
 
-    # TODO: search for primitives
+
+class DualMaySST2(BC.GradedRingT2Mod2):
+    """ Tensor product of two DualSteenrod """
+    type_c0 = DualMaySS
+    type_c1 = DualMaySS
+
+    def mul_mons(self, mon1: tuple, mon2: tuple):
+        prod0 = self.type_c0.mul_mons(mon1[0], mon2[0])
+        prod1 = self.type_c1.mul_mons(mon1[1], mon2[1])
+        if type(prod0) is type(prod1) is frozenset:
+            return prod0, prod1
+        else:
+            return set()
+
+    @classmethod
+    def unit(cls):
+        return cls((frozenset(), frozenset()))
 
 
 # functions
