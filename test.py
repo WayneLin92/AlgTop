@@ -177,6 +177,8 @@ class ResolutionTestCase(unittest.TestCase):
     def test_ext1(self):
         ext = Ext(15, 47)
         ext.compute_minimal(Steenrod)
+        import algebras.BaseClasses as BC
+        BC.Monitor.present()
         self.assertTrue(True)
 
     def test_subring_resolution(self):
