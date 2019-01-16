@@ -1,6 +1,6 @@
-def f(*n):
-    print(type(n))
+from algebras.mymath import Deg
 
 
 if __name__ == "__main__":
-    print(max([1, 2, 3, 4], key=lambda x: -x))
+    d = Deg((1, 2, 3)) * 2
+    print(tuple(d))

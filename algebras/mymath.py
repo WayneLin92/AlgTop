@@ -9,7 +9,12 @@ class Deg(tuple):
         return tuple.__new__(cls, iterable)
 
     def __add__(self, other):
+        """ element-wise addition """
         return Deg(map(operator.add, self, other))
+
+    def __radd__(self, other):
+        """ this is implemented for supporting sum() """
+        return Deg(map(operator.add, self, other)) if other is not 0 else self
 
     def __mul__(self, other):
         """ assert type(other) is int """
@@ -61,8 +66,8 @@ def cartan_indexing(length, deg):
 
 
 def tex_index(obj) -> str:
-    """ return a string that is to used to express a^n in latex """
+    """ return a string that is to used to express x^obj in latex """
     result = str(obj)
     return result if len(result) == 1 else "{" + result + "}"
 
-# 68
+# 73

@@ -94,7 +94,7 @@ class QuoRing:
             if rel:
                 deg = rel.deg()
                 for d in range(cls.d_max - deg + 1):
-                    cls.ideal.add_algs((super(QuoRing, a).__mul__(rel) for a in super().basis(d)), deg + d, get_mon)
+                    cls.ideal.add_vectors((super(QuoRing, a).__mul__(rel) for a in super().basis(d)), deg + d, get_mon)
 
     @classmethod
     def basis_mons(cls, deg):

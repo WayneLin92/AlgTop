@@ -206,7 +206,7 @@ class ResolutionTestCase(unittest.TestCase):
 class LinAlgTestCase(unittest.TestCase):
     def test_vector_space_mod2(self):
         vs = VectorSpaceMod2()
-        vs.add_algs([Sq(1), Sq(1) + Sq(2)])
+        vs.add_vectors([Sq(1), Sq(1) + Sq(2)])
         a = vs.res(Sq(1) + Sq(2) + Sq(3))
         self.assertEqual(a, Sq(3))
         sub_vs = VectorSpaceMod2((Sq(2),))
@@ -215,7 +215,7 @@ class LinAlgTestCase(unittest.TestCase):
 
     def test_graded_vector_space_mod2(self):
         vs = GradedVectorSpaceMod2(10)
-        vs.add_algs([Sq(10), Sq(9) * Sq(1)], 10)
+        vs.add_vectors([Sq(10), Sq(9) * Sq(1)], 10)
         a = vs.res(Sq(10) + Sq(8) * Sq(2))
         self.assertEqual(a, Sq(8) * Sq(2))
 

@@ -1,5 +1,4 @@
 import itertools
-from numpy import array
 from algebras import BaseClasses as BC, linalg, mymath
 
 
@@ -102,27 +101,25 @@ class DualMaySS(BC.BaseExteriorMod2):
         return cls(frozenset((ij2deg(key), 1 << k) for k in mymath.two_expansion(key[2])))
 
     @staticmethod
-    def deg_gen(gen: tuple) -> array:
+    def deg_gen(gen: tuple) -> mymath.Deg:
         deg, r = gen
         i, j = deg2ij(deg)
-        return array([1, deg, i]) * r
+        return mymath.Deg((r, deg * r, i * r))
 
     @staticmethod
-    def str_gen(key: tuple) -> str:
-        deg, n = key
+    def str_gen(gen: tuple) -> str:
+        deg, n = gen
         i, j = deg2ij(deg)
         return "\\gamma_{}(\\bar{{P}}_{}^{})".format(*map(mymath.tex_index, (n, i, j)))
 
     @classmethod
     def str_mon(cls, mon: frozenset):
-        mon_dict = {}
-        for deg, n in mon:
-            if deg in mon_dict:
-                mon_dict[deg] += n
-            else:
-                mon_dict[deg] = n
-        result = "".join(map(cls.str_gen, mon_dict.items()))
+        result = "".join(map(cls.str_gen, cls.comb_gens(mon)))
         return result if result else "1"
+
+    @classmethod
+    def deg_mon(cls, mon: frozenset):
+        return super().deg_mon(mon) if mon else mymath.Deg((0, 0, 0))
 
     # methods -----------------
     @staticmethod
@@ -146,7 +143,6 @@ class DualMaySS(BC.BaseExteriorMod2):
                 yield frozenset({(ij2deg(ij_max), deg)})
             return
         for e in range(min(length, deg // ij2deg(ij_max), may_filtr // ij_max[0]), -1, -1):
-            # print(length, deg, may_filtr, "{}^{}".format(ij_max, e))
             index_next = (ij_max[0] - 1, ij_max[1] + 1) if ij_max[0] > 1 else (sum(ij_max) - 1, 0)
             for mon in DualMaySS.basis_mons(length - e, deg - e * ij2deg(ij_max),
                                             may_filtr - e * ij_max[0], index_next):
@@ -160,6 +156,17 @@ class DualMaySS(BC.BaseExteriorMod2):
         return (cls(m) for m in DualMaySS.basis_mons(length, deg, may_filtr))
 
     @staticmethod
+    def comb_gens(mon: frozenset):
+        """ return an iterator of (gen, r) with r's combined """
+        mon_dict = {}
+        for deg, n in mon:
+            if deg in mon_dict:
+                mon_dict[deg] += n
+            else:
+                mon_dict[deg] = n
+        return mon_dict.items()
+
+    @staticmethod
     def coprod_gen(gen):
         deg, r = gen
         data = {(frozenset((deg, 1 << e) for e in mymath.two_expansion(k)),
@@ -171,7 +178,7 @@ class DualMaySS(BC.BaseExteriorMod2):
         result = DualMaySST2.zero()
         for m in self.data:
             product = result.unit()
-            for gen in m:
+            for gen in self.comb_gens(m):
                 product = product * self.coprod_gen(gen)
             result += product
         return result
@@ -226,6 +233,30 @@ class DualMaySS(BC.BaseExteriorMod2):
                     cls._maps[(s, t, u)] = linalg.LinearMapKernelMod2()
                     cls._maps[(s, t, u)].add_maps((r, r.diff()) for r in cls.basis(s, t, u))
 
+    def is_primitive(self):
+        """ assert self.diff() == 0 """
+        coprod = self.coprod()
+        my_dict = {}
+        s = self.deg()[0]
+        for m1, m2 in coprod.data:
+            if m1 and m2:
+                tu1, tu2 = self.deg_mon(m1)[1:], self.deg_mon(m2)[1:]
+                if (tu1, tu2) in my_dict:
+                    my_dict[(tu1, tu2)] ^= {(m1, m2)}
+                else:
+                    my_dict[(tu1, tu2)] = {(m1, m2)}
+        for tu1, tu2 in my_dict:
+            t1, u1 = tu1
+            t2, u2 = tu2
+            boundaries = linalg.VectorSpaceMod2()
+            for i in range(s + 2):
+                for m1 in self.basis_mons(i, t1, u1):
+                    for m2 in self.basis_mons(s + 1 - i, t2, u2):
+                        boundaries.add_v(DualMaySST2((m1, m2)).diff())
+            if boundaries.res(my_dict[(tu1, tu2)]):
+                return False
+        return True
+
 
 class DualMaySST2(BC.GradedRingT2Mod2):
     """ Tensor product of two DualSteenrod """
@@ -243,6 +274,15 @@ class DualMaySST2(BC.GradedRingT2Mod2):
     @classmethod
     def unit(cls):
         return cls((frozenset(), frozenset()))
+
+    def diff(self):
+        data = set()
+        for m1, m2 in self.data:
+            for m in DualMaySS(m1).diff().data:
+                data.add((m, m2))
+            for m in DualMaySS(m2).diff().data:
+                data.add((m1, m))
+        return type(self)(data)
 
 
 # functions
