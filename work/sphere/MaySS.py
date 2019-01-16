@@ -90,9 +90,7 @@ class MaySS(BC.BasePolyMod2):
 class DualMaySS(BC.BaseExteriorMod2):
     """ This is the dual of the May spectral sequence """
     _maps = None
-    _s_max = None
-    _t_max = None
-    _u_max = None
+    _homology = None
 
     # ----- BasePolyMod2 ----------------
     @classmethod
@@ -140,14 +138,14 @@ class DualMaySS(BC.BaseExteriorMod2):
             ij_max = (sum_ij - j, j)
         if ij_max == (1, 0):
             if length == deg == may_filtr:
-                yield frozenset({(ij2deg(ij_max), deg)})
+                yield frozenset((ij2deg(ij_max), 1 << k) for k in mymath.two_expansion(deg))
             return
         for e in range(min(length, deg // ij2deg(ij_max), may_filtr // ij_max[0]), -1, -1):
             index_next = (ij_max[0] - 1, ij_max[1] + 1) if ij_max[0] > 1 else (sum(ij_max) - 1, 0)
             for mon in DualMaySS.basis_mons(length - e, deg - e * ij2deg(ij_max),
                                             may_filtr - e * ij_max[0], index_next):
                 if e > 0:
-                    yield mon ^ frozenset({(ij2deg(ij_max), e)})
+                    yield mon | frozenset((ij2deg(ij_max), 1 << k) for k in mymath.two_expansion(e))
                 else:
                     yield mon
 
@@ -213,25 +211,37 @@ class DualMaySS(BC.BaseExteriorMod2):
         my_map2 = linalg.LinearMapKernelMod2()
         my_map1.add_maps((r, r.diff()) for r in cls.basis(s, t, u))
         print("kernel dim:", my_map1.kernel.get_dim())
-        # for r in my_map1.kernel.get_basis(MaySS):
-        #     print(r)
+        for r in my_map1.kernel.get_basis(DualMaySS):
+            print(r)
         my_map2.add_maps((r, r.diff()) for r in cls.basis(s + 1, t, u))
         print("image: dim", my_map2.get_image().get_dim())
-        # for r in my_map2.get_image().get_basis(MaySS):
-        #     print(r)
+        for r in my_map2.get_image().get_basis(DualMaySS):
+            print(r)
         print("quotient:")
         for r in my_map1.kernel.quotient(my_map2.get_image()).get_basis(DualMaySS):
             print(r)
 
     @classmethod
     def load(cls, s_max, t_max, u_max):
-        cls._s_max, cls._t_max, cls._u_max = s_max, t_max, u_max
+        # TODO: load from file
         cls._maps = {}
+        cls._homology = {}
         for s in range(s_max + 2):
             for t in range(s, t_max + 1):
                 for u in range(s, u_max + 1):
                     cls._maps[(s, t, u)] = linalg.LinearMapKernelMod2()
                     cls._maps[(s, t, u)].add_maps((r, r.diff()) for r in cls.basis(s, t, u))
+        for s in range(s_max + 1):
+            for t in range(s, t_max + 1):
+                for u in range(s, u_max + 1):
+                    cycles = cls._maps[(s, t, u)].kernel
+                    if (s + 1, t, u) in cls._maps:
+                        boundaries = cls._maps[(s + 1, t, u)].get_image()
+                        cls._homology[(s, t, u)] = list(cycles.quotient(boundaries).simplify().get_basis(DualMaySS))
+                    else:
+                        cls._homology[(s, t, u)] = list(cycles.simplify().get_basis(DualMaySS))
+                    if not cls._homology[(s, t, u)]:
+                        del cls._homology[(s, t, u)]
 
     def is_primitive(self):
         """ assert self.diff() == 0 """
@@ -248,14 +258,26 @@ class DualMaySS(BC.BaseExteriorMod2):
         for tu1, tu2 in my_dict:
             t1, u1 = tu1
             t2, u2 = tu2
-            boundaries = linalg.VectorSpaceMod2()
-            for i in range(s + 2):
-                for m1 in self.basis_mons(i, t1, u1):
-                    for m2 in self.basis_mons(s + 1 - i, t2, u2):
-                        boundaries.add_v(DualMaySST2((m1, m2)).diff())
-            if boundaries.res(my_dict[(tu1, tu2)]):
-                return False
+            if any((i, t1, u1) in self._homology and (s - i, t2, u2) in self._homology for i in range(s + 1)):
+                print(tu1, tu2)
+                boundaries = linalg.VectorSpaceMod2()
+                for i in range(s + 2):
+                    for m1 in self.basis_mons(i, t1, u1):
+                        for m2 in self.basis_mons(s + 1 - i, t2, u2):
+                            boundaries.add_v(DualMaySST2((m1, m2)).diff())
+                if boundaries.res(my_dict[(tu1, tu2)]):
+                    return False
         return True
+
+    @classmethod
+    def search_primitives(cls):
+        for r in cls.homology_basis():
+            if r.is_primitive():
+                print("${}$\\\\".format(r))
+
+    @classmethod
+    def homology_basis(cls):
+        return itertools.chain.from_iterable(cls._homology.values())
 
 
 class DualMaySST2(BC.GradedRingT2Mod2):
@@ -294,3 +316,11 @@ def deg2ij(n: int) -> tuple:
     i = bin(n).count('1')
     j = n.bit_length() - i
     return i, j
+
+
+if __name__ == "__main__":
+    DualMaySS.load(5, 30, 20)
+    L = list(itertools.chain.from_iterable(DualMaySS._homology.values()))
+    for rr in L:
+        if len(rr.data) > 1:
+            print("${}: {}$\\\\".format(rr.deg(), rr))
