@@ -1,6 +1,19 @@
-"""
-Provides the basic functions
-"""
+""" Provides some basic functions and types """
+import operator
+
+
+class Deg(tuple):
+    """ A simple version of numpy.array for modeling multi-degrees """
+    def __new__(cls, iterable):
+        # noinspection PyTypeChecker
+        return tuple.__new__(cls, iterable)
+
+    def __add__(self, other):
+        return Deg(map(operator.add, self, other))
+
+    def __mul__(self, other):
+        """ assert type(other) is int """
+        return Deg(map(lambda x: x * other, self))
 
 
 def choose_mod2(m: int, n: int) -> bool:
@@ -52,4 +65,4 @@ def tex_index(obj) -> str:
     result = str(obj)
     return result if len(result) == 1 else "{" + result + "}"
 
-# 54
+# 68

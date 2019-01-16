@@ -1,5 +1,6 @@
-from algebras import BaseClasses as BC, linalg, mymath
 import itertools
+from numpy import array
+from algebras import BaseClasses as BC, linalg, mymath
 
 
 class MaySS(BC.BasePolyMod2):
@@ -101,8 +102,10 @@ class DualMaySS(BC.BaseExteriorMod2):
         return cls(frozenset((ij2deg(key), 1 << k) for k in mymath.two_expansion(key[2])))
 
     @staticmethod
-    def deg_gen(key: tuple) -> int:
-        return key[0] * key[1]
+    def deg_gen(gen: tuple) -> array:
+        deg, r = gen
+        i, j = deg2ij(deg)
+        return array([1, deg, i]) * r
 
     @staticmethod
     def str_gen(key: tuple) -> str:
