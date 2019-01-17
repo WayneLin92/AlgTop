@@ -113,7 +113,7 @@ class DualMaySS(BC.BaseExteriorMod2):
 
     @classmethod
     def str_mon(cls, mon: frozenset):
-        result = "".join(map(cls.str_gen, cls.comb_gens(mon)))
+        result = "".join(map(cls.str_gen, sorted(cls.comb_gens(mon))))
         return result if result else "1"
 
     @classmethod
@@ -237,7 +237,7 @@ class DualMaySS(BC.BaseExteriorMod2):
             for t in range(s, t_max + 1):
                 for u in range(s, u_max + 1):
                     if (s, t, u) not in cls._maps:
-                        cls._maps[(s, t, u)] = linalg.LinearMapKernelMod2()
+                        cls._maps[(s, t, u)] = linalg.LinearMapKernelMod2(get_mon)
                         cls._maps[(s, t, u)].add_maps((r, r.diff()) for r in cls.basis(s, t, u))
                         if s <= s_max:
                             cycles = cls._maps[(s, t, u)].kernel
@@ -328,6 +328,10 @@ def deg2ij(n: int) -> tuple:
     i = bin(n).count('1')
     j = n.bit_length() - i
     return i, j
+
+
+def get_mon(s: set) -> frozenset:
+    return max(s, key=lambda m: tuple(m))
 
 
 if __name__ == "__main__":

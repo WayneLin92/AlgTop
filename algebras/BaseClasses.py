@@ -397,7 +397,7 @@ class BaseExteriorMulti(GradedRing, ABC):
 
     @classmethod
     def str_mon(cls, mon: frozenset) -> str:
-        result = "".join(map(cls.str_gen, mon))
+        result = "".join(map(cls.str_gen, sorted(mon)))
         return result if result else "1"
 
     # -- GradedRing ----------------
