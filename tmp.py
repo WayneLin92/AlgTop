@@ -1,6 +1,15 @@
-from algebras.mymath import Deg
+import pickle
+from notations import *
 
+x = Sq(4) * Sq(4) * Sq(4)
+print(x)
 
-if __name__ == "__main__":
-    d = Deg((1, 2, 3)) * 2
-    print(tuple(d))
+f = open("tmp.pickle", "wb")
+pickle.dump(x, f)
+f.close()
+
+f = open("tmp.pickle", "rb")
+y = pickle.load(f)
+f.close()
+
+print(y)
