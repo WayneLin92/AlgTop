@@ -1,4 +1,4 @@
-import itertools
+import itertools, pickle
 from algebras import BaseClasses as BC, linalg, mymath
 
 
@@ -91,6 +91,7 @@ class DualMaySS(BC.BaseExteriorMod2):
     """ This is the dual of the May spectral sequence """
     _maps = None
     _homology = None
+    _loaded = False
 
     # ----- BasePolyMod2 ----------------
     @classmethod
@@ -223,25 +224,36 @@ class DualMaySS(BC.BaseExteriorMod2):
 
     @classmethod
     def load(cls, s_max, t_max, u_max):
-        # TODO: load from file
-        cls._maps = {}
-        cls._homology = {}
-        for s in range(s_max + 2):
+        if not cls._loaded:
+            try:
+                with open("MaySS_DualMaySS.pickle", "rb") as f:
+                    cls._maps, cls._homology = pickle.load(f)
+                    cls._loaded = True
+            except FileNotFoundError:
+                cls._maps = {}
+                cls._homology = {}
+
+        for s in range(s_max + 1, -1, -1):
             for t in range(s, t_max + 1):
                 for u in range(s, u_max + 1):
-                    cls._maps[(s, t, u)] = linalg.LinearMapKernelMod2()
-                    cls._maps[(s, t, u)].add_maps((r, r.diff()) for r in cls.basis(s, t, u))
-        for s in range(s_max + 1):
-            for t in range(s, t_max + 1):
-                for u in range(s, u_max + 1):
-                    cycles = cls._maps[(s, t, u)].kernel
-                    if (s + 1, t, u) in cls._maps:
-                        boundaries = cls._maps[(s + 1, t, u)].get_image()
-                        cls._homology[(s, t, u)] = list(cycles.quotient(boundaries).simplify().get_basis(DualMaySS))
-                    else:
-                        cls._homology[(s, t, u)] = list(cycles.simplify().get_basis(DualMaySS))
-                    if not cls._homology[(s, t, u)]:
-                        del cls._homology[(s, t, u)]
+                    if (s, t, u) not in cls._maps:
+                        cls._maps[(s, t, u)] = linalg.LinearMapKernelMod2()
+                        cls._maps[(s, t, u)].add_maps((r, r.diff()) for r in cls.basis(s, t, u))
+                        if s <= s_max:
+                            cycles = cls._maps[(s, t, u)].kernel
+                            if (s + 1, t, u) in cls._maps:
+                                boundaries = cls._maps[(s + 1, t, u)].get_image()
+                                cls._homology[(s, t, u)] = list(cycles.quotient(boundaries).simplify().get_basis(set))
+                            else:
+                                cls._homology[(s, t, u)] = list(cycles.simplify().get_basis(set))
+                            if not cls._homology[(s, t, u)]:
+                                del cls._homology[(s, t, u)]
+
+    @classmethod
+    def save(cls):
+        if cls._loaded:
+            with open("MaySS_DualMaySS.pickle", "wb") as f:
+                pickle.dump((cls._maps, cls._homology), f)
 
     def is_primitive(self):
         """ assert self.diff() == 0 """
@@ -255,29 +267,29 @@ class DualMaySS(BC.BaseExteriorMod2):
                     my_dict[(tu1, tu2)] ^= {(m1, m2)}
                 else:
                     my_dict[(tu1, tu2)] = {(m1, m2)}
-        for tu1, tu2 in my_dict:
+        for tu1, tu2 in sorted(my_dict):
             t1, u1 = tu1
             t2, u2 = tu2
             if any((i, t1, u1) in self._homology and (s - i, t2, u2) in self._homology for i in range(s + 1)):
-                print(tu1, tu2)
                 boundaries = linalg.VectorSpaceMod2()
                 for i in range(s + 2):
                     for m1 in self.basis_mons(i, t1, u1):
                         for m2 in self.basis_mons(s + 1 - i, t2, u2):
                             boundaries.add_v(DualMaySST2((m1, m2)).diff())
                 if boundaries.res(my_dict[(tu1, tu2)]):
+                    # print("${}$\\\\".format(DualMaySST2(my_dict[(tu1, tu2)])))
                     return False
         return True
 
     @classmethod
     def search_primitives(cls):
-        for r in cls.homology_basis():
-            if r.is_primitive():
-                print("${}$\\\\".format(r))
+        result = sorted((r for r in cls.homology_basis() if r.is_primitive()), key=lambda x: x.deg())
+        for r in result:
+            print(r)
 
     @classmethod
     def homology_basis(cls):
-        return itertools.chain.from_iterable(cls._homology.values())
+        return map(DualMaySS, itertools.chain.from_iterable(cls._homology.values()))
 
 
 class DualMaySST2(BC.GradedRingT2Mod2):
