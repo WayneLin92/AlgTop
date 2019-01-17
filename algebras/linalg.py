@@ -147,22 +147,22 @@ class LinearMapMod2:
                 else:
                     self.inv_maps.append((w, max(w), gw))
 
-    def f(self, alg):
-        """ return f(alg) """
-        v = alg.data.copy()
+    def f(self, vector):
+        """ return f(vector) """
+        v = vector if type(vector) is set else vector.data.copy()
         result = set()
         for v1, mv1, fv1 in self.maps:
             if mv1 in v:
                 v ^= v1
                 result ^= fv1
         if not v:
-            return type(alg)(result)
+            return type(vector)(result)
         else:
             return None
 
     def g(self, vector):
         """ return f^{-1}(vector) """
-        w = vector.data.copy()
+        w = vector if type(vector) is set else vector.data.copy()
         result = set()
         for w1, mw1, gw1 in self.inv_maps:
             if mw1 in w:
@@ -204,7 +204,7 @@ class LinearMapKernelMod2:
 
     def g(self, vector):
         """ return f^{-1}(vector) """
-        w = vector.copy()
+        w = vector if type(vector) is set else vector.data.copy()
         result = set()
         for w1, mw1, gw1 in self.inv_maps:
             if mw1 in w:

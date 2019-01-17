@@ -277,7 +277,7 @@ class DualMaySS(BC.BaseExteriorMod2):
                         for m2 in self.basis_mons(s + 1 - i, t2, u2):
                             boundaries.add_v(DualMaySST2((m1, m2)).diff())
                 if boundaries.res(my_dict[(tu1, tu2)]):
-                    # print("${}$\\\\".format(DualMaySST2(my_dict[(tu1, tu2)])))
+                    print("${}$\\\\".format(DualMaySST2(my_dict[(tu1, tu2)])))
                     return False
         return True
 
