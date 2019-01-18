@@ -1,9 +1,9 @@
 """ The interface for linear algebra operations """
-from typing import Iterator, Set, Tuple, List, Callable, Union
+from typing import Iterable, Set, Tuple, List, Callable, Union
 import copy
 
 
-_t_mon = Union[tuple, frozenset, int, str]
+_t_mon = Union[tuple, frozenset, int, str]  # todo: generic type
 
 
 class VectorSpaceMod2:
@@ -11,7 +11,7 @@ class VectorSpaceMod2:
     This class is for modeling vector spaces.
     It provides interfaces for Ring's
     """
-    def __init__(self, data: Union[None, list, Iterator] = None, get_mon: Callable = max):
+    def __init__(self, data: Union[None, list, Iterable] = None, get_mon: Callable = max):
         self.get_mon = get_mon
         if data is None:
             self.data = []  # type: List[Tuple[Set[_t_mon], _t_mon]]
@@ -24,7 +24,7 @@ class VectorSpaceMod2:
     def copy(self):
         return VectorSpaceMod2(copy.deepcopy(self.data))
 
-    def add_vectors(self, vectors: Iterator):
+    def add_vectors(self, vectors: Iterable):
         """ add vectors to this vector space """
         for v in vectors:
             self.add_v(v)
@@ -71,7 +71,7 @@ class VectorSpaceMod2:
         """ return the leading monomials """
         return set(m for _, m in self.data)
 
-    def get_basis(self, type_alg) -> Iterator:
+    def get_basis(self, type_alg) -> Iterable:
         return (type_alg(v) for v, mv in self.data)
 
     def get_dim(self) -> int:
@@ -84,7 +84,7 @@ class GradedVectorSpaceMod2:
         self.d_max = d_max
         self.data = [VectorSpaceMod2(None, get_mon) for _ in range(d_max + 1)]  # type: List[VectorSpaceMod2]
 
-    def add_vectors(self, vectors: Iterator[_t_mon], deg: int):
+    def add_vectors(self, vectors: Iterable[_t_mon], deg: int):
         """ add vectors to this vector space """
         assert(0 <= deg <= self.d_max)
         self.data[deg].add_vectors(vectors)
@@ -119,7 +119,7 @@ class LinearMapMod2:
     def clear(self):
         self.__init__()
 
-    def add_maps(self, maps: Iterator):
+    def add_maps(self, maps: Iterable):
         for src, tgt in maps:
             v = src.data.copy()  # type: Set[_t_mon]
             fv = tgt.data.copy()  # type: Set[_t_mon]
@@ -189,7 +189,7 @@ class LinearMapKernelMod2:
     def clear(self):
         self.__init__()
 
-    def add_maps(self, maps: Iterator[tuple]):
+    def add_maps(self, maps: Iterable[tuple]):
         for src, tgt in maps:
             gw = src.data.copy()  # type: Set[_t_mon]
             w = tgt.data.copy()  # type: Set[_t_mon]
