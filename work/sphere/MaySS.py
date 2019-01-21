@@ -283,11 +283,14 @@ class DualMaySS(BC.BaseExteriorMod2):
                     return False
         return True
 
-    def is_boundary(self) -> bool:
-        s, t, u = self.deg()
+    def inv_diff(self) -> bool:
         my_map2 = linalg.LinearMapKernelMod2()
-        my_map2.add_maps((r, r.diff()) for r in self.basis(s + 1, t, u))
-        return not my_map2.get_image().res(self)
+        my_map2.add_maps((DualMaySS(m), DualMaySS(m).diff()) for m in self.potential_mons_inv_diff())
+        return my_map2.g(self)
+
+    @classmethod
+    def homology_basis(cls) -> Iterable["DualMaySS"]:
+        return map(DualMaySS, itertools.chain.from_iterable(cls._homology.values()))
 
     @classmethod
     def search_primitives(cls):
@@ -295,9 +298,22 @@ class DualMaySS(BC.BaseExteriorMod2):
         for r in result:
             print(r)
 
+    def has_P_1(self):
+        return any(deg2ij(deg)[0] == 1 for m in self.data for deg, r in m)
+
     @classmethod
-    def homology_basis(cls) -> Iterable["DualMaySS"]:
-        return map(DualMaySS, itertools.chain.from_iterable(cls._homology.values()))
+    def search_P_1(cls):
+        result = sorted((r for r in cls.homology_basis() if not r.has_P_1() and len(r.data) > 1), key=lambda x: x.deg())
+        for r in result:
+            print(f"${r}$\\\\")
+
+    def potential_mons_inv_diff(self):
+        for m in self.data:
+            for deg, r in m:
+                if r == 1:
+                    i, j = deg2ij(deg)
+                    for k in range(1, i):
+                        yield m - {(deg, 1)} | {(ij2deg((k, j)), 1), (ij2deg((i - k, j + k)), 1)}
 
 
 class DualMaySST2(BC.GradedRingT2Mod2):
@@ -340,8 +356,3 @@ def deg2ij(n: int) -> tuple:
 
 def get_mon(s: set) -> frozenset:
     return max(s, key=lambda m: tuple(m))
-
-
-DualMaySS.is_boundary()
-
-len()
