@@ -93,7 +93,7 @@ class PolySingZ(BC.BasePolySingZ):
         return type(self)(data)
 
 
-class PolyAnyVarZ(BC.BasePolyAnyVar, BC.GradedRingZ):
+class PolyAnyVarZ(BC.BasePolyAnyVar, BC.AlgebraZ):
     """
     This is for multi-variable polynomials over Z
     self.data is a dictionary of the form (monomial, coeff)
@@ -114,7 +114,7 @@ class PolyAnyVarZ(BC.BasePolyAnyVar, BC.GradedRingZ):
             yield dict(mon), coeff
 
 
-class PolyAnyVarModP(BC.BasePolyAnyVar, BC.GradedRingModP):
+class PolyAnyVarModP(BC.BasePolyAnyVar, BC.AlgebraModP):
     """
     This is for multi-variable polynomials over Z/p
     self.data is a dictionary of the form (monomial, coeff)
@@ -140,7 +140,7 @@ class PolyAnyVarModP(BC.BasePolyAnyVar, BC.GradedRingModP):
             yield dict(mon), coeff
 
 
-class PolyAnyVarMod2(BC.BasePolyAnyVar, BC.GradedRingMod2):
+class PolyAnyVarMod2(BC.BasePolyAnyVar, BC.AlgebraMod2):
     """
     This is for multi-variable polynomials over Z/2
     self.data is a set of ((gen, exp),...) which is a tuplized dictionary

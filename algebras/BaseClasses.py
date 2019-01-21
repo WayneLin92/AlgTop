@@ -24,12 +24,12 @@ class MyTypeError(MyBaseError):
 
 
 # Base Algebras ----------------------------
-class Ring(ABC):
+class Algebra(ABC):
     # methods -------------------
     def __eq__(self, other): return self.data == other.data
 
     def __pow__(self, n: int):
-        """ Return self ** n. Assert n >= 0 """
+        """Return self ** n."""
         power = self
         pro = self.unit()
         while n:
@@ -39,7 +39,7 @@ class Ring(ABC):
             power = power.square()
         return pro
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()
 
     def __bool__(self) -> bool:
@@ -50,12 +50,27 @@ class Ring(ABC):
     def square(self):
         return self * self
 
-    def get_mon(self):
+    def inverse(self, d_max) -> list:
+        """ return a list of rings """
+        list_homo = self.split_homo(d_max)
+        if not list_homo or list_homo[0] != self.unit():
+            raise MyValueError("require the leading term to be one")
+        result = [self.unit()]
+        for d in range(1, d_max + 1):
+            term_d = -sum((result[i] * list_homo[d - i] for i in range(0, d)), self.zero())
+            result.append(term_d)
+        return result
+
+    def deg(self) -> Optional[int]:
+        """Return the deg of the polynomial. Return None if it is zero."""
+        return max(map(self.deg_mon, self.data)) if self.data else None
+
+    def get_mon(self):  # todo: safely delete
         if self.data:
             return max(self.data)
         return None
 
-    def has_mon(self, mon: Hashable):
+    def has_mon(self, mon: Hashable):  # todo: safely delete
         return mon in self.data
 
     # abstract -----------------
@@ -65,93 +80,62 @@ class Ring(ABC):
         raise MyClassError
 
     @abstractmethod
-    def __str__(self): pass
+    def __str__(self) -> str: pass
 
     @abstractmethod
-    def __add__(self, other): pass
+    def __add__(self, other) -> "Algebra": pass
 
     @abstractmethod
-    def __sub__(self, other): pass
+    def __sub__(self, other) -> "Algebra": pass
 
     @abstractmethod
-    def __mul__(self, other): pass
-
-    @classmethod
-    @abstractmethod
-    def unit(cls): pass
+    def __mul__(self, other) -> "Algebra": pass
 
     @classmethod
     @abstractmethod
-    def zero(cls): pass
+    def unit(cls) -> "Algebra": pass
+
+    @classmethod
+    @abstractmethod
+    def zero(cls) -> "Algebra": pass
 
     @staticmethod
     @abstractmethod
-    def str_mon(mon: tuple) -> str:
+    def str_mon(mon: Hashable) -> str:
         """ Return the str for the monomial """
         pass
 
     @staticmethod
     @abstractmethod
     def mul_mons(mon1: Hashable, mon2: Hashable):
-        """ Product of two monomials. """
+        """Return the product of two monomials."""
         pass
 
     @abstractmethod
     def _sorted_mons(self) -> list:
-        """ Sort the monomials for __str__().
-            Sometimes it return the monomials with their coefficients.
-        """
-        pass
-
-
-class GradedObject(ABC):
-    # abstract --------
-    @abstractmethod
-    def deg(self):
-        """ Return the deg of the algebra. Return None if it is zero """
+        """Sort the monomials for __str__()."""
         pass
 
     @abstractmethod
-    def homo(self, d):
-        """ the d-homogeneous part """
+    def homo(self, d) -> "Algebra":
+        """Return the degree d homogeneous part"""
         pass
 
     @abstractmethod
     def split_homo(self, d_max) -> list:
-        """ the up to d-homogeneous parts """
+        """Return up to degree d homogeneous parts."""
         pass
 
-
-class GradedRing(Ring, GradedObject, ABC):
-    def inverse(self, d_max):
-        """ return a list of rings """
-        list_homo = self.split_homo(d_max)
-        if len(list_homo) == 0 or list_homo[0] != self.unit():
-            raise MyValueError("require the leading term to be one")
-        list_result = [self.unit()]
-        for d in range(1, d_max + 1):
-            term_d = -sum((list_result[i] * list_homo[d - i] for i in range(0, d)), self.zero())
-            list_result.append(term_d)
-        return list_result
-
-    def deg(self) -> Optional[int]:
-        """ Return the deg of the polynomial. Return None if it is zero """
-        if self.data:
-            return max(map(self.deg_mon, self.data))
-        else:
-            return None
-
-    # abstract -----------------
     @staticmethod
     @abstractmethod
-    def deg_mon(mon: Hashable) -> int:
-        """ return the degree of mon """
+    def deg_mon(mon: Hashable):
+        """Return the degree of mon."""
         pass
 
 
-class GradedRingDict(GradedRing, ABC):
-    """ Ring with coefficients. Use dict as data """
-    # -- Ring -----------
+class AlgebraDict(Algebra, ABC):
+    """ Algebra with coefficients. Use dict as data """
+    # -- Algebra -----------
     def __str__(self):
         result = ""
         for m, c in self._sorted_mons():
@@ -277,7 +261,7 @@ class GradedRingDict(GradedRing, ABC):
     def zero(cls):
         return cls({})
 
-    # -- GradedRing --------
+    # -- GradedAlgebra --------
     def homo(self, d):
         data = dict((m, c) for m, c in self.data.items() if self.deg_mon(m) == d)
         return type(self)(data)
@@ -335,9 +319,9 @@ class GradedRingDict(GradedRing, ABC):
         return type(self)(data)
 
 
-class BasePolyMulti(GradedRing, ABC):
+class BasePolyMulti(Algebra, ABC):
     """ class for multi-var polynomials """
-    # -- Ring --------------
+    # -- Algebra --------------
     @staticmethod
     def mul_mons(mon1: tuple, mon2: tuple) -> tuple:
         mon_prod = dict(mon1)
@@ -350,7 +334,7 @@ class BasePolyMulti(GradedRing, ABC):
         return mon_prod
 
     @classmethod
-    def str_mon(cls, mon):
+    def str_mon(cls, mon: tuple):
         result = ""
         for gen, exp in mon:
             if exp >= 10 or exp < 0:
@@ -363,7 +347,7 @@ class BasePolyMulti(GradedRing, ABC):
             result = "1"
         return result
 
-    # -- GradedRing
+    # -- GradedAlgebra
     @classmethod
     def deg_mon(cls, mon: tuple) -> int:
         return sum(cls.deg_gen(gen) * exp for gen, exp in mon)
@@ -388,9 +372,9 @@ class BasePolyMulti(GradedRing, ABC):
         pass
 
 
-class BaseExteriorMulti(GradedRing, ABC):
+class BaseExteriorMulti(Algebra, ABC):
     """ class for multi-var polynomials """
-    # -- Ring --------------
+    # -- Algebra --------------
     @staticmethod
     def mul_mons(mon1: frozenset, mon2: frozenset) -> frozenset:
         return set() if mon1 & mon2 else mon1 | mon2
@@ -400,7 +384,7 @@ class BaseExteriorMulti(GradedRing, ABC):
         result = "".join(map(cls.str_gen, sorted(mon)))
         return result if result else "1"
 
-    # -- GradedRing ----------------
+    # -- GradedAlgebra ----------------
     @classmethod
     def deg_mon(cls, mon: frozenset) -> int:
         return sum(map(cls.deg_gen, mon))
@@ -430,7 +414,7 @@ class BasePolyAnyVar(BasePolyMulti, ABC):
     dict_deg_gen = None
 
     @classmethod
-    def gen(cls, key, deg: int = 1):
+    def gen(cls, key, deg=1):
         if key in cls.dict_deg_gen and deg != cls.dict_deg_gen[key]:
             print("Warning: the degree of {} is changed from {} to {}".format(key, cls.dict_deg_gen[key], deg))
         cls.dict_deg_gen[key] = deg
@@ -514,23 +498,23 @@ class HopfAlgebra(ABC):
 
 
 # Integers -----------------------------------
-class GradedRingZ(GradedRingDict, ABC):
-    """ class for graded rings over Z """
+class AlgebraZ(AlgebraDict, ABC):
+    """Class for algebra over Z."""
     def __init__(self, data: Union[dict, tuple]):
         if type(data) is tuple:
             self.data = {data: 1}
         elif type(data) is dict:
-            self.data = dict((mon, coeff) for mon, coeff in data.items() if coeff != 0)  # type: Dict[tuple, int]
+            self.data = dict(mon_coeff for mon_coeff in data.items() if mon_coeff[1] != 0)  # type: Dict[tuple, int]
         else:
             raise TypeError("{} can not initialize {}".format(data, type(self).__name__))
 
 
-class BasePolyZ(BasePolyMulti, GradedRingZ, ABC):
+class BasePolyZ(BasePolyMulti, AlgebraZ, ABC):
     pass
 
 
-class BasePolySingZ(GradedRingDict, ABC):
-    # -- GradedRingDict -------------
+class BasePolySingZ(AlgebraDict, ABC):
+    # -- AlgebraDict -------------
     def __init__(self, data: dict):
         if type(data) is dict:
             self.data = dict((mon, coeff) for mon, coeff in data.items() if coeff != 0)  # type: Dict[int, int]
@@ -566,7 +550,7 @@ class BasePolySingZ(GradedRingDict, ABC):
             data[d] = -sum(data[i] * self.coeff(d - i) for i in range(0, d))
         return type(self)(data)
 
-    # -- Ring -----------------------
+    # -- Algebra -----------------------
     @staticmethod
     def mul_mons(mon1: int, mon2: int) -> int:
         return mon1 + mon2
@@ -590,7 +574,7 @@ def _inv(a, p):
     return None
 
 
-class GradedRingModP(GradedRingDict, ABC):
+class AlgebraModP(AlgebraDict, ABC):
     """ class for graded rings over F_p """
     PRIME = 2
     INV = [None, 1]
@@ -655,12 +639,12 @@ class GradedRingModP(GradedRingDict, ABC):
         return sum((type(self)((m, c)) ** self.PRIME for m, c in self.data.items()), self.zero())
 
 
-class BasePolyModP(BasePolyMulti, GradedRingModP, ABC):
+class BasePolyModP(BasePolyMulti, AlgebraModP, ABC):
     pass
 
 
 # Even prime ----------------------------------
-class GradedRingMod2(GradedRing, ABC):
+class AlgebraMod2(Algebra, ABC):
     """ self.data is a set of monomials """
     def __init__(self, data: Union[set, tuple]):
         if type(data) is set:
@@ -670,7 +654,7 @@ class GradedRingMod2(GradedRing, ABC):
         else:
             raise MyTypeError("{} can not initialize {}".format(data, type(self).__name__))
 
-    # -- Ring -----------
+    # -- Algebra -----------
     def __str__(self):
         result = "+".join(map(self.str_mon, self._sorted_mons()))
         return result if result else "0"
@@ -696,7 +680,7 @@ class GradedRingMod2(GradedRing, ABC):
         return self
 
     def __mul__(self, other):
-        if isinstance(other, GradedRingMod2):
+        if isinstance(other, AlgebraMod2):
             data = set()
             for m in self.data:
                 for n in other.data:
@@ -737,11 +721,11 @@ class GradedRingMod2(GradedRing, ABC):
     # todo: basis
 
 
-class GradedRingT2Mod2(GradedRingMod2, ABC):
-    type_c0: GradedRingMod2 = None
-    type_c1: GradedRingMod2 = None
+class AlgebraT2Mod2(AlgebraMod2, ABC):
+    type_c0: AlgebraMod2 = None
+    type_c1: AlgebraMod2 = None
 
-    # -- GradedRingMod2 --------------
+    # -- AlgebraMod2 --------------
     def mul_mons(self, mon1: tuple, mon2: tuple):  # TODO: return type
         prod0 = self.type_c0.mul_mons(mon1[0], mon2[0])
         prod1 = self.type_c1.mul_mons(mon1[1], mon2[1])
@@ -756,7 +740,7 @@ class GradedRingT2Mod2(GradedRingMod2, ABC):
         deg1 = self.type_c1.deg_mon(mon[1])
         return deg0, deg1
 
-    def str_mon(self, mon):
+    def str_mon(self, mon: tuple):
         str0 = self.type_c0.str_mon(mon[0])
         str1 = self.type_c1.str_mon(mon[1])
         return str0 + "\\otimes " + str1
@@ -772,11 +756,11 @@ class GradedRingT2Mod2(GradedRingMod2, ABC):
         return cls(set((m, n) for m in a.data for n in b.data))
 
 
-class BasePolyMod2(BasePolyMulti, GradedRingMod2, ABC):
+class BasePolyMod2(BasePolyMulti, AlgebraMod2, ABC):
     pass
 
 
-class BaseExteriorMod2(BaseExteriorMulti, GradedRingMod2, ABC):
+class BaseExteriorMod2(BaseExteriorMulti, AlgebraMod2, ABC):
     def __init__(self, data: Union[set, frozenset]):
         if type(data) is set:
             self.data = data
@@ -785,13 +769,17 @@ class BaseExteriorMod2(BaseExteriorMulti, GradedRingMod2, ABC):
         else:
             raise MyTypeError("{} can not initialize {}".format(data, type(self).__name__))
 
+    def _sorted_mons(self) -> list:
+        return sorted(self.data, key=lambda m: (self.deg_mon(m), tuple(m)), reverse=True)
 
-class OperationsMod2(Operations, GradedRingMod2, ABC):
-    # -- GradedRingMod2 ----------
+
+class OperationsMod2(Operations, AlgebraMod2, ABC):
+    # -- AlgebraMod2 ----------
     def __mul__(self, other):
         if not isinstance(other, OperationsMod2):
             return NotImplemented
         else:
+            # noinspection PyUnresolvedReferences
             return super().__mul__(other).simplify()
 
     @staticmethod
@@ -819,7 +807,7 @@ class OperationsMod2(Operations, GradedRingMod2, ABC):
         return self
 
 
-class HopfAlgWithDualMod2(HopfAlgebra, GradedRingMod2, ABC):
+class HopfAlgWithDualMod2(HopfAlgebra, AlgebraMod2, ABC):
     # abstract --------------------
     @staticmethod
     @abstractmethod
@@ -883,4 +871,4 @@ class Monitor:
         print("\nnumber of function calls = {}".format(frequent_functions[:30]))
 
 
-# 670, 615, 627, 643, 660, 693, 756, 764, 845, 851, 888, 884, 868, 885
+# 670, 615, 627, 643, 660, 693, 756, 764, 845, 851, 888, 884, 868, 885, 874

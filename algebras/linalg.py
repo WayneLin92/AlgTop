@@ -9,7 +9,7 @@ _t_mon = Union[tuple, frozenset, int, str]  # todo: generic type
 class VectorSpaceMod2:
     """
     This class is for modeling vector spaces.
-    It provides interfaces for Ring's
+    It provides interfaces for Algebra's
     """
     def __init__(self, data: Union[None, list, Iterable] = None, get_mon: Callable = max):
         self.get_mon = get_mon

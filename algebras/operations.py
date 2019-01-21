@@ -376,7 +376,7 @@ class Steenrod(BC.HopfAlgWithDualMod2, BC.OperationsMod2):
         return (cls(m) for m in Steenrod.basis_mons(deg))
 
 
-class SteenrodT2(BC.GradedRingT2Mod2):  # todo: T2 for odd primes
+class SteenrodT2(BC.AlgebraT2Mod2):  # todo: T2 for odd primes
     """ Tensor product of two Steenrod algebras """
     type_c0 = Steenrod
     type_c1 = Steenrod
@@ -500,13 +500,13 @@ class DualSteenrod(BC.HopfAlgWithDualMod2, BC.BasePolyMod2):
         return (cls(m) for m in DualSteenrod.basis_mons(deg))
 
 
-class DualSteenrodT2(BC.GradedRingT2Mod2):
+class DualSteenrodT2(BC.AlgebraT2Mod2):
     """ Tensor product of two DualSteenrod """
     type_c0 = DualSteenrod
     type_c1 = DualSteenrod
 
 
-class AR(BC.GradedRingT2Mod2):
+class AR(BC.AlgebraT2Mod2):
     """
     The AR algebra
     self.data is a set of (Q^I, Sq^I)
@@ -514,7 +514,7 @@ class AR(BC.GradedRingT2Mod2):
     type_c0 = DyerLashof
     type_c1 = Steenrod
 
-    # -- GradedRingMod2 ----------
+    # -- AlgebraMod2 ----------
     def __init__(self, data: Union[DyerLashof, Steenrod, set, tuple]):
         if type(data) is self.type_c0:
             self.data = set((m, ()) for m in data.data)
@@ -529,9 +529,9 @@ class AR(BC.GradedRingT2Mod2):
         elif type(other) is DyerLashof:
             return self * AR.tensor(other, Steenrod(()))
         else:
-            return BC.GradedRingMod2.__mul__(self, other)
+            return BC.AlgebraMod2.__mul__(self, other)
 
-    # -- GradedRingT2Mod2 -----------
+    # -- AlgebraT2Mod2 -----------
     def mul_mons(self, mon1, mon2):
         if len(mon1[1]) == 0:
             return AR.tensor(self.type_c0(mon1[0]) * self.type_c0(mon2[0]), self.type_c1(mon2[1])).data

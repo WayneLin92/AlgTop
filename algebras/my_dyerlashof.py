@@ -6,7 +6,7 @@ from algebras.operations import DyerLashof
 
 
 class MyDyerLashof(BC.OperationsMod2):
-    # -- Ring -------------------------
+    # -- Algebra -------------------------
     def __init__(self, data: Union[DyerLashof, set, tuple]):
         if type(data) is DyerLashof:
             self.data = set()
@@ -32,7 +32,7 @@ class MyDyerLashof(BC.OperationsMod2):
         if not isinstance(other, MyDyerLashof):
             return NotImplemented
         else:
-            return BC.GradedRingMod2.__mul__(self, other)
+            return BC.AlgebraMod2.__mul__(self, other)
 
     def simplify(self, degree: Optional[int]=None):
         data = set()
