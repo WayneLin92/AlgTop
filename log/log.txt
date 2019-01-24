@@ -16,6 +16,7 @@ test_ext
 01/01/2019 08:09PM 1.757s (PC 3.6GHz)
 01/01/2019 10:41PM 0.907s (PC linalg)
     number of function calls = {'Steenrod.adem': 40061}
+01/21/2019 04:11PM 0.814s (Surface linalg)
 
 test_ext1
 10/14/2018 10:58PM 47.511s
@@ -30,6 +31,7 @@ test_ext1
 12/03/2018 03:40PM 52.195s (Surface with binom improved)
 01/01/2019 10:42PM 14.526s (PC 3.6GHz linalg)
     number of function calls = {'Steenrod.adem': 861148}
+01/21/2019 04:11PM 9.664s (Surface linalg)
 
 
 test_sq_benchmark

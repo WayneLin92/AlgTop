@@ -131,8 +131,12 @@ class DualMaySS(BC.BaseExteriorMod2):
     # ----- BasePolyMod2 ----------------
     @classmethod
     def gen(cls, *key: int) -> "DualMaySS":
-        assert len(key) == 3 and key[0] > 0 <= key[1]
-        return cls(frozenset((ij2deg(key), 1 << k) for k in mymath.two_expansion(key[2])))
+        if len(key) == 3:
+            return cls(frozenset((ij2deg(key), 1 << k) for k in mymath.two_expansion(key[2])))
+        elif len(key) == 2:
+            return cls(frozenset({(ij2deg(key), 1)}))
+        else:
+            raise ValueError
 
     @staticmethod
     def deg_gen(gen: tuple) -> mymath.Deg:
@@ -191,7 +195,7 @@ class DualMaySS(BC.BaseExteriorMod2):
 
     @staticmethod
     def comb_gens(mon: frozenset):
-        """ return an iterator of (gen, r) with r's combined """
+        """Return an iterator of (gen, r) with r's combined."""
         mon_dict = {}
         for deg, n in mon:
             if deg in mon_dict:
@@ -216,6 +220,18 @@ class DualMaySS(BC.BaseExteriorMod2):
                 product = product * self.coprod_gen(gen)
             result += product
         return result
+
+    @staticmethod
+    def add_r(m, *degs):
+        """Change gamma_r(deg) to gamma_{r+1}(deg)."""
+        s = set(m)
+        for deg in degs:
+            n = 1
+            while (deg, n) in s:
+                s.remove((deg, n))
+                n <<= 1
+            s.add((deg, n))
+        return frozenset(s)
 
     def diff(self):
         """ return the boundary of the chain """
@@ -247,14 +263,14 @@ class DualMaySS(BC.BaseExteriorMod2):
         my_map2 = linalg.LinearMapKernelMod2()
         my_map1.add_maps((r, r.diff()) for r in cls.basis(s, t, u))
         print("kernel dim:", my_map1.kernel.get_dim())
-        for r in my_map1.kernel.get_basis(DualMaySS):
-            print(r)
+        # for r in my_map1.kernel.get_basis(DualMaySS):
+        #     print(r)
         my_map2.add_maps((r, r.diff()) for r in cls.basis(s + 1, t, u))
         print("image: dim", my_map2.get_image().get_dim())
-        for r in my_map2.get_image().get_basis(DualMaySS):
-            print(r)
+        # for r in my_map2.get_image().get_basis(DualMaySS):
+        #     print(r)
         print("quotient:")
-        for r in my_map1.kernel.quotient(my_map2.get_image()).get_basis(DualMaySS):
+        for r in my_map1.kernel.quotient(my_map2.get_image()).simplify().get_basis(DualMaySS):
             print(r)
 
     def is_primitive(self):
@@ -284,8 +300,9 @@ class DualMaySS(BC.BaseExteriorMod2):
         return True
 
     def inv_diff(self) -> bool:
+        s, t, u = self.deg()
         my_map2 = linalg.LinearMapKernelMod2()
-        my_map2.add_maps((DualMaySS(m), DualMaySS(m).diff()) for m in self.potential_mons_inv_diff())
+        my_map2.add_maps((r, r.diff()) for r in self.basis(s + 1, t, u))
         return my_map2.g(self)
 
     @classmethod
@@ -313,10 +330,11 @@ class DualMaySS(BC.BaseExteriorMod2):
                 if r == 1:
                     i, j = deg2ij(deg)
                     for k in range(1, i):
-                        yield m - {(deg, 1)} | {(ij2deg((k, j)), 1), (ij2deg((i - k, j + k)), 1)}
+                        deg1, deg2 = ij2deg((k, j)), ij2deg((i - k, j + k))
+                        yield self.add_r(m - {(deg, 1)}, deg1, deg2)
 
 
-class DualMaySST2(BC.GradedRingT2Mod2):
+class DualMaySST2(BC.AlgebraT2Mod2):
     """ Tensor product of two DualSteenrod """
     type_c0 = DualMaySS
     type_c1 = DualMaySS
