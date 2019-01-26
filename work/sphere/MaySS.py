@@ -333,6 +333,15 @@ class DualMaySS(BC.BaseExteriorMod2):
                         deg1, deg2 = ij2deg((k, j)), ij2deg((i - k, j + k))
                         yield self.add_r(m - {(deg, 1)}, deg1, deg2)
 
+    @staticmethod
+    def has_crossing(mon):
+        for g1, g2 in itertools.combinations(mon, 2):
+            deg1, r1 = g1
+            deg2, r2 = g2
+            if deg1 & deg2:
+                return True
+        return False
+
 
 class DualMaySST2(BC.AlgebraT2Mod2):
     """ Tensor product of two DualSteenrod """
@@ -374,3 +383,7 @@ def deg2ij(n: int) -> tuple:
 
 def get_mon(s: set) -> frozenset:
     return max(s, key=lambda m: tuple(m))
+
+
+if __name__ == "__main__":
+    print("MaySS")
