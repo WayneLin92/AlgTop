@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 # todo: check the class methods
 # todo: type is
 # todo: avoid creating new user-defined objects inside a class
+# todo: use hashable dictionaries
 
 
 # Exceptions ---------------------------

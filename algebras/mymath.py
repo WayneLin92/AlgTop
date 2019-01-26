@@ -1,12 +1,13 @@
-""" Provides some basic functions and types """
+"""This module provides some basic functions and types."""
 import operator
+import functools
 
 
 class Deg(tuple):
-    """ A simple version of numpy.array for modeling multi-degrees """
-    def __new__(cls, iterable):
+    """A subclass of tuple with element-wise addition and broadcast multiplication."""
+    def __new__(cls, *args):
         # noinspection PyTypeChecker
-        return tuple.__new__(cls, iterable)
+        return tuple.__new__(cls, *args)
 
     def __add__(self, other):
         """ element-wise addition """
@@ -21,16 +22,30 @@ class Deg(tuple):
         return Deg(map(lambda x: x * other, self))
 
 
+class FrozenDict(dict):
+    """A subclass of dict which is hashable."""
+    __setitem__ = None
+    update = None
+    _hash = None
+
+    def __hash__(self):
+        if self._hash is None:
+            self._hash = functools.reduce(operator.xor, map(hash, self.items()), 0)
+        return self._hash
+
+
 def choose_mod2(m: int, n: int) -> bool:
-    """ Compute m choose n modulo 2~ """
+    """Compute m choose n modulo 2."""
     return binom_mod2(m-n, n)
 
 
 def binom_mod2(m: int, n: int) -> bool:
+    """Compute the binomial (m, n)."""
     return not m & n
 
 
-def multi_nom_mod2(*args: int) -> bool:
+def multinom_mod2(*args: int) -> bool:
+    """Compute the multinomial (arg1, arg2, ...)"""
     for i in args:
         if i < 0:
             return 0
@@ -41,9 +56,8 @@ def multi_nom_mod2(*args: int) -> bool:
 
 
 def two_expansion(n: int):
-    """
-    If n = 2^k1 + ... + 2^kn,
-    return an iterator of k1, ..., kn.
+    """If n = 2^k1 + ... + 2^kn,
+    return an generator of k1, ..., kn.
     """
     k = 0
     while n:
@@ -54,7 +68,7 @@ def two_expansion(n: int):
 
 
 def cartan_indexing(length, deg):
-    """ return an iterator of tuples for the Cartan formula """
+    """Return an iterator of tuples for the Cartan formula."""
     if length == 0:
         return
     elif length == 1:
@@ -66,8 +80,8 @@ def cartan_indexing(length, deg):
 
 
 def tex_index(obj) -> str:
-    """ return a string that is to used to express x^obj in latex """
+    """Return a string used to express x^obj in latex."""
     result = str(obj)
-    return result if len(result) == 1 else "{" + result + "}"
+    return result if len(result) == 1 else f"{{{result}}}"
 
 # 73
