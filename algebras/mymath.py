@@ -26,10 +26,10 @@ class FrozenDict(dict):
     """A subclass of dict which is hashable."""
     __setitem__ = None
     update = None
-    _hash = None
+    __slots__ = "_hash",
 
     def __hash__(self):
-        if self._hash is None:
+        if not hasattr(self, "_hash"):
             self._hash = functools.reduce(operator.xor, map(hash, self.items()), 0)
         return self._hash
 
