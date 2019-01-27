@@ -2,6 +2,7 @@ import itertools
 import pickle
 from typing import Iterable
 from algebras import BaseClasses as BC, linalg, mymath
+from algebras.mymath import Deg, FrozenDict
 
 
 class MaySS(BC.BasePolyMod2):
@@ -10,7 +11,7 @@ class MaySS(BC.BasePolyMod2):
     @classmethod
     def gen(cls, *key: int):
         assert len(key) == 2 and key[0] > 0 <= key[1]
-        return cls(((ij2deg(key), 1),))
+        return cls(((cls.ij2deg(key), 1),))
 
     @staticmethod
     def deg_gen(n: int) -> int:
@@ -18,9 +19,19 @@ class MaySS(BC.BasePolyMod2):
 
     @staticmethod
     def str_gen(n: int) -> str:
-        return "h_{{{}，{}}}".format(*deg2ij(n))
+        return "h_{{{}，{}}}".format(*MaySS.deg2ij(n))
 
     # methods -----------------
+    @staticmethod
+    def ij2deg(key: tuple) -> int:
+        return (1 << key[0]) - 1 << key[1]
+
+    @staticmethod
+    def deg2ij(n: int) -> tuple:
+        i = bin(n).count('1')
+        j = n.bit_length() - i
+        return i, j
+
     @staticmethod
     def basis_mons(length, deg, may_filtr, ij_max=None):
         """ return monomials h_ij^k...h_index_max^e with given length, deg, may_filtr """
@@ -40,15 +51,15 @@ class MaySS(BC.BasePolyMod2):
             ij_max = (sum_ij - j, j)
         if ij_max == (1, 0):
             if length == deg == may_filtr:
-                yield ((ij2deg(ij_max), deg),)
+                yield ((MaySS.ij2deg(ij_max), deg),)
             return
-        for e in range(min(length, deg // ij2deg(ij_max), may_filtr // ij_max[0]), -1, -1):
+        for e in range(min(length, deg // MaySS.ij2deg(ij_max), may_filtr // ij_max[0]), -1, -1):
             # print(length, deg, may_filtr, "{}^{}".format(ij_max, e))
             index_next = (ij_max[0] - 1, ij_max[1] + 1) if ij_max[0] > 1 else (sum(ij_max) - 1, 0)
-            for mon in cls.basis_mons(length - e, deg - e * ij2deg(ij_max),
+            for mon in cls.basis_mons(length - e, deg - e * MaySS.ij2deg(ij_max),
                                       may_filtr - e * ij_max[0], index_next):
                 if e > 0:
-                    yield mon + ((ij2deg(ij_max), e),)
+                    yield mon + ((MaySS.ij2deg(ij_max), e),)
                 else:
                     yield mon
 
@@ -64,7 +75,7 @@ class MaySS(BC.BasePolyMod2):
                 g, e = m[ind]
                 if e % 2:
                     h = self.gen
-                    i, j = deg2ij(g)
+                    i, j = MaySS.deg2ij(g)
                     dh_k = sum((h(i - l, j + l) * h(l, j) for l in range(1, i)), self.zero())
                     if e - 1:
                         result += MaySS(m[:ind] + m[ind + 1:]) * MaySS(((g, e - 1),)) * dh_k
@@ -89,7 +100,7 @@ class MaySS(BC.BasePolyMod2):
             print(r)
 
 
-class DualMaySS(BC.BaseExteriorMod2):
+class DualMaySS(BC.AlgebraMod2):
     """ This is the dual of the May spectral sequence """
     _maps = None
     _homology = None
@@ -128,64 +139,77 @@ class DualMaySS(BC.BaseExteriorMod2):
             with open("MaySS_DualMaySS.pickle", "wb") as f:
                 pickle.dump((cls._maps, cls._homology), f)
 
-    # ----- BasePolyMod2 ----------------
-    @classmethod
-    def gen(cls, *key: int) -> "DualMaySS":
-        if len(key) == 3:
-            return cls(frozenset((ij2deg(key), 1 << k) for k in mymath.two_expansion(key[2])))
-        elif len(key) == 2:
-            return cls(frozenset({(ij2deg(key), 1)}))
-        else:
-            raise ValueError
-
+    # ----- AlgebraMod2 ----------------
     @staticmethod
-    def deg_gen(gen: tuple) -> mymath.Deg:
-        deg, r = gen
-        i, j = deg2ij(deg)
-        return mymath.Deg((r, deg * r, i * r))
-
-    @staticmethod
-    def str_gen(gen: tuple) -> str:
-        deg, n = gen
-        i, j = deg2ij(deg)
-        return "\\gamma_{}(\\bar{{P}}_{}^{})".format(*map(mymath.tex_index, (n, i, j)))
+    def mul_mons(mon1: FrozenDict, mon2: FrozenDict):
+        result = dict(mon1)
+        for ij, r in mon2.items():
+            if ij in result:
+                if result[ij] & r:
+                    return set()
+                else:
+                    result[ij] += r
+            else:
+                result[ij] = r
+        return FrozenDict(result)
 
     @classmethod
-    def str_mon(cls, mon: frozenset):
-        result = "".join(map(cls.str_gen, sorted(cls.comb_gens(mon))))
+    def gen(cls, i, j, r=1) -> "DualMaySS":
+        return cls(FrozenDict({(i, j): r} if r else {}))
+
+    @staticmethod
+    def str_gen(item: tuple) -> str:
+        ij, r = item
+        return "\\gamma_{}(\\bar{{P}}^{}_{})".format(*map(mymath.tex_index, (r, *ij)))
+
+    @classmethod
+    def str_mon(cls, mon: FrozenDict):
+        result = "".join(map(cls.str_gen, sorted(mon.items())))
         return result if result else "1"
 
+    @staticmethod
+    def deg_gen(item: tuple):
+        ij, r = item
+        return Deg((1, ((1 << ij[1]) - 1 << ij[0]) * r, ij[1]))
+
     @classmethod
-    def deg_mon(cls, mon: frozenset):
-        return super().deg_mon(mon) if mon else mymath.Deg((0, 0, 0))
+    def deg_mon(cls, mon: FrozenDict):
+        return sum(map(cls.deg_gen, mon.items()), Deg((0, 0, 0)))
+
+    def _sorted_mons(self) -> list:
+        return sorted(self.data, key=lambda m: (self.deg_mon(m), sorted(m.items())))
 
     # methods -----------------
+    @staticmethod
+    def ij2deg(ij: tuple) -> int:
+        return (1 << ij[1]) - 1 << ij[0]
+
     @staticmethod
     def basis_mons(length, deg, may_filtr, ij_max=None):
         """ return monomials h_ij^k...h_index_max^e with given length, deg, may_filtr """
         if length == 0 or deg == 0 or may_filtr == 0:
             if length == deg == may_filtr:
-                yield frozenset()
+                yield FrozenDict()
             return
         if ij_max is None:
             bound = deg - length + 1
             if bound <= 0:
                 return
             sum_ij = bound.bit_length()
-            j = 0
-            while (1 << sum_ij) - (1 << j) > bound:
-                j += 1
-            ij_max = (sum_ij - j, j)
-        if ij_max == (1, 0):
+            i = 0
+            while (1 << sum_ij) - (1 << i) > bound:
+                i += 1
+            ij_max = (i, sum_ij - i)
+        if ij_max == (0, 1):
             if length == deg == may_filtr:
-                yield frozenset((ij2deg(ij_max), 1 << k) for k in mymath.two_expansion(deg))
+                yield FrozenDict({(0, 1): deg})
             return
-        for e in range(min(length, deg // ij2deg(ij_max), may_filtr // ij_max[0]), -1, -1):
-            index_next = (ij_max[0] - 1, ij_max[1] + 1) if ij_max[0] > 1 else (sum(ij_max) - 1, 0)
-            for mon in DualMaySS.basis_mons(length - e, deg - e * ij2deg(ij_max),
-                                            may_filtr - e * ij_max[0], index_next):
+        for e in range(min(length, deg // DualMaySS.ij2deg(ij_max), may_filtr // ij_max[1]), -1, -1):
+            index_next = (ij_max[0] + 1, ij_max[1] - 1) if ij_max[1] > 1 else (0, sum(ij_max) - 1)
+            for mon in DualMaySS.basis_mons(length - e, deg - e * DualMaySS.ij2deg(ij_max),
+                                            may_filtr - e * ij_max[1], index_next):
                 if e > 0:
-                    yield mon | frozenset((ij2deg(ij_max), 1 << k) for k in mymath.two_expansion(e))
+                    yield FrozenDict(itertools.chain(mon.items(), ((ij_max, e),)))
                 else:
                     yield mon
 
@@ -194,73 +218,47 @@ class DualMaySS(BC.BaseExteriorMod2):
         return (cls(m) for m in DualMaySS.basis_mons(length, deg, may_filtr))
 
     @staticmethod
-    def comb_gens(mon: frozenset):
-        """Return an iterator of (gen, r) with r's combined."""
-        mon_dict = {}
-        for deg, n in mon:
-            if deg in mon_dict:
-                mon_dict[deg] += n
-            else:
-                mon_dict[deg] = n
-        return mon_dict.items()
-
-    @staticmethod
-    def coprod_gen(gen):
-        deg, r = gen
-        data = {(frozenset((deg, 1 << e) for e in mymath.two_expansion(k)),
-                 frozenset((deg, 1 << e) for e in mymath.two_expansion(r - k)))
-                for k in range(r + 1)}
-        return DualMaySST2(data)
+    def coprod_gen(item):
+        deg, r = item
+        yield (), (deg, r)
+        for k in range(1, r):
+            yield (deg, k), (deg, r-k)
+        yield (deg, r), ()
 
     def coprod(self):
-        result = DualMaySST2.zero()
+        data = set()
         for m in self.data:
-            product = result.unit()
-            for gen in self.comb_gens(m):
-                product = product * self.coprod_gen(gen)
-            result += product
-        return result
-
-    @staticmethod
-    def add_r(m, *degs):
-        """Change gamma_r(deg) to gamma_{r+1}(deg)."""
-        s = set(m)
-        for deg in degs:
-            n = 1
-            while (deg, n) in s:
-                s.remove((deg, n))
-                n <<= 1
-            s.add((deg, n))
-        return frozenset(s)
+            for comb in itertools.product(*map(self.coprod_gen, m.items())):
+                items1, items2 = zip(*comb)
+                d1 = FrozenDict(i for i in items1 if i)
+                d2 = FrozenDict(i for i in items2 if i)
+                data.add((d1, d2))
+        return DualMaySST2(data)
 
     def diff(self):
         """ return the boundary of the chain """
-        result = self.zero()
+        data = set()
         for mon in self.data:
-            mon_min_gamma = {}
-            for deg, n in mon:
-                if deg in mon_min_gamma:
-                    if mon_min_gamma[deg] > n:
-                        mon_min_gamma[deg] = n
-                else:
-                    mon_min_gamma[deg] = n
-            for gs, gt in itertools.combinations(mon_min_gamma.items(), 2):
-                deg_s, r_s = gs
-                deg_t, r_t = gt
-                i_s, j_s = deg2ij(deg_s)
-                i_t, j_t = deg2ij(deg_t)
-                if j_s == i_t + j_t or j_t == i_s + j_s:
-                    factor1 = type(self).gen(i_s + i_t, min(j_s, j_t), 1)
-                    gs_minus = set((deg_s, 1 << k) for k in range(r_s.bit_length() - 1))
-                    gt_minus = set((deg_t, 1 << k) for k in range(r_t.bit_length() - 1))
-                    factor2 = type(self)(mon - {gs, gt} | gs_minus | gt_minus)
-                    result += factor1 * factor2
-        return result
+            for k1, k2 in itertools.combinations(mon, 2):
+                i1, j1 = k1
+                i2, j2 = k2
+                if i1 + j1 == i2 or i2 + j2 == i1:
+                    k = min(i1, i2), j1 + j2
+                    mon_diff = dict(mon)
+                    if k not in mon_diff or mon_diff[k] % 1:
+                        mon_diff[k1] -= 1
+                        mon_diff[k2] -= 1
+                        if k in mon_diff:
+                            mon_diff[k] += 1
+                        else:
+                            mon_diff[k] = 1
+                        data ^= {FrozenDict(item for item in mon_diff.items() if item[1])}
+        return DualMaySS(data)
 
     @classmethod
     def homology(cls, s, t, u):
-        my_map1 = linalg.LinearMapKernelMod2()
-        my_map2 = linalg.LinearMapKernelMod2()
+        my_map1 = linalg.LinearMapKernelMod2(get_mon)
+        my_map2 = linalg.LinearMapKernelMod2(get_mon)
         my_map1.add_maps((r, r.diff()) for r in cls.basis(s, t, u))
         print("kernel dim:", my_map1.kernel.get_dim())
         # for r in my_map1.kernel.get_basis(DualMaySS):
@@ -315,24 +313,6 @@ class DualMaySS(BC.BaseExteriorMod2):
         for r in result:
             print(r)
 
-    def has_P_1(self):
-        return any(deg2ij(deg)[0] == 1 for m in self.data for deg, r in m)
-
-    @classmethod
-    def search_P_1(cls):
-        result = sorted((r for r in cls.homology_basis() if not r.has_P_1() and len(r.data) > 1), key=lambda x: x.deg())
-        for r in result:
-            print(f"${r}$\\\\")
-
-    def potential_mons_inv_diff(self):
-        for m in self.data:
-            for deg, r in m:
-                if r == 1:
-                    i, j = deg2ij(deg)
-                    for k in range(1, i):
-                        deg1, deg2 = ij2deg((k, j)), ij2deg((i - k, j + k))
-                        yield self.add_r(m - {(deg, 1)}, deg1, deg2)
-
     @staticmethod
     def has_crossing(mon):
         for g1, g2 in itertools.combinations(mon, 2):
@@ -351,14 +331,14 @@ class DualMaySST2(BC.AlgebraT2Mod2):
     def mul_mons(self, mon1: tuple, mon2: tuple):
         prod0 = self.type_c0.mul_mons(mon1[0], mon2[0])
         prod1 = self.type_c1.mul_mons(mon1[1], mon2[1])
-        if type(prod0) is type(prod1) is frozenset:
+        if type(prod0) is type(prod1) is FrozenDict:
             return prod0, prod1
         else:
             return set()
 
     @classmethod
     def unit(cls):
-        return cls((frozenset(), frozenset()))
+        return cls((FrozenDict(), FrozenDict()))
 
     def diff(self):
         data = set()
@@ -371,19 +351,11 @@ class DualMaySST2(BC.AlgebraT2Mod2):
 
 
 # functions
-def ij2deg(key: tuple) -> int:
-    return (1 << key[0]) - 1 << key[1]
-
-
-def deg2ij(n: int) -> tuple:
-    i = bin(n).count('1')
-    j = n.bit_length() - i
-    return i, j
-
-
 def get_mon(s: set) -> frozenset:
-    return max(s, key=lambda m: tuple(m))
+    return max(s, key=lambda m: sorted(m.items()))
 
 
 if __name__ == "__main__":
     print("MaySS")
+
+# 389

@@ -1,9 +1,11 @@
-from typing import Tuple, Set, Dict, Hashable, Any, Optional, Union
 from abc import ABC, abstractmethod
+from typing import Tuple, Set, Dict, Hashable, Any, Optional, Union
+from algebras import mymath
 # todo: check the class methods
 # todo: type is
 # todo: avoid creating new user-defined objects inside a class
 # todo: use hashable dictionaries
+# todo: use __slots__
 
 
 # Exceptions ---------------------------
@@ -647,11 +649,11 @@ class BasePolyModP(BasePolyMulti, AlgebraModP, ABC):
 # Even prime ----------------------------------
 class AlgebraMod2(Algebra, ABC):
     """ self.data is a set of monomials """
-    def __init__(self, data: Union[set, tuple]):
+    def __init__(self, data: Union[set, tuple, frozenset, mymath.FrozenDict]):
         if type(data) is set:
             self.data = data
-        elif type(data) is tuple:  # monomial
-            self.data = {data}  # type: Set[tuple]
+        elif type(data) in (tuple, frozenset, mymath.FrozenDict):  # monomial
+            self.data = {data}  # type: Set[Union[tuple, frozenset, mymath.FrozenDict]]
         else:
             raise MyTypeError("{} can not initialize {}".format(data, type(self).__name__))
 
@@ -699,7 +701,6 @@ class AlgebraMod2(Algebra, ABC):
     def zero(cls):
         return cls(set())
 
-    # -- GradedClass -------------
     def homo(self, d):
         data = set(m for m in self.data if self.deg_mon(m) == d)
         return type(self)(data)
@@ -711,7 +712,6 @@ class AlgebraMod2(Algebra, ABC):
                 list_homo[self.deg_mon(m)].data.add(m)
         return list_homo
 
-    # methods ----------------
     def square(self):
         data = set()
         for m in self.data:

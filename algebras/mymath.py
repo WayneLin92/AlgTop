@@ -10,15 +10,15 @@ class Deg(tuple):
         return tuple.__new__(cls, *args)
 
     def __add__(self, other):
-        """ element-wise addition """
+        """Element-wise addition."""
         return Deg(map(operator.add, self, other))
 
     def __radd__(self, other):
-        """ this is implemented for supporting sum() """
+        """This is implemented for supporting sum()."""
         return Deg(map(operator.add, self, other)) if other is not 0 else self
 
-    def __mul__(self, other):
-        """ assert type(other) is int """
+    def __mul__(self, other: int):
+        """Broadcast multiplication."""
         return Deg(map(lambda x: x * other, self))
 
 
@@ -48,7 +48,7 @@ def multinom_mod2(*args: int) -> bool:
     """Compute the multinomial (arg1, arg2, ...)"""
     for i in args:
         if i < 0:
-            return 0
+            return False
     s = sum(args)
     num_s = bin(s).count('1')
     num_sum = sum(bin(i).count('1') for i in args)
@@ -67,8 +67,8 @@ def two_expansion(n: int):
         k += 1
 
 
-def cartan_indexing(length, deg):
-    """Return an iterator of tuples for the Cartan formula."""
+def cartan_indexing(length: int, deg: int):
+    """Return an iterator of tuples for the iterated Cartan formula."""
     if length == 0:
         return
     elif length == 1:
@@ -84,4 +84,4 @@ def tex_index(obj) -> str:
     result = str(obj)
     return result if len(result) == 1 else f"{{{result}}}"
 
-# 73
+# 73, 87

@@ -7,7 +7,7 @@ class Lambda_Algebra(BC.OperationsMod2):
     """ This is for the Lambda algebra of lambda^I at prime 2 """
     # -- OperationsMod2 --------------
     @staticmethod
-    def str_mon(mon):
+    def str_mon(mon: tuple):
         str_result = ""
         for i in mon:
             if i >= 10:

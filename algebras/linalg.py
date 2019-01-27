@@ -184,7 +184,7 @@ class LinearMapKernelMod2:
         # self.inv_maps is for g:W->V
         self.get_mon = get_mon
         self.inv_maps = []  # type: List[Tuple[Set[_t_mon], _t_mon, Set[_t_mon]]]
-        self.kernel = VectorSpaceMod2()
+        self.kernel = VectorSpaceMod2(None, get_mon)
 
     def clear(self):
         self.__init__()
