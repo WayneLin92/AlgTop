@@ -4,7 +4,6 @@ from algebras import mymath
 # todo: check the class methods
 # todo: type is
 # todo: avoid creating new user-defined objects inside a class
-# todo: use hashable dictionaries
 # todo: use __slots__
 
 
@@ -649,11 +648,11 @@ class BasePolyModP(BasePolyMulti, AlgebraModP, ABC):
 # Even prime ----------------------------------
 class AlgebraMod2(Algebra, ABC):
     """ self.data is a set of monomials """
-    def __init__(self, data: Union[set, tuple, frozenset, mymath.FrozenDict]):
+    def __init__(self, data: Union[set, tuple, frozenset]):
         if type(data) is set:
             self.data = data
-        elif type(data) in (tuple, frozenset, mymath.FrozenDict):  # monomial
-            self.data = {data}  # type: Set[Union[tuple, frozenset, mymath.FrozenDict]]
+        elif type(data) in (tuple, frozenset):  # monomial
+            self.data = {data}  # type: Set[Union[tuple, frozenset]]
         else:
             raise MyTypeError("{} can not initialize {}".format(data, type(self).__name__))
 

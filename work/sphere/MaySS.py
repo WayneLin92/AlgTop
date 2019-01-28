@@ -2,7 +2,6 @@ import itertools
 import pickle
 from typing import Iterable
 from algebras import BaseClasses as BC, linalg, mymath
-from algebras.mymath import Deg, FrozenDict
 
 
 class MaySS(BC.BasePolyMod2):
@@ -121,7 +120,7 @@ class DualMaySS(BC.AlgebraMod2):
             for t in range(s, t_max + 1):
                 for u in range(s, u_max + 1):
                     if (s, t, u) not in cls._maps:
-                        cls._maps[(s, t, u)] = linalg.LinearMapKernelMod2(get_mon)
+                        cls._maps[(s, t, u)] = linalg.LinearMapKernelMod2()
                         cls._maps[(s, t, u)].add_maps((r, r.diff()) for r in cls.basis(s, t, u))
                         if s <= s_max:
                             cycles = cls._maps[(s, t, u)].kernel
@@ -141,9 +140,9 @@ class DualMaySS(BC.AlgebraMod2):
 
     # ----- AlgebraMod2 ----------------
     @staticmethod
-    def mul_mons(mon1: FrozenDict, mon2: FrozenDict):
+    def mul_mons(mon1: tuple, mon2: tuple):
         result = dict(mon1)
-        for ij, r in mon2.items():
+        for ij, r in mon2:
             if ij in result:
                 if result[ij] & r:
                     return set()
@@ -151,11 +150,12 @@ class DualMaySS(BC.AlgebraMod2):
                     result[ij] += r
             else:
                 result[ij] = r
-        return FrozenDict(result)
+        return tuple(sorted(result.items()))
 
     @classmethod
     def gen(cls, i, j, r=1) -> "DualMaySS":
-        return cls(FrozenDict({(i, j): r} if r else {}))
+        """Return gamma_r P^i_j."""
+        return cls((((i, j), r),)) if r else cls(())
 
     @staticmethod
     def str_gen(item: tuple) -> str:
@@ -163,21 +163,21 @@ class DualMaySS(BC.AlgebraMod2):
         return "\\gamma_{}(\\bar{{P}}^{}_{})".format(*map(mymath.tex_index, (r, *ij)))
 
     @classmethod
-    def str_mon(cls, mon: FrozenDict):
-        result = "".join(map(cls.str_gen, sorted(mon.items())))
+    def str_mon(cls, mon: tuple):
+        result = "".join(map(cls.str_gen, mon))
         return result if result else "1"
 
     @staticmethod
     def deg_gen(item: tuple):
         ij, r = item
-        return Deg((1, ((1 << ij[1]) - 1 << ij[0]) * r, ij[1]))
+        return mymath.Deg((r, ((1 << ij[1]) - 1 << ij[0]) * r, ij[1] * r))
 
     @classmethod
-    def deg_mon(cls, mon: FrozenDict):
-        return sum(map(cls.deg_gen, mon.items()), Deg((0, 0, 0)))
+    def deg_mon(cls, mon: tuple):
+        return sum(map(cls.deg_gen, mon), mymath.Deg((0, 0, 0)))
 
     def _sorted_mons(self) -> list:
-        return sorted(self.data, key=lambda m: (self.deg_mon(m), sorted(m.items())))
+        return sorted(self.data, key=lambda m: (self.deg_mon(m), m))
 
     # methods -----------------
     @staticmethod
@@ -189,7 +189,7 @@ class DualMaySS(BC.AlgebraMod2):
         """ return monomials h_ij^k...h_index_max^e with given length, deg, may_filtr """
         if length == 0 or deg == 0 or may_filtr == 0:
             if length == deg == may_filtr:
-                yield FrozenDict()
+                yield ()
             return
         if ij_max is None:
             bound = deg - length + 1
@@ -202,14 +202,14 @@ class DualMaySS(BC.AlgebraMod2):
             ij_max = (i, sum_ij - i)
         if ij_max == (0, 1):
             if length == deg == may_filtr:
-                yield FrozenDict({(0, 1): deg})
+                yield (((0, 1), deg),)
             return
         for e in range(min(length, deg // DualMaySS.ij2deg(ij_max), may_filtr // ij_max[1]), -1, -1):
             index_next = (ij_max[0] + 1, ij_max[1] - 1) if ij_max[1] > 1 else (0, sum(ij_max) - 1)
             for mon in DualMaySS.basis_mons(length - e, deg - e * DualMaySS.ij2deg(ij_max),
                                             may_filtr - e * ij_max[1], index_next):
                 if e > 0:
-                    yield FrozenDict(itertools.chain(mon.items(), ((ij_max, e),)))
+                    yield tuple(sorted(mon + ((ij_max, e),)))
                 else:
                     yield mon
 
@@ -228,10 +228,10 @@ class DualMaySS(BC.AlgebraMod2):
     def coprod(self):
         data = set()
         for m in self.data:
-            for comb in itertools.product(*map(self.coprod_gen, m.items())):
-                items1, items2 = zip(*comb)
-                d1 = FrozenDict(i for i in items1 if i)
-                d2 = FrozenDict(i for i in items2 if i)
+            for comb in itertools.product(*map(self.coprod_gen, m)):
+                items1, items2 = zip(*comb) if comb else ((), ())
+                d1 = tuple(i for i in items1 if i)
+                d2 = tuple(i for i in items2 if i)
                 data.add((d1, d2))
         return DualMaySST2(data)
 
@@ -239,26 +239,28 @@ class DualMaySS(BC.AlgebraMod2):
         """ return the boundary of the chain """
         data = set()
         for mon in self.data:
-            for k1, k2 in itertools.combinations(mon, 2):
+            for item1, item2 in itertools.combinations(mon, 2):
+                k1, r1 = item1
+                k2, r2 = item2
                 i1, j1 = k1
                 i2, j2 = k2
                 if i1 + j1 == i2 or i2 + j2 == i1:
                     k = min(i1, i2), j1 + j2
                     mon_diff = dict(mon)
-                    if k not in mon_diff or mon_diff[k] % 1:
+                    if k not in mon_diff or mon_diff[k] % 2 == 0:
                         mon_diff[k1] -= 1
                         mon_diff[k2] -= 1
                         if k in mon_diff:
                             mon_diff[k] += 1
                         else:
                             mon_diff[k] = 1
-                        data ^= {FrozenDict(item for item in mon_diff.items() if item[1])}
+                        data ^= {tuple(sorted(item for item in mon_diff.items() if item[1]))}
         return DualMaySS(data)
 
     @classmethod
     def homology(cls, s, t, u):
-        my_map1 = linalg.LinearMapKernelMod2(get_mon)
-        my_map2 = linalg.LinearMapKernelMod2(get_mon)
+        my_map1 = linalg.LinearMapKernelMod2()
+        my_map2 = linalg.LinearMapKernelMod2()
         my_map1.add_maps((r, r.diff()) for r in cls.basis(s, t, u))
         print("kernel dim:", my_map1.kernel.get_dim())
         # for r in my_map1.kernel.get_basis(DualMaySS):
@@ -293,7 +295,7 @@ class DualMaySS(BC.AlgebraMod2):
                         for m2 in self.basis_mons(s + 1 - i, t2, u2):
                             boundaries.add_v(DualMaySST2((m1, m2)).diff())
                 if boundaries.res(my_dict[(tu1, tu2)]):
-                    print("${}$\\\\".format(DualMaySST2(my_dict[(tu1, tu2)])))
+                    # print("${}$\\\\".format(DualMaySST2(my_dict[(tu1, tu2)])))
                     return False
         return True
 
@@ -331,14 +333,14 @@ class DualMaySST2(BC.AlgebraT2Mod2):
     def mul_mons(self, mon1: tuple, mon2: tuple):
         prod0 = self.type_c0.mul_mons(mon1[0], mon2[0])
         prod1 = self.type_c1.mul_mons(mon1[1], mon2[1])
-        if type(prod0) is type(prod1) is FrozenDict:
+        if type(prod0) is type(prod1) is tuple:
             return prod0, prod1
         else:
             return set()
 
     @classmethod
     def unit(cls):
-        return cls((FrozenDict(), FrozenDict()))
+        return cls(((), ()))
 
     def diff(self):
         data = set()
@@ -349,10 +351,9 @@ class DualMaySST2(BC.AlgebraT2Mod2):
                 data.add((m1, m))
         return type(self)(data)
 
-
-# functions
-def get_mon(s: set) -> frozenset:
-    return max(s, key=lambda m: sorted(m.items()))
+    def _sorted_mons(self) -> list:
+        return sorted(self.data, key=lambda m: (
+            self.deg_mon(m), sorted(m[0].items()), sorted(m[1].items())), reverse=True)
 
 
 if __name__ == "__main__":
