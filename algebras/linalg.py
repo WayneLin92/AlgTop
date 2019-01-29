@@ -215,6 +215,6 @@ class LinearMapKernelMod2:
         else:
             return None
 
-    def get_image(self) -> VectorSpaceMod2:
+    def image(self) -> VectorSpaceMod2:
         """ warning: the return should not be modified """
         return VectorSpaceMod2([(w, mw) for w, mw, gw in self.inv_maps], self.get_mon)

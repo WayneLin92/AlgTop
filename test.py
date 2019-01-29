@@ -235,7 +235,7 @@ class LinAlgTestCase(unittest.TestCase):
         for r in lin_map.kernel.get_basis(Steenrod):
             print(r)
         print("\nimage:\n")
-        for r in lin_map.get_image().get_basis(Steenrod):
+        for r in lin_map.image().get_basis(Steenrod):
             print(r)
         self.assertTrue(True)
 

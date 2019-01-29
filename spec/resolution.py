@@ -35,7 +35,7 @@ class Ext:
                     t_gen, gen_kernel = self.h[s][index_gen]
                     my_map.add_maps((sq * FM.gen("a_{{{}, {}}}".format(s, index_gen)), sq * gen_kernel)
                                     for sq in ideal[t-t_gen])
-                for gen in kernel_t.quotient(my_map.get_image()).get_basis(FM):
+                for gen in kernel_t.quotient(my_map.image()).get_basis(FM):
                     self.h[s].append((t, gen))
                 kernel_t = my_map.kernel
 

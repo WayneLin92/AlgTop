@@ -5,9 +5,9 @@ import functools
 
 class Deg(tuple):
     """A subclass of tuple with element-wise addition and broadcast multiplication."""
-    def __new__(cls, *args):
+    def __new__(cls, iterable):
         # noinspection PyTypeChecker
-        return tuple.__new__(cls, *args)
+        return tuple.__new__(cls, iterable)
 
     def __add__(self, other):
         """Element-wise addition."""

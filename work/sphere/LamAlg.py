@@ -76,8 +76,8 @@ class Lambda_Algebra(BC.OperationsMod2):
         my_map1.add_maps((r, r.diff()) for r in cls.basis(s, t))
         print("kernel dim:", my_map1.kernel.get_dim())
         my_map2.add_maps((r, r.diff()) for r in cls.basis(s - 1, t))
-        print("image: dim", my_map2.get_image().get_dim())
+        print("image: dim", my_map2.image().get_dim())
         print("quotient:")
-        for r in my_map1.kernel.quotient(my_map2.get_image()).get_basis(Lambda_Algebra):
+        for r in my_map1.kernel.quotient(my_map2.image()).get_basis(Lambda_Algebra):
             print(r)
 
