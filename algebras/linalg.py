@@ -149,14 +149,15 @@ class LinearMapMod2:
 
     def f(self, vector):
         """ return f(vector) """
-        v = vector if type(vector) is set else vector.data.copy()
+        type_vector = type(vector)
+        v = vector if type_vector is set else vector.data.copy()
         result = set()
         for v1, mv1, fv1 in self.maps:
             if mv1 in v:
                 v ^= v1
                 result ^= fv1
         if not v:
-            return type(vector)(result)
+            return result if type_vector is set else type_vector(result)
         else:
             return None
 
@@ -191,8 +192,8 @@ class LinearMapKernelMod2:
 
     def add_maps(self, maps: Iterable[tuple]):
         for src, tgt in maps:
-            gw = src.data.copy()  # type: Set[_t_mon]
-            w = tgt.data.copy()  # type: Set[_t_mon]
+            gw = src if type(src) is set else src.data.copy()  # type: Set[_t_mon]
+            w = tgt if type(tgt) is set else tgt.data.copy()  # type: Set[_t_mon]
             for w1, mw1, gw1 in self.inv_maps:
                 if mw1 in w:
                     w ^= w1

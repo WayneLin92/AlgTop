@@ -39,7 +39,7 @@ class Signature(tuple):
 
     def deg(self):
         """Return the degree of the monomial with self as the signature."""
-        return -sum(fn << n for n, fn in enumerate(self))
+        return sum(fn << n for n, fn in enumerate(self))
 
     def accumulate(self):
         """Return the sequence of the partial sum."""
@@ -178,6 +178,31 @@ class DualMaySS(BC.AlgebraMod2):
                             if not cls._homology[(s, t, u)]:
                                 del cls._homology[(s, t, u)]
 
+    @staticmethod
+    def h_subcomplex_type1(s_max, t_max, u_max):
+        maps = {}
+        homology = {}
+
+        for s in range(s_max + 1, -1, -1):
+            for t in range(s, t_max + 1):
+                for u in range(s, u_max + 1):
+                    if (s, t, u) not in maps:
+                        maps[(s, t, u)] = linalg.LinearMapKernelMod2()
+                        maps[(s, t, u)].add_maps((DualMaySS(m).data, DualMaySS(m).diff().data)
+                                                 for m in DualMaySS.basis_mons(s, t, u)
+                                                 if DualMaySS.is_type1(m))
+                        if s <= s_max:
+                            cycles = maps[(s, t, u)].kernel
+                            if (s + 1, t, u) in maps:
+                                boundaries = maps[(s + 1, t, u)].image()
+                                homology[(s, t, u)] = list(cycles.quotient(boundaries).simplify().get_basis(set))
+                            else:
+                                homology[(s, t, u)] = list(cycles.simplify().get_basis(set))
+                            if not homology[(s, t, u)]:
+                                del homology[(s, t, u)]
+        for x in sorted(map(DualMaySS, itertools.chain.from_iterable(homology.values())), key=lambda x: x.deg()):
+            print(f"${x}$\\\\")
+
     @classmethod
     def save(cls):
         if cls._loaded:
@@ -287,11 +312,13 @@ class DualMaySS(BC.AlgebraMod2):
         for x in cls.basis_sig(sig):
             s = x.deg()[0]
             lin_maps[s].add_maps(((x, x.diff()),))
+        homology = {}
         for s in range(s_min, s_max + 1):
             print(f"{s}:")
-            homology_s = lin_maps[s].kernel.quotient(lin_maps[s+1].image()).simplify()
-            for x in homology_s.get_basis(DualMaySS):
+            homology[s] = list(lin_maps[s].kernel.quotient(lin_maps[s+1].image()).simplify().get_basis(DualMaySS))
+            for x in homology[s]:
                 print(x)
+        return homology
 
     # methods -----------------
     @staticmethod
@@ -390,8 +417,10 @@ class DualMaySS(BC.AlgebraMod2):
         # for r in my_map2.image().get_basis(DualMaySS):
         #     print(r)
         print("quotient:")
-        for r in my_map1.kernel.quotient(my_map2.image()).simplify().get_basis(DualMaySS):
+        result = list(my_map1.kernel.quotient(my_map2.image()).simplify().get_basis(DualMaySS))
+        for r in result:
             print(r)
+        return result
 
     def is_primitive(self):
         """ assert self.diff() == 0 """
@@ -430,13 +459,12 @@ class DualMaySS(BC.AlgebraMod2):
             print(r)
 
     @staticmethod
-    def has_crossing(mon):
-        for g1, g2 in itertools.combinations(mon, 2):
-            k1, r1 = g1
-            k2, r2 = g2
-            if k1[0] + k1[1] > k2[0] and k2[0] + k2[1] > k1[0]:
-                return True
-        return False
+    def is_type1(mon):
+        for k, r in mon:
+            i, j = k
+            if j > 1 and r > 1:
+                return False
+        return True
 
 
 class DualMaySST2(BC.AlgebraT2Mod2):
