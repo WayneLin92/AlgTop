@@ -7,9 +7,9 @@ _t_mon = Union[tuple, frozenset, int, str]  # todo: generic type
 
 
 class VectorSpaceMod2:
-    """
-    This class is for modeling vector spaces.
-    It provides interfaces for Algebra's
+    """This class is for modeling vector spaces.
+
+    It provides interfaces for algebras
     """
     def __init__(self, data: Union[None, list, Iterable] = None, get_mon: Callable = max):
         self.get_mon = get_mon
@@ -25,7 +25,7 @@ class VectorSpaceMod2:
         return VectorSpaceMod2(copy.deepcopy(self.data))
 
     def add_vectors(self, vectors: Iterable):
-        """ add vectors to this vector space """
+        """Add vectors to this vector space."""
         for v in vectors:
             self.add_v(v)
 
@@ -48,7 +48,7 @@ class VectorSpaceMod2:
         return self
 
     def res(self, vector):
-        """ return vector mod self """
+        """Return vector mod self."""
         v = vector if type(vector) is set else vector.data.copy()
         for w, mw in self.data:
             if mw in v:
@@ -56,10 +56,11 @@ class VectorSpaceMod2:
         return v if type(vector) is set else type(vector)(v)
 
     def quotient(self, other: "VectorSpaceMod2") -> "VectorSpaceMod2":
-        """ return a basis of self/span(iter_v) assuming iter_v are linear independent """
+        """Return a basis of self/span(iter_v) assuming iter_v are linear independent."""
         result = other.data.copy()
         n = len(result)
         for v, mv in self.data:
+            v = v.copy()
             for v1, mv1 in result:
                 if mv1 in v:
                     v ^= v1
@@ -68,13 +69,14 @@ class VectorSpaceMod2:
         return VectorSpaceMod2(result[n:])
 
     def get_mons(self) -> Set[_t_mon]:
-        """ return the leading monomials """
+        """Return the leading monomials."""
         return set(m for _, m in self.data)
 
-    def get_basis(self, type_alg) -> Iterable:
+    def basis(self, type_alg) -> Iterable:
         return (type_alg(v) for v, mv in self.data)
 
-    def get_dim(self) -> int:
+    def dim(self) -> int:
+        """Return the dimension of the vector space."""
         return len(self.data)
 
 

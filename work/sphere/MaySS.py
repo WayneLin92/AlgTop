@@ -7,7 +7,7 @@ from algebras import BaseClasses as BC, linalg, mymath
 
 class Signature(tuple):
     """A subclass of tuple modeling functions on nonnegative numbers"""
-    def __new__(cls, iterable):
+    def __new__(cls, iterable) -> "Signature":
         # noinspection PyTypeChecker
         return tuple.__new__(cls, iterable)
 
@@ -133,15 +133,15 @@ class MaySS(BC.BasePolyMod2):
         my_map1 = linalg.LinearMapKernelMod2()
         my_map2 = linalg.LinearMapKernelMod2()
         my_map1.add_maps((r, r.diff()) for r in cls.basis(s, t, u))
-        print("kernel dim:", my_map1.kernel.get_dim())
-        # for r in my_map1.kernel.get_basis(MaySS):
+        print("kernel dim:", my_map1.kernel.dim())
+        # for r in my_map1.kernel.basis(MaySS):
         #     print(r)
         my_map2.add_maps((r, r.diff()) for r in cls.basis(s - 1, t, u))
-        print("image: dim", my_map2.image().get_dim())
-        # for r in my_map2.image().get_basis(MaySS):
+        print("image: dim", my_map2.image().dim())
+        # for r in my_map2.image().basis(MaySS):
         #     print(r)
         print("quotient:")
-        for r in my_map1.kernel.quotient(my_map2.image()).get_basis(MaySS):
+        for r in my_map1.kernel.quotient(my_map2.image()).basis(MaySS):
             print(r)
 
 
@@ -172,36 +172,11 @@ class DualMaySS(BC.AlgebraMod2):
                             cycles = cls._maps[(s, t, u)].kernel
                             if (s + 1, t, u) in cls._maps:
                                 boundaries = cls._maps[(s + 1, t, u)].image()
-                                cls._homology[(s, t, u)] = list(cycles.quotient(boundaries).simplify().get_basis(set))
+                                cls._homology[(s, t, u)] = list(cycles.quotient(boundaries).simplify().basis(set))
                             else:
-                                cls._homology[(s, t, u)] = list(cycles.simplify().get_basis(set))
+                                cls._homology[(s, t, u)] = list(cycles.simplify().basis(set))
                             if not cls._homology[(s, t, u)]:
                                 del cls._homology[(s, t, u)]
-
-    @staticmethod
-    def h_subcomplex_type1(s_max, t_max, u_max):
-        maps = {}
-        homology = {}
-
-        for s in range(s_max + 1, -1, -1):
-            for t in range(s, t_max + 1):
-                for u in range(s, u_max + 1):
-                    if (s, t, u) not in maps:
-                        maps[(s, t, u)] = linalg.LinearMapKernelMod2()
-                        maps[(s, t, u)].add_maps((DualMaySS(m).data, DualMaySS(m).diff().data)
-                                                 for m in DualMaySS.basis_mons(s, t, u)
-                                                 if DualMaySS.is_type1(m))
-                        if s <= s_max:
-                            cycles = maps[(s, t, u)].kernel
-                            if (s + 1, t, u) in maps:
-                                boundaries = maps[(s + 1, t, u)].image()
-                                homology[(s, t, u)] = list(cycles.quotient(boundaries).simplify().get_basis(set))
-                            else:
-                                homology[(s, t, u)] = list(cycles.simplify().get_basis(set))
-                            if not homology[(s, t, u)]:
-                                del homology[(s, t, u)]
-        for x in sorted(map(DualMaySS, itertools.chain.from_iterable(homology.values())), key=lambda x: x.deg()):
-            print(f"${x}$\\\\")
 
     @classmethod
     def save(cls):
@@ -235,6 +210,7 @@ class DualMaySS(BC.AlgebraMod2):
 
     @classmethod
     def str_mon(cls, mon: tuple):
+        mon = cls.lexicographic(mon)
         result = "".join(map(cls.str_gen, mon))
         return result if result else "1"
 
@@ -315,7 +291,7 @@ class DualMaySS(BC.AlgebraMod2):
         homology = {}
         for s in range(s_min, s_max + 1):
             print(f"{s}:")
-            homology[s] = list(lin_maps[s].kernel.quotient(lin_maps[s+1].image()).simplify().get_basis(DualMaySS))
+            homology[s] = list(lin_maps[s].kernel.quotient(lin_maps[s+1].image()).simplify().basis(DualMaySS))
             for x in homology[s]:
                 print(x)
         return homology
@@ -357,6 +333,10 @@ class DualMaySS(BC.AlgebraMod2):
     @classmethod
     def basis(cls, deg_s, deg_t, deg_u):
         return map(cls, DualMaySS.basis_mons(deg_s, deg_t, deg_u))
+
+    @staticmethod
+    def deg_s_mon(mon):
+        return sum(r for k, r in mon)
 
     @staticmethod
     def coprod_gen(item):
@@ -409,15 +389,15 @@ class DualMaySS(BC.AlgebraMod2):
         my_map1 = linalg.LinearMapKernelMod2()
         my_map2 = linalg.LinearMapKernelMod2()
         my_map1.add_maps((r, r.diff()) for r in cls.basis(s, t, u))
-        print("kernel dim:", my_map1.kernel.get_dim())
-        # for r in my_map1.kernel.get_basis(DualMaySS):
+        print("kernel dim:", my_map1.kernel.dim())
+        # for r in my_map1.kernel.basis(DualMaySS):
         #     print(r)
         my_map2.add_maps((r, r.diff()) for r in cls.basis(s + 1, t, u))
-        print("image: dim", my_map2.image().get_dim())
-        # for r in my_map2.image().get_basis(DualMaySS):
+        print("image: dim", my_map2.image().dim())
+        # for r in my_map2.image().basis(DualMaySS):
         #     print(r)
         print("quotient:")
-        result = list(my_map1.kernel.quotient(my_map2.image()).simplify().get_basis(DualMaySS))
+        result = list(my_map1.kernel.quotient(my_map2.image()).simplify().basis(DualMaySS))
         for r in result:
             print(r)
         return result
@@ -459,12 +439,8 @@ class DualMaySS(BC.AlgebraMod2):
             print(r)
 
     @staticmethod
-    def is_type1(mon):
-        for k, r in mon:
-            i, j = k
-            if j > 1 and r > 1:
-                return False
-        return True
+    def lexicographic(mon) -> list:
+        return sorted(mon, key=lambda g: (g[0][0] + g[0][1], -g[0][0]))
 
 
 class DualMaySST2(BC.AlgebraT2Mod2):
@@ -496,6 +472,28 @@ class DualMaySST2(BC.AlgebraT2Mod2):
     def _sorted_mons(self) -> list:
         return sorted(self.data, key=lambda m: (
             self.deg_mon(m), sorted(m[0].items()), sorted(m[1].items())), reverse=True)
+
+
+def test():
+    sig = Signature((1, 1, 0, -1, -1)).accumulate()
+    s = 3
+    basis_s = set()
+    leading_terms = set()
+    for m in DualMaySS.basis_sig_mon(sig):
+        length = DualMaySS.deg_s_mon(m)
+        if length == s:
+            basis_s.add(m)
+        elif length == s + 1:
+            m = max(DualMaySS(m).diff().data, key=key_lex)
+            if m is not None:
+                leading_terms.add(m)
+    for m in leading_terms:
+        print(m)
+    return basis_s - leading_terms
+
+
+def key_lex(mon):
+    return sorted(map(lambda g: (g[0][0] + g[0][1], -g[0][0]), mon))
 
 
 if __name__ == "__main__":

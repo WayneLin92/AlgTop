@@ -210,7 +210,7 @@ class LinAlgTestCase(unittest.TestCase):
         a = vs.res(Sq(1) + Sq(2) + Sq(3))
         self.assertEqual(a, Sq(3))
         sub_vs = VectorSpaceMod2((Sq(2),))
-        for r in vs.quotient(sub_vs).get_basis(Steenrod):
+        for r in vs.quotient(sub_vs).basis(Steenrod):
             print(r)
 
     def test_graded_vector_space_mod2(self):
@@ -232,10 +232,10 @@ class LinAlgTestCase(unittest.TestCase):
         lin_map = LinearMapKernelMod2()
         lin_map.add_maps([(Sq(1), Sq(1)), (Sq(2), Sq(2)), (Sq(3), Sq(1)+Sq(2))])
         print("\nkernel:\n")
-        for r in lin_map.kernel.get_basis(Steenrod):
+        for r in lin_map.kernel.basis(Steenrod):
             print(r)
         print("\nimage:\n")
-        for r in lin_map.image().get_basis(Steenrod):
+        for r in lin_map.image().basis(Steenrod):
             print(r)
         self.assertTrue(True)
 

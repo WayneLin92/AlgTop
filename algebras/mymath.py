@@ -79,9 +79,40 @@ def cartan_indexing(length: int, deg: int):
             yield (i,) + t
 
 
+def unique_min(iterable, *, default=None, key=None):
+    """Return min if unique otherwise return None."""
+    it = iter(iterable)
+    minimum = next(it) if default is None else default
+    unique = True
+    if key is None:
+        for x in it:
+            if x < minimum:
+                minimum = x
+                unique = True
+            elif x == minimum:
+                unique = False
+    else:
+        key_minimum = key(minimum)
+        for x in it:
+            key_x = key(x)
+            if key_x < key_minimum:
+                minimum = x
+                key_minimum = key_x
+                unique = True
+            elif key_x == key_minimum:
+                unique = False
+    return minimum if unique else None
+
+
+# ---- latex --------
 def tex_index(obj) -> str:
     """Return a string used to express x^obj in latex."""
     result = str(obj)
     return result if len(result) == 1 else f"{{{result}}}"
+
+
+def print_tex_iter(iterable):
+    for obj in iterable:
+        print(f"${obj}$\\\\")
 
 # 73, 87

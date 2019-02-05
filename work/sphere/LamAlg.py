@@ -74,10 +74,10 @@ class Lambda_Algebra(BC.OperationsMod2):
         my_map1 = linalg.LinearMapKernelMod2()
         my_map2 = linalg.LinearMapKernelMod2()
         my_map1.add_maps((r, r.diff()) for r in cls.basis(s, t))
-        print("kernel dim:", my_map1.kernel.get_dim())
+        print("kernel dim:", my_map1.kernel.dim())
         my_map2.add_maps((r, r.diff()) for r in cls.basis(s - 1, t))
-        print("image: dim", my_map2.image().get_dim())
+        print("image: dim", my_map2.image().dim())
         print("quotient:")
-        for r in my_map1.kernel.quotient(my_map2.image()).get_basis(Lambda_Algebra):
+        for r in my_map1.kernel.quotient(my_map2.image()).basis(Lambda_Algebra):
             print(r)
 
