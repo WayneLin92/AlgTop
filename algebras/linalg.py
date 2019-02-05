@@ -1,4 +1,11 @@
-""" The interface for linear algebra operations """
+"""A module for linear algebra.
+
+This module provides interfaces for algebras.
+Warning: If you pass a set as a parameter to a method in this module,
+it might be modified. If you pass an algebra instead, the method would create
+a shallow copy of it.
+"""
+
 from typing import Iterable, Set, Tuple, List, Callable, Union
 import copy
 
@@ -7,22 +14,16 @@ _t_mon = Union[tuple, frozenset, int, str]  # todo: generic type
 
 
 class VectorSpaceMod2:
-    """This class is for modeling vector spaces.
-
-    It provides interfaces for algebras
-    """
-    def __init__(self, data: Union[None, list, Iterable] = None, get_mon: Callable = max):
-        self.get_mon = get_mon
-        if data is None:
-            self.data = []  # type: List[Tuple[Set[_t_mon], _t_mon]]
-        elif type(data) is list:
-            self.data = data
-        else:  # assuming data is an iterator of algebras
-            self.data = []
-            self.add_vectors(data)
+    """This class is for modeling vector spaces."""
+    def __init__(self, vectors=None, *, data=None, key=None):
+        self.key = key
+        self.data = data if data is not None else []
+        if vectors is not None:
+            self.add_vectors(vectors)
 
     def copy(self):
-        return VectorSpaceMod2(copy.deepcopy(self.data))
+        """Return a deep copy."""
+        return VectorSpaceMod2(data=copy.deepcopy(self.data))
 
     def add_vectors(self, vectors: Iterable):
         """Add vectors to this vector space."""
@@ -36,7 +37,7 @@ class VectorSpaceMod2:
             if mw in v:
                 v ^= w
         if v:
-            self.data.append((v, self.get_mon(v)))
+            self.data.append((v, max(v, key=self.key)))
 
     def simplify(self) -> "VectorSpaceMod2":
         for i in range(len(self.data) - 1, 0, -1):
@@ -56,7 +57,7 @@ class VectorSpaceMod2:
         return v if type(vector) is set else type(vector)(v)
 
     def quotient(self, other: "VectorSpaceMod2") -> "VectorSpaceMod2":
-        """Return a basis of self/span(iter_v) assuming iter_v are linear independent."""
+        """Return self/other assuming other is a subspace."""
         result = other.data.copy()
         n = len(result)
         for v, mv in self.data:
@@ -65,8 +66,8 @@ class VectorSpaceMod2:
                 if mv1 in v:
                     v ^= v1
             if v:
-                result.append((v, self.get_mon(v)))
-        return VectorSpaceMod2(result[n:])
+                result.append((v, max(v, key=self.key)))
+        return VectorSpaceMod2(data=result[n:])
 
     def get_mons(self) -> Set[_t_mon]:
         """Return the leading monomials."""
@@ -82,16 +83,16 @@ class VectorSpaceMod2:
 
 class GradedVectorSpaceMod2:
     """ a graded version of VectorSpaceMod2 """
-    def __init__(self, d_max, get_mon: Callable = max):
+    def __init__(self, d_max, *, key=None):
         self.d_max = d_max
-        self.data = [VectorSpaceMod2(None, get_mon) for _ in range(d_max + 1)]  # type: List[VectorSpaceMod2]
+        self.data = [VectorSpaceMod2(key=key) for _ in range(d_max + 1)]  # type: List[VectorSpaceMod2]
 
     def add_vectors(self, vectors: Iterable[_t_mon], deg: int):
         """ add vectors to this vector space """
         assert(0 <= deg <= self.d_max)
         self.data[deg].add_vectors(vectors)
 
-    def res(self, vector, is_homogeneous: bool = True):
+    def res(self, vector, is_homogeneous=True):
         """ return vector mod this VectorSpace"""
         if not vector:
             return vector
@@ -110,7 +111,7 @@ class GradedVectorSpaceMod2:
         return self.data[deg].get_mons()
 
 
-class LinearMapMod2:
+class LinearMapMod2:  # TODO: add key
     """ this class is for modeling linear maps f: V leftrightarrow W: g"""
     def __init__(self):
         # self.maps is for f:V->W and self.inv_maps is for g:W->V
@@ -183,11 +184,11 @@ class LinearMapMod2:
 
 class LinearMapKernelMod2:
     """ this is a optimized version of LinearMapMod2 that focus on computing the kernel """
-    def __init__(self, get_mon: Callable = max):
+    def __init__(self, *, key=None):
         # self.inv_maps is for g:W->V
-        self.get_mon = get_mon
+        self.key = key
         self.inv_maps = []  # type: List[Tuple[Set[_t_mon], _t_mon, Set[_t_mon]]]
-        self.kernel = VectorSpaceMod2(None, get_mon)
+        self.kernel = VectorSpaceMod2(key=key)
 
     def clear(self):
         self.__init__()
@@ -203,7 +204,7 @@ class LinearMapKernelMod2:
             if not w:  # we get gw in the kernel
                 self.kernel.add_v(gw)
             else:
-                self.inv_maps.append((w, self.get_mon(w), gw))
+                self.inv_maps.append((w, max(w, key=self.key), gw))
 
     def g(self, vector):
         """ return f^{-1}(vector) """
@@ -220,4 +221,4 @@ class LinearMapKernelMod2:
 
     def image(self) -> VectorSpaceMod2:
         """ warning: the return should not be modified """
-        return VectorSpaceMod2([(w, mw) for w, mw, gw in self.inv_maps], self.get_mon)
+        return VectorSpaceMod2(data=[(w, mw) for w, mw, gw in self.inv_maps], key=self.key)

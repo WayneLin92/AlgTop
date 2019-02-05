@@ -475,20 +475,21 @@ class DualMaySST2(BC.AlgebraT2Mod2):
 
 
 def test():
+    # sig = Signature((1, 1, 2, 0, -1, -1, -1, -1)).accumulate()
+    # s = 9
     sig = Signature((1, 1, 0, -1, -1)).accumulate()
     s = 3
     basis_s = set()
-    leading_terms = set()
+    d_image = linalg.VectorSpaceMod2(key=key_lex)
     for m in DualMaySS.basis_sig_mon(sig):
         length = DualMaySS.deg_s_mon(m)
         if length == s:
             basis_s.add(m)
         elif length == s + 1:
-            m = max(DualMaySS(m).diff().data, key=key_lex)
-            if m is not None:
-                leading_terms.add(m)
-    for m in leading_terms:
-        print(m)
+            d_image.add_v(DualMaySS(m).diff().data)
+    leading_terms = d_image.get_mons()
+    # for m in leading_terms:
+    #     print(m)
     return basis_s - leading_terms
 
 
