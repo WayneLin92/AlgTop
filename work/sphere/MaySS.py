@@ -37,9 +37,26 @@ class Signature(tuple):
         """Return if any element in self is nonzero."""
         return any(self)
 
+    def simplify(self) -> "Signature":
+        """Remove trailing zeroes."""
+        i = len(self)
+        while i > 0 and self[i-1] == 0:
+            i -= 1
+        return Signature(self[:i])
+
     def deg(self):
         """Return the degree of the monomial with self as the signature."""
         return sum(fn << n for n, fn in enumerate(self))
+
+    def span(self):
+        """Return [left, r) on which self is non-zero."""
+        right = len(self)
+        while right > 0 and self[right-1] == 0:
+            right -= 1
+        left = 0
+        while left < right and self[left] == 0:
+            left += 1
+        return left, right
 
     def accumulate(self):
         """Return the sequence of the partial sum."""
@@ -442,6 +459,9 @@ class DualMaySS(BC.AlgebraMod2):
     def lexicographic(mon) -> list:
         return sorted(mon, key=lambda g: (g[0][0] + g[0][1], -g[0][0]))
 
+    def tex_graph(self):
+        return "+\n".join(map(tex_graph_mon, self.data))
+
 
 class DualMaySST2(BC.AlgebraT2Mod2):
     """ Tensor product of two DualSteenrod """
@@ -477,24 +497,47 @@ class DualMaySST2(BC.AlgebraT2Mod2):
 def test():
     # sig = Signature((1, 1, 2, 0, -1, -1, -1, -1)).accumulate()
     # s = 9
-    sig = Signature((1, 1, 0, -1, -1)).accumulate()
-    s = 3
+    sig = Signature((1, 2, 0, -1, -1, -1)).accumulate()
+    s = 4
     basis_s = set()
-    d_image = linalg.VectorSpaceMod2(key=key_lex)
+    lead_d_mon = set()
+    image_diff = linalg.VectorSpaceMod2(key=key_lex)
     for m in DualMaySS.basis_sig_mon(sig):
         length = DualMaySS.deg_s_mon(m)
         if length == s:
             basis_s.add(m)
         elif length == s + 1:
-            d_image.add_v(DualMaySS(m).diff().data)
-    leading_terms = d_image.get_mons()
+            diff = DualMaySS(m).diff()
+            lead_d_mon.add(max(diff.data, key=key_lex))
+            image_diff.add_v(diff.data)
+    lead_d_cycle = image_diff.get_mons()
     # for m in leading_terms:
     #     print(m)
-    return basis_s - leading_terms
+    return basis_s - lead_d_cycle, lead_d_cycle - lead_d_mon, lead_d_mon
 
 
 def key_lex(mon):
     return sorted(map(lambda g: (g[0][0] + g[0][1], -g[0][0]), mon))
+
+
+def tex_graph_mon(mon):
+    sig = DualMaySS.sig_mon(mon)
+    left, right = sig.span()
+    sep = 6
+    result = f"\\xymatrix@M=0pt@C={sep}pt{{\n"
+    arrows = [[] for _ in range(right-left)]
+    for k, r in mon:
+        # noinspection PyTypeChecker
+        arrows[k[0] - left].append((k[1], r))
+    for i in range(right - left):
+        result += "\\bullet"
+        for j, right in arrows[i]:
+            result += f" \\ar@/^{sep*j}pt/@{{-}}[{'r'*j}]"
+            if right > 1:
+                result += f"|-{right}"
+        result += " & "
+    result += "\\bullet\n}"
+    return result
 
 
 if __name__ == "__main__":
