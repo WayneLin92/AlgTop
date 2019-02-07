@@ -37,7 +37,7 @@ class VectorSpaceMod2:
             if mw in v:
                 v ^= w
         if v:
-            self.data.append((v, max(v, key=self.key)))
+            self.data.append((v, max(v, key=self.key) if self.key else max(v)))
 
     def simplify(self) -> "VectorSpaceMod2":
         for i in range(len(self.data) - 1, 0, -1):
@@ -66,7 +66,7 @@ class VectorSpaceMod2:
                 if mv1 in v:
                     v ^= v1
             if v:
-                result.append((v, max(v, key=self.key)))
+                result.append((v, max(v, key=self.key) if self.key else max(v)))
         return VectorSpaceMod2(data=result[n:])
 
     def get_mons(self) -> Set[_t_mon]:
@@ -204,7 +204,7 @@ class LinearMapKernelMod2:
             if not w:  # we get gw in the kernel
                 self.kernel.add_v(gw)
             else:
-                self.inv_maps.append((w, max(w, key=self.key), gw))
+                self.inv_maps.append((w, max(w, key=self.key) if self.key else max(w), gw))
 
     def g(self, vector):
         """ return f^{-1}(vector) """
