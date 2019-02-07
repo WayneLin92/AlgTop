@@ -1,7 +1,6 @@
-import operator
 import itertools
+import operator
 import pickle
-from typing import Iterable
 from algebras import BaseClasses as BC, linalg, mymath
 
 
@@ -68,81 +67,163 @@ class Signature(tuple):
 
 
 class MaySS(BC.BasePolyMod2):
-    """ This is for the MSS starting from E_1 """
+    """This is for the May spectral sequence starting from E_1."""
     # ----- BasePolyMod2 ----------------
     @classmethod
     def gen(cls, *key: int):
-        assert len(key) == 2 and key[0] > 0 <= key[1]
-        return cls(((cls.ij2deg(key), 1),))
+        """Return (R^i_j)^r."""
+        if len(key) == 2:
+            i, j = key
+            return cls((((i, j), 1),))
+        else:
+            i, j, r = key
+            return cls((((i, j), r),))
 
     @staticmethod
-    def deg_gen(n: int) -> int:
-        return n
+    def deg_gen(k) -> mymath.Deg:
+        i, j = k
+        return mymath.Deg((1, (1 << j) - 1 << i, j))
 
     @staticmethod
-    def str_gen(n: int) -> str:
-        return "h_{{{}，{}}}".format(*MaySS.deg2ij(n))
+    def str_gen(k):
+        return "R^{}_{}".format(*map(mymath.tex_index, k))
+
+    @classmethod
+    def str_mon(cls, mon):
+        result = ""
+        for gen, exp in mon:
+            if exp == 1:
+                result += cls.str_gen(gen)
+            else:
+                result += f"({cls.str_gen(gen)})^{mymath.tex_index(exp)}"
+        if result == "":
+            result = "1"
+        return result
+
+    # ----- Signature ------------------
+    @staticmethod
+    def sig_mon(mon: tuple):
+        """Return the signature function of a monomial."""
+        len_sig = max(k[0] + k[1] for k, r in mon)
+        f = [0] * (len_sig + 1)
+        for k, r in mon:
+            f[k[0]] += r
+            f[k[0] + k[1]] -= r
+        return Signature(itertools.accumulate(f[:-1]))
+
+    def sig(self):
+        """Return the signature of self assuming that it is homogeneous in signature."""
+        for m in self.data:
+            return self.sig_mon(m)
+
+    @staticmethod
+    def _fixed_i_sig_mon(sig: Signature, i, j_max=None):
+        """Return a monomial of gamma_r P^i_j for fixed i"""
+        if sig[i] == 0:
+            yield ()
+            return
+        if j_max is None:
+            j_max = 1
+            while i + j_max < len(sig) and sig[i + j_max] > 0:
+                j_max += 1
+        for j in range(j_max, 1, -1):
+            r_max = min(sig[i:i + j])
+            for r in range(1, r_max + 1):
+                for m in MaySS._fixed_i_sig_mon(sig - ((0,) * i + (r,) * j), i, j - 1):
+                    yield m + (((i, j), r),)
+        j, r = 1, sig[i]
+        if r > 0:
+            yield (((i, j), r),)
+
+    @staticmethod
+    def basis_sig_mon(sig: Signature):
+        if not sig:
+            yield ()
+            return
+        i = 0
+        while not sig[i]:
+            i += 1
+        for m in MaySS._fixed_i_sig_mon(sig, i):
+            sig_m = MaySS.sig_mon(m)
+            for m1 in MaySS.basis_sig_mon(sig - sig_m):
+                yield m + m1
+
+    @classmethod
+    def basis_sig(cls, sig: Signature):
+        return map(cls, cls.basis_sig_mon(sig))
+
+    @classmethod
+    def homology_signature(cls, sig: Signature):
+        s_min = sum(i for i in sig.diff() if i > 0)
+        s_max = sum(sig)
+        lin_maps = {}
+        for s in range(s_min - 1, s_max + 2):
+            lin_maps[s] = linalg.LinearMapKernelMod2()
+        for x in cls.basis_sig(sig):
+            s = x.deg()[0]
+            lin_maps[s].add_maps(((x, x.diff()),))
+        homology = {}
+        for s in range(s_min, s_max + 1):
+            print(f"{s}:")
+            s1 = s - 1 if cls is MaySS else s + 1
+            homology[s] = list(lin_maps[s].kernel.quotient(lin_maps[s1].image()).simplify().basis(cls))
+            for x in homology[s]:
+                print(x)
+        return homology
 
     # methods -----------------
     @staticmethod
-    def ij2deg(key: tuple) -> int:
-        return (1 << key[0]) - 1 << key[1]
+    def deg_t_gen(k: tuple) -> int:
+        return (1 << k[1]) - 1 << k[0]
 
     @staticmethod
-    def deg2ij(n: int) -> tuple:
-        i = bin(n).count('1')
-        j = n.bit_length() - i
-        return i, j
-
-    @staticmethod
-    def basis_mons(length, deg, may_filtr, ij_max=None):
-        """ return monomials h_ij^k...h_index_max^e with given length, deg, may_filtr """
-        cls = MaySS
-        if length == 0 or deg == 0 or may_filtr == 0:
-            if length == deg == may_filtr:
+    def basis_mons(deg_s, deg_t, deg_u, ij_max=None):
+        """Return monomials (R^i_j)^k...(R ij_max)^e with given length, deg, may_filtr."""
+        if deg_s == 0 or deg_t == 0 or deg_u == 0:
+            if deg_s == deg_t == deg_u:
                 yield ()
             return
         if ij_max is None:
-            bound = deg - length + 1
+            bound = deg_t - deg_s + 1
             if bound <= 0:
                 return
-            sum_ij = bound.bit_length()
-            j = 0
-            while (1 << sum_ij) - (1 << j) > bound:
-                j += 1
-            ij_max = (sum_ij - j, j)
-        if ij_max == (1, 0):
-            if length == deg == may_filtr:
-                yield ((MaySS.ij2deg(ij_max), deg),)
+            i_plus_j = bound.bit_length()
+            i = 0
+            while (1 << i_plus_j) - (1 << i) > bound:
+                i += 1
+            ij_max = (i, i_plus_j - i)
+        if ij_max == (0, 1):
+            if deg_s == deg_t == deg_u:
+                yield (((0, 1), deg_t),)
             return
-        for e in range(min(length, deg // MaySS.ij2deg(ij_max), may_filtr // ij_max[0]), -1, -1):
-            # print(length, deg, may_filtr, "{}^{}".format(ij_max, e))
-            index_next = (ij_max[0] - 1, ij_max[1] + 1) if ij_max[0] > 1 else (sum(ij_max) - 1, 0)
-            for mon in cls.basis_mons(length - e, deg - e * MaySS.ij2deg(ij_max),
-                                      may_filtr - e * ij_max[0], index_next):
+        i, j = ij_max
+        for e in range(min(deg_s, deg_t // MaySS.deg_t_gen(ij_max), deg_u // j), -1, -1):
+            ij_next = (i + 1, j - 1) if j > 1 else (0, i + j - 1)
+            for mon in MaySS.basis_mons(deg_s - e, deg_t - e * MaySS.deg_t_gen(ij_max),
+                                        deg_u - e * j, ij_next):
                 if e > 0:
-                    yield mon + ((MaySS.ij2deg(ij_max), e),)
+                    yield tuple(sorted(mon + ((ij_max, e),)))
                 else:
                     yield mon
 
     @classmethod
-    def basis(cls, length, deg, may_filtr):
-        return (cls(m) for m in MaySS.basis_mons(length, deg, may_filtr))
+    def basis(cls, deg_s, deg_t, deg_u):
+        return map(cls, MaySS.basis_mons(deg_s, deg_t, deg_u))
 
     def diff(self):
-        """ return the coboundary of the cochain """
+        """Return the coboundary of the cochain."""
         result = self.zero()
         for m in self.data:
             for ind in range(len(m)):
-                g, e = m[ind]
+                k, e = m[ind]
                 if e % 2:
-                    h = self.gen
-                    i, j = MaySS.deg2ij(g)
-                    dh_k = sum((h(i - l, j + l) * h(l, j) for l in range(1, i)), self.zero())
+                    i, j = k
+                    dk_data = set((((i, j1), 1), ((i + j1, j - j1), 1)) for j1 in range(1, j))
+                    dk = MaySS(dk_data)
                     if e - 1:
-                        result += MaySS(m[:ind] + m[ind + 1:]) * MaySS(((g, e - 1),)) * dh_k
+                        result += MaySS(m[:ind] + m[ind + 1:]) * MaySS(((k, e - 1),)) * dk
                     else:
-                        result += MaySS(m[:ind] + m[ind + 1:]) * dh_k
+                        result += MaySS(m[:ind] + m[ind + 1:]) * dk
         return result
 
     @classmethod
@@ -151,14 +232,11 @@ class MaySS(BC.BasePolyMod2):
         my_map2 = linalg.LinearMapKernelMod2()
         my_map1.add_maps((r, r.diff()) for r in cls.basis(s, t, u))
         print("kernel dim:", my_map1.kernel.dim())
-        # for r in my_map1.kernel.basis(MaySS):
-        #     print(r)
-        my_map2.add_maps((r, r.diff()) for r in cls.basis(s - 1, t, u))
+        s1 = s - 1 if cls is MaySS else s + 1
+        my_map2.add_maps((r, r.diff()) for r in cls.basis(s1, t, u))
         print("image: dim", my_map2.image().dim())
-        # for r in my_map2.image().basis(MaySS):
-        #     print(r)
         print("quotient:")
-        for r in my_map1.kernel.quotient(my_map2.image()).basis(MaySS):
+        for r in my_map1.kernel.quotient(my_map2.image()).basis(cls):
             print(r)
 
 
@@ -218,138 +296,45 @@ class DualMaySS(BC.AlgebraMod2):
     @classmethod
     def gen(cls, i, j, r=1) -> "DualMaySS":
         """Return gamma_r P^i_j."""
-        return cls((((i, j), r),)) if r else cls(())
+        return cls((((i, j), r),))
 
     @staticmethod
-    def str_gen(item: tuple) -> str:
+    def str_item(item: tuple) -> str:
         ij, r = item
         return "\\gamma_{}(\\bar{{P}}^{}_{})".format(*map(mymath.tex_index, (r, *ij)))
 
     @classmethod
     def str_mon(cls, mon: tuple):
         mon = cls.lexicographic(mon)
-        result = "".join(map(cls.str_gen, mon))
+        result = "".join(map(cls.str_item, mon))
         return result if result else "1"
 
     @staticmethod
-    def deg_gen(item: tuple):
+    def deg_item(item: tuple):
         ij, r = item
         return mymath.Deg((r, ((1 << ij[1]) - 1 << ij[0]) * r, ij[1] * r))
 
     @classmethod
     def deg_mon(cls, mon: tuple):
-        return sum(map(cls.deg_gen, mon), mymath.Deg((0, 0, 0)))
+        return sum(map(cls.deg_item, mon), mymath.Deg((0, 0, 0)))
 
     def _sorted_mons(self) -> list:
         return sorted(self.data, key=lambda m: (self.deg_mon(m), m))
 
     # ----- Signature ------------------
-    @staticmethod
-    def sig_mon(mon: tuple):
-        """Return the signature function of a monomial."""
-        len_sig = max(k[0] + k[1] for k, r in mon)
-        f = [0] * (len_sig + 1)
-        for k, r in mon:
-            f[k[0]] += r
-            f[k[0] + k[1]] -= r
-        return Signature(itertools.accumulate(f[:-1]))
-
-    def sig(self):
-        """Return the signature of self assuming that it is homogeneous in signature."""
-        for m in self.data:
-            return self.sig_mon(m)
-
-    @staticmethod
-    def _fixed_i_sig_mon(sig: Signature, i, j_max=None):
-        """Return a monomial of gamma_r P^i_j for fixed i"""
-        if sig[i] == 0:
-            yield ()
-            return
-        if j_max is None:
-            j_max = 1
-            while i + j_max < len(sig) and sig[i + j_max] > 0:
-                j_max += 1
-        for j in range(j_max, 1, -1):
-            r_max = min(sig[i:i + j])
-            for r in range(1, r_max + 1):
-                for m in DualMaySS._fixed_i_sig_mon(sig - ((0,) * i + (r,) * j), i, j - 1):
-                    yield m + (((i, j), r),)
-        j, r = 1, sig[i]
-        if r > 0:
-            yield (((i, j), r),)
-
-    @staticmethod
-    def basis_sig_mon(sig: Signature):
-        if not sig:
-            yield ()
-            return
-        i = 0
-        while not sig[i]:
-            i += 1
-        for m in DualMaySS._fixed_i_sig_mon(sig, i):
-            sig_m = DualMaySS.sig_mon(m)
-            for m1 in DualMaySS.basis_sig_mon(sig - sig_m):
-                yield m + m1
-
-    @classmethod
-    def basis_sig(cls, sig: Signature):
-        return map(cls, cls.basis_sig_mon(sig))
-
-    @classmethod
-    def homology_signature(cls, sig: Signature):
-        s_min = sum(i for i in sig.diff() if i > 0)
-        s_max = sum(sig)
-        lin_maps = {}
-        for s in range(s_min, s_max + 2):
-            lin_maps[s] = linalg.LinearMapKernelMod2()
-        for x in cls.basis_sig(sig):
-            s = x.deg()[0]
-            lin_maps[s].add_maps(((x, x.diff()),))
-        homology = {}
-        for s in range(s_min, s_max + 1):
-            print(f"{s}:")
-            homology[s] = list(lin_maps[s].kernel.quotient(lin_maps[s+1].image()).simplify().basis(DualMaySS))
-            for x in homology[s]:
-                print(x)
-        return homology
+    sig_mon = MaySS.sig_mon
+    sig = MaySS.sig
+    # noinspection PyProtectedMember
+    _fixed_i_sig_mon = MaySS._fixed_i_sig_mon
+    basis_sig_mon = MaySS.basis_sig_mon
+    basis_sig = MaySS.basis_sig
+    homology_signature = MaySS.homology_signature
 
     # methods -----------------
-    @staticmethod
-    def ij2deg(ij: tuple) -> int:
-        return (1 << ij[1]) - 1 << ij[0]
-
-    @staticmethod
-    def basis_mons(deg_s, deg_t, deg_u, ij_max=None):
-        """ return monomials h_ij^k...h_index_max^e with given length, deg, may_filtr """
-        if deg_s == 0 or deg_t == 0 or deg_u == 0:
-            if deg_s == deg_t == deg_u:
-                yield ()
-            return
-        if ij_max is None:
-            bound = deg_t - deg_s + 1
-            if bound <= 0:
-                return
-            sum_ij = bound.bit_length()
-            i = 0
-            while (1 << sum_ij) - (1 << i) > bound:
-                i += 1
-            ij_max = (i, sum_ij - i)
-        if ij_max == (0, 1):
-            if deg_s == deg_t == deg_u:
-                yield (((0, 1), deg_t),)
-            return
-        for e in range(min(deg_s, deg_t // DualMaySS.ij2deg(ij_max), deg_u // ij_max[1]), -1, -1):
-            index_next = (ij_max[0] + 1, ij_max[1] - 1) if ij_max[1] > 1 else (0, sum(ij_max) - 1)
-            for mon in DualMaySS.basis_mons(deg_s - e, deg_t - e * DualMaySS.ij2deg(ij_max),
-                                            deg_u - e * ij_max[1], index_next):
-                if e > 0:
-                    yield tuple(sorted(mon + ((ij_max, e),)))
-                else:
-                    yield mon
-
-    @classmethod
-    def basis(cls, deg_s, deg_t, deg_u):
-        return map(cls, DualMaySS.basis_mons(deg_s, deg_t, deg_u))
+    deg_t_k = MaySS.deg_t_gen
+    basis_mons = MaySS.basis_mons
+    basis = MaySS.basis
+    homology = MaySS.homology
 
     @staticmethod
     def deg_s_mon(mon):
@@ -401,24 +386,6 @@ class DualMaySS(BC.AlgebraMod2):
         my_map2.add_maps((r, r.diff()) for r in self.basis(s + 1, t, u))
         return my_map2.g(self)
 
-    @classmethod
-    def homology(cls, s, t, u):
-        my_map1 = linalg.LinearMapKernelMod2()
-        my_map2 = linalg.LinearMapKernelMod2()
-        my_map1.add_maps((r, r.diff()) for r in cls.basis(s, t, u))
-        print("kernel dim:", my_map1.kernel.dim())
-        # for r in my_map1.kernel.basis(DualMaySS):
-        #     print(r)
-        my_map2.add_maps((r, r.diff()) for r in cls.basis(s + 1, t, u))
-        print("image: dim", my_map2.image().dim())
-        # for r in my_map2.image().basis(DualMaySS):
-        #     print(r)
-        print("quotient:")
-        result = list(my_map1.kernel.quotient(my_map2.image()).simplify().basis(DualMaySS))
-        for r in result:
-            print(r)
-        return result
-
     def is_primitive(self):
         """ assert self.diff() == 0 """
         coprod = self.coprod()
@@ -446,7 +413,7 @@ class DualMaySS(BC.AlgebraMod2):
         return True
 
     @classmethod
-    def homology_basis(cls) -> Iterable["DualMaySS"]:
+    def homology_basis(cls):
         return map(DualMaySS, itertools.chain.from_iterable(cls._homology.values()))
 
     @classmethod
@@ -460,7 +427,7 @@ class DualMaySS(BC.AlgebraMod2):
         return sorted(mon, key=lambda g: (g[0][0] + g[0][1], -g[0][0]))
 
     def tex_graph(self):
-        return "+\n".join(map(tex_graph_mon, self.data))
+        return "\\hspace{6pt}+\\hspace{6pt}\n".join(map(tex_graph_mon, sorted(self.data, key=key_lex)))
 
 
 class DualMaySST2(BC.AlgebraT2Mod2):
@@ -494,30 +461,8 @@ class DualMaySST2(BC.AlgebraT2Mod2):
             self.deg_mon(m), sorted(m[0].items()), sorted(m[1].items())), reverse=True)
 
 
-def test():
-    # sig = Signature((1, 1, 2, 0, -1, -1, -1, -1)).accumulate()
-    # s = 9
-    sig = Signature((1, 2, 0, -1, -1, -1)).accumulate()
-    s = 4
-    basis_s = set()
-    lead_d_mon = set()
-    image_diff = linalg.VectorSpaceMod2(key=key_lex)
-    for m in DualMaySS.basis_sig_mon(sig):
-        length = DualMaySS.deg_s_mon(m)
-        if length == s:
-            basis_s.add(m)
-        elif length == s + 1:
-            diff = DualMaySS(m).diff()
-            lead_d_mon.add(max(diff.data, key=key_lex))
-            image_diff.add_v(diff.data)
-    lead_d_cycle = image_diff.get_mons()
-    # for m in leading_terms:
-    #     print(m)
-    return basis_s - lead_d_cycle, lead_d_cycle - lead_d_mon, lead_d_mon
-
-
 def key_lex(mon):
-    return sorted(map(lambda g: (g[0][0] + g[0][1], -g[0][0]), mon))
+    return sorted(map(lambda g: (-g[0][0] - g[0][1], g[0][0]), mon))
 
 
 def tex_graph_mon(mon):
@@ -540,7 +485,58 @@ def tex_graph_mon(mon):
     return result
 
 
+def print_tex_graph(iterable, row=5):
+    i = 0
+    for i, m in enumerate(iterable):
+        if i % row == 0:
+            print("$$")
+        print(f"{tex_graph_mon(m)},\\hspace{{5pt}}")
+        if i % row == row - 1:
+            print("$$\n")
+    if i % row != row - 1:
+        print("$$\n")
+
+
+def test():
+    sig1 = Signature((1, 1, 1, 1, -1, -1, -1, -1))
+    sig2 = Signature((0, 1, 1, -1, -1))
+    sig = (sig1 + sig2).accumulate()
+    s = 6
+    basis_s = set()
+    lead_d_mon = set()
+    image_diff = linalg.VectorSpaceMod2(key=key_lex)
+    for m in DualMaySS.basis_sig_mon(sig):
+        length = DualMaySS.deg_s_mon(m)
+        if length == s:
+            basis_s.add(m)
+        elif length == s + 1:
+            diff = DualMaySS(m).diff()
+            if diff:
+                lead_d_mon.add(max(diff.data, key=key_lex))
+            image_diff.add_v(diff.data)
+    lead_d_cycle = image_diff.get_mons()
+    non_lead, lead_chains, lead_mons = basis_s - lead_d_cycle, lead_d_cycle - lead_d_mon, lead_d_mon
+
+    lin_map = linalg.LinearMapKernelMod2(key=key_lex)
+    lin_map.add_maps((DualMaySS(m), DualMaySS(m).diff()) for m in non_lead)
+
+    non_lead = sorted(non_lead, key=key_lex)
+    lead_chains = sorted(lead_chains, key=key_lex)
+    lead_mons = sorted(lead_mons, key=key_lex)
+    print(f"$f={sig.diff()}$, $s={s}$.")
+    print("Non-leading terms:\n")
+    print_tex_graph(non_lead)
+    print("Leading terms of boundary of chains:\n")
+    print_tex_graph(lead_chains)
+    print("Leading terms of boundary of monomials:\n")
+    print_tex_graph(lead_mons)
+    print("Homology:\n")
+    for x in lin_map.kernel.basis(DualMaySS):
+        print(f"$$\n{x.tex_graph()}\n$$\n")
+    return basis_s - lead_d_cycle, lead_d_cycle - lead_d_mon, lead_d_mon, lin_map.kernel
+
+
 if __name__ == "__main__":
     print("MaySS")
 
-# 389
+# 389, 551, 596, 536, 542

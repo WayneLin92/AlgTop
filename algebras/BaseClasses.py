@@ -339,12 +339,10 @@ class BasePolyMulti(Algebra, ABC):
     def str_mon(cls, mon: tuple):
         result = ""
         for gen, exp in mon:
-            if exp >= 10 or exp < 0:
-                result += "{}^{{{}}}".format(cls.str_gen(gen), exp)
-            elif exp > 1:
-                result += "{}^{}".format(cls.str_gen(gen), exp)
-            elif exp == 1:
+            if exp == 1:
                 result += cls.str_gen(gen)
+            else:
+                result += f"{cls.str_gen(gen)}^{mymath.tex_index(exp)}"
         if result == "":
             result = "1"
         return result
