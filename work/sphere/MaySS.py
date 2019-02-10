@@ -465,6 +465,10 @@ def key_lex(mon):
     return sorted(map(lambda g: (-g[0][0] - g[0][1], g[0][0]), mon))
 
 
+def key_lex_reverse(mon):
+    return sorted(map(lambda g: (g[0][0] + g[0][1], -g[0][0]), mon), reverse=True)
+
+
 def tex_graph_mon(mon):
     sig = DualMaySS.sig_mon(mon)
     left, right = sig.span()
@@ -498,13 +502,15 @@ def print_tex_graph(iterable, row=5):
 
 
 def test():
-    sig1 = Signature((1, 1, 1, 1, -1, -1, -1, -1))
-    sig2 = Signature((0, 1, 1, -1, -1))
-    sig = (sig1 + sig2).accumulate()
-    s = 6
+    # sig1 = Signature((1, 1, 1, 1, -1, -1, -1, -1))
+    # sig2 = Signature((0, 1, 1, -1, -1))
+    sig = Signature((1, 2, 0, -1, -1, -1)).accumulate()
+    s = 4
     basis_s = set()
     lead_d_mon = set()
     image_diff = linalg.VectorSpaceMod2(key=key_lex)
+    trail_delta_mon = set()
+    image_delta = linalg.VectorSpaceMod2(key=key_lex_reverse)
     for m in DualMaySS.basis_sig_mon(sig):
         length = DualMaySS.deg_s_mon(m)
         if length == s:
@@ -514,8 +520,19 @@ def test():
             if diff:
                 lead_d_mon.add(max(diff.data, key=key_lex))
             image_diff.add_v(diff.data)
+        elif length == s - 1:
+            delta = MaySS(m).diff()
+            if delta:
+                trail_delta_mon.add(max(delta.data, key=key_lex_reverse))
+            image_delta.add_v(delta.data)
     lead_d_cycle = image_diff.get_mons()
     non_lead, lead_chains, lead_mons = basis_s - lead_d_cycle, lead_d_cycle - lead_d_mon, lead_d_mon
+    assert basis_s >= lead_d_cycle >= lead_d_mon
+
+    trail_delta_cochain = image_delta.get_mons()
+    non_trail, trail_cochains = basis_s - trail_delta_cochain, trail_delta_cochain - trail_delta_mon
+    trail_mons = trail_delta_mon
+    assert basis_s >= trail_delta_cochain >= trail_delta_mon
 
     lin_map = linalg.LinearMapKernelMod2(key=key_lex)
     lin_map.add_maps((DualMaySS(m), DualMaySS(m).diff()) for m in non_lead)
@@ -523,6 +540,11 @@ def test():
     non_lead = sorted(non_lead, key=key_lex)
     lead_chains = sorted(lead_chains, key=key_lex)
     lead_mons = sorted(lead_mons, key=key_lex)
+
+    non_trail = sorted(non_trail, key=key_lex)
+    trail_cochains = sorted(trail_cochains, key=key_lex)
+    trail_mons = sorted(trail_mons, key=key_lex)
+
     print(f"$f={sig.diff()}$, $s={s}$.")
     print("Non-leading terms:\n")
     print_tex_graph(non_lead)
@@ -530,10 +552,15 @@ def test():
     print_tex_graph(lead_chains)
     print("Leading terms of boundary of monomials:\n")
     print_tex_graph(lead_mons)
+    print("Non-trailing terms:\n")
+    print_tex_graph(non_trail)
+    print("trailing terms of coboundary of cochains:\n")
+    print_tex_graph(trail_cochains)
+    print("trailing terms of coboundary of monomials:\n")
+    print_tex_graph(trail_mons)
     print("Homology:\n")
     for x in lin_map.kernel.basis(DualMaySS):
         print(f"$$\n{x.tex_graph()}\n$$\n")
-    return basis_s - lead_d_cycle, lead_d_cycle - lead_d_mon, lead_d_mon, lin_map.kernel
 
 
 if __name__ == "__main__":
