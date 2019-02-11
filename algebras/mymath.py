@@ -1,10 +1,13 @@
 """This module provides some basic functions and types."""
 import operator
 import functools
+import itertools
 
 
 class Deg(tuple):
-    """A subclass of tuple with element-wise addition and broadcast multiplication."""
+    """A subclass of tuple with element-wise addition and broadcast multiplication.
+
+    All Deg instances should have the same length when added together."""
     def __new__(cls, iterable):
         # noinspection PyTypeChecker
         return tuple.__new__(cls, iterable)
@@ -102,6 +105,16 @@ def unique_min(iterable, *, default=None, key=None):
             elif key_x == key_minimum:
                 unique = False
     return minimum if unique else None
+
+
+def leq_tuple(t1, t2):
+    """Return if t1 <= t2 element-wise."""
+    return len(t1) <= len(t2) and all(map(operator.le, t1, t2))
+
+
+def sub_tuple(t1, t2):
+    """Assert leq_tuple(t2, t1) and return t1 - t2 element-wise"""
+    return tuple(itertools.chain(map(operator.sub, t1, t2), t1[len(t2):]))
 
 
 # ---- latex --------

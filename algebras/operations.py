@@ -1,7 +1,7 @@
 """ Provides the classes for the Dyer-Lashof operations
     and the Steenrod operations and its dual
 """
-from . import BaseClasses as BC
+from . import BaseAlgebras as BC
 from .mymath import choose_mod2
 import math
 from typing import Union, List
@@ -268,7 +268,7 @@ class Steenrod(BC.HopfAlgWithDualMod2, BC.OperationsMod2):
 
     @staticmethod
     def adem(mon, index):
-        # BC.Monitor.count(mon)
+        # BA.Monitor.count(mon)
         return set((mon[:index] + ((mon[index] + mon[index + 1] - k, k) if k > 0 else (mon[index] + mon[index + 1],)) +
                     mon[index + 2:]) for k in range(mon[index] // 2 + 1)
                    if choose_mod2(mon[index + 1] - k - 1, mon[index] - 2 * k) == 1)

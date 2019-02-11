@@ -1,4 +1,4 @@
-from . import BaseClasses as BC
+from . import BaseAlgebras as BC
 from .mymath import binom_mod2, cartan_indexing
 
 

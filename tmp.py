@@ -1,15 +1,11 @@
-import pickle
-from notations import *
+class Meta(type):
+    pass
 
-x = Sq(4) * Sq(4) * Sq(4)
-print(x)
 
-f = open("tmp.pickle", "wb")
-pickle.dump(x, f)
-f.close()
+class MyClass(metaclass=Meta):
+    pass
 
-f = open("tmp.pickle", "rb")
-y = pickle.load(f)
-f.close()
 
-print(y)
+if __name__ == "__main__":
+    a = MyClass()
+    print(a)

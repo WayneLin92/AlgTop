@@ -1,6 +1,6 @@
 from typing import Set, Tuple, Optional, Union
 
-import algebras.BaseClasses as BC
+import algebras.BaseAlgebras as BC
 from algebras.mymath import binom_mod2
 from algebras.operations import DyerLashof
 

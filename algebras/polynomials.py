@@ -1,4 +1,4 @@
-from . import BaseClasses as BC
+from . import BaseAlgebras as BC
 
 
 # TODO commutativity at odd prime

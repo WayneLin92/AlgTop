@@ -25,6 +25,10 @@ class MyTypeError(MyBaseError):
     pass
 
 
+class MyKeyError(MyBaseError):
+    pass
+
+
 # Base Algebras ----------------------------
 class Algebra(ABC):
     # methods -------------------

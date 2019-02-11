@@ -1,7 +1,7 @@
 import itertools
 import operator
 import pickle
-from algebras import BaseClasses as BC, linalg, mymath
+from algebras import BaseAlgebras as BC, linalg, mymath
 
 
 class Signature(tuple):

@@ -1,4 +1,4 @@
-from algebras import BaseClasses as BC
+from algebras import BaseAlgebras as BC
 from algebras.mymath import binom_mod2
 import algebras.linalg as linalg
 

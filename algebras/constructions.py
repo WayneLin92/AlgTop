@@ -1,7 +1,87 @@
 """ classes that are constructed by other classes """
-from . import linalg
 import copy
-from typing import Union, Set, Tuple
+import itertools
+import operator
+from typing import Union, Set, Tuple, List, Dict
+from algebras import BaseAlgebras as BA, linalg, mymath
+
+
+class AugAlgMod2(BA.AlgebraMod2):
+    """A factory for augmented algebras over F_2.
+
+    AugAlgMod2.new_alg() creates a new augmented algebra with
+    its own generators and relations."""
+
+    _gen_names = None  # type: List[str]
+    _gen_degs = None  # type: List[int]
+    _null_mons = None  # type: List[tuple]
+    _rels = None  # type: Dict[tuple, set]
+    _name_index = 0
+
+    # ----- AlgebraMod2 -------------
+    @classmethod
+    def str_mon(cls, mon: tuple):
+        if mon:
+            return "".join(*map(lambda ie: f"{cls._gen_names[ie[0]]}^{mymath.tex_index(ie[1])}", enumerate(mon)))
+        else:
+            return "1"
+
+    @staticmethod
+    def mul_mons(mon1: tuple, mon2: tuple):
+        if len(mon1) < len(mon2):
+            return tuple(itertools.chain(map(operator.add, mon1, mon2), mon2[len(mon1):]))
+        else:
+            return tuple(itertools.chain(map(operator.add, mon1, mon2), mon1[len(mon2):]))
+
+    @classmethod
+    def deg_mon(cls, mon: tuple):
+        return sum(map(lambda ie: cls._gen_degs[ie[0]] * ie[1], enumerate(mon)))
+
+    # methods --------------------
+    @staticmethod
+    def new_alg():
+        """Return a dynamically created subclass of AugAlgMod2."""
+        cls = AugAlgMod2
+        class_name = f"AugAlgMod2_{cls._name_index}"
+        cls._name_index += 1
+        dct = {'_gen_names': [], '_gen_degs': [], '_null_mons': [], '_rels': {}}
+        return type(class_name, (cls,), dct)
+
+    @classmethod
+    def add_gen(cls, k: str, deg):
+        """Add a new generator and return it."""
+        cls._gen_names.append(k)
+        cls._gen_degs.append(deg)
+        m = (0,) * (len(cls._gen_names) - 1) + (1,)
+        return cls(m)
+
+    @classmethod
+    def add_gens(cls, iterable_names):
+        """Add generators."""
+        cls._gen_names += iterable_names
+
+    @classmethod
+    def add_rel(cls, rel: "AugAlgMod2"):
+        """Add a relation."""
+        if len(rel.data) == 1:
+            for m in rel.data:
+                cls._null_mons.append(m)
+        pass
+
+    @classmethod
+    def gen(cls, k: str):
+        """Return a generator."""
+        i = 0
+        while i < len(cls._gen_names) and cls._gen_names[i] != k:
+            i += 1
+        if i == len(cls._gen_names):
+            raise BA.MyKeyError("Generator not found.")
+        m = (0,) * (i - 1) + (1,)
+        return cls(m)
+
+    @classmethod
+    def simplify_mon(cls, mon: tuple):
+        pass
 
 
 class SubRing:
@@ -104,6 +184,7 @@ class QuoRing:
 
     @classmethod
     def basis(cls, deg):
+
         return (cls(m) for m in cls.basis_mons(deg))
 
 
