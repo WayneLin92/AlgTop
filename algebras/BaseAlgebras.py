@@ -795,7 +795,6 @@ class OperationsMod2(Operations, AlgebraMod2, ABC):
     # methods
     def simplify(self, degree: Optional[int] = None):
         s = self.data.copy()
-        # noinspection PyAttributeOutsideInit
         self.data = set()
         while len(s) > 0:
             m = s.pop()

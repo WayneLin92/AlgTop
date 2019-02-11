@@ -37,6 +37,33 @@ class FrozenDict(dict):
         return self._hash
 
 
+# tuple operations
+def leq_tuple(t1, t2):
+    """Return if t1 <= t2 element-wise."""
+    return len(t1) <= len(t2) and all(map(operator.le, t1, t2))
+
+
+def sub_tuple(t1, t2):
+    """Assert leq_tuple(t2, t1) and return t1 - t2 element-wise"""
+    return tuple(itertools.chain(map(operator.sub, t1, t2), t1[len(t2):]))
+
+
+def add_tuple(t1, t2):
+    """Return t1 + t2 element-wise"""
+    if len(t1) < len(t2):
+        return tuple(itertools.chain(map(operator.add, t1, t2), t2[len(t1):]))
+    else:
+        return tuple(itertools.chain(map(operator.add, t1, t2), t1[len(t2):]))
+
+
+def div_mod_tuple(t1, t2):
+    """Assert leq_tuple(t2, t1) and return div_mod(t1, t2)."""
+    q = min(map(operator.floordiv, t1, t2))
+    r = tuple(itertools.chain(map(operator.sub, t1, map(lambda x: x * q, t2)), t1[len(t2):]))
+    return q, r
+
+
+# binomial coefficients
 def choose_mod2(m: int, n: int) -> bool:
     """Compute m choose n modulo 2."""
     return binom_mod2(m-n, n)
@@ -58,6 +85,7 @@ def multinom_mod2(*args: int) -> bool:
     return num_s == num_sum
 
 
+# others
 def two_expansion(n: int):
     """If n = 2^k1 + ... + 2^kn,
     return an generator of k1, ..., kn.
@@ -107,21 +135,19 @@ def unique_min(iterable, *, default=None, key=None):
     return minimum if unique else None
 
 
-def leq_tuple(t1, t2):
-    """Return if t1 <= t2 element-wise."""
-    return len(t1) <= len(t2) and all(map(operator.le, t1, t2))
-
-
-def sub_tuple(t1, t2):
-    """Assert leq_tuple(t2, t1) and return t1 - t2 element-wise"""
-    return tuple(itertools.chain(map(operator.sub, t1, t2), t1[len(t2):]))
-
-
 # ---- latex --------
 def tex_index(obj) -> str:
-    """Return a string used to express x^obj in latex."""
+    """Return a string obj used to express x^obj in latex."""
     result = str(obj)
     return result if len(result) == 1 else f"{{{result}}}"
+
+
+def tex_exponent(e: int) -> str:
+    """Return a string ^e used in latex."""
+    if e == 1:
+        return ""
+    else:
+        return f"^{e}" if len(str(e)) == 1 else f"^{{{e}}}"
 
 
 def print_tex_iter(iterable):

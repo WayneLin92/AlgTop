@@ -22,7 +22,7 @@ class AugAlgMod2(BA.AlgebraMod2):
     @classmethod
     def str_mon(cls, mon: tuple):
         if mon:
-            return "".join(*map(lambda ie: f"{cls._gen_names[ie[0]]}^{mymath.tex_index(ie[1])}", enumerate(mon)))
+            return "".join(map(lambda ie: f"{cls._gen_names[ie[0]]}{mymath.tex_exponent(ie[1])}", enumerate(mon)))
         else:
             return "1"
 
@@ -62,11 +62,10 @@ class AugAlgMod2(BA.AlgebraMod2):
 
     @classmethod
     def add_rel(cls, rel: "AugAlgMod2"):
-        """Add a relation."""
+        """Add a relation. Assert rel is simplified."""
         if len(rel.data) == 1:
             for m in rel.data:
                 cls._null_mons.append(m)
-        pass
 
     @classmethod
     def gen(cls, k: str):
@@ -80,8 +79,24 @@ class AugAlgMod2(BA.AlgebraMod2):
         return cls(m)
 
     @classmethod
-    def simplify_mon(cls, mon: tuple):
-        pass
+    def simplify_data(cls, data: set):
+        s = data.copy()
+        result = set()
+        while len(s) > 0:
+            mon = s.pop()
+            for m in cls._null_mons:
+                if mymath.leq_tuple(m, mon):
+                    continue
+            for m in cls._rels:
+                if mymath.leq_tuple(m, mon):
+                    q, r = mymath.div_mod_tuple(mon, m)
+
+            is_adm, index = self.is_admissible(mon)
+            if is_adm:
+                self.data ^= {mon}
+            else:
+                s ^= self.adem(mon, index)
+        return self
 
 
 class SubRing:
