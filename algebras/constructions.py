@@ -17,17 +17,17 @@ class AugAlgMod2(BA.AlgebraMod2):
     _gen_names = None  # type: List[str]
     _gen_degs = None  # type: List[int]
     _rels = None  # type: Dict[tuple, set]
-    _rel_gens = None  # type: List[set]
     _auto_simplify = None  # type: bool
     _name_index = 0
 
     @staticmethod
-    def new_alg():
+    def new_alg() -> "AugAlgMod2":
         """Return a dynamically created subclass of AugAlgMod2."""
         cls = AugAlgMod2
         class_name = f"AugAlgMod2_{cls._name_index}"
         cls._name_index += 1
-        dct = {'_gen_names': [], '_gen_degs': [], '_rels': {}, '_rel_gens': None, '_auto_simplify': True}
+        dct = {'_gen_names': [], '_gen_degs': [], '_rels': {}, '_auto_simplify': True}
+        # noinspection PyTypeChecker
         return type(class_name, (cls,), dct)
 
     # ----- AlgebraMod2 -------------
@@ -77,7 +77,9 @@ class AugAlgMod2(BA.AlgebraMod2):
                 rel1 = set(map(mymath.add_tuple, rel_data, itertools.repeat(dif)))
                 rel1 = cls.simplify_data(rel1)
                 if rel1:
-                    cls._add_rel(rel1)
+                    cls._add_rel(rel1)  # recursive
+                elif mymath.le_tuple(mon, m):
+                    del cls._rels[m]
 
     @classmethod
     def add_rel(cls, rel: "AugAlgMod2"):
@@ -87,16 +89,16 @@ class AugAlgMod2(BA.AlgebraMod2):
             cls._add_rel(rel.data)
 
     @classmethod
-    def simplify_rels(cls):
+    def get_rel_gens(cls):
         rels, cls._rels = cls._rels, {}
-        cls._rel_gens = []
+        rel_gens = []
         for mon in sorted(rels, key=cls.deg_mon):
             rel_data = rels[mon] | {mon}
             rel_data = cls.simplify_data(rel_data)
             if rel_data:
-                cls._rel_gens.append(rel_data)
+                rel_gens.append(rel_data)
                 cls._add_rel(rel_data)
-        return cls._rel_gens
+        return rel_gens
 
     @classmethod
     def simplify_data(cls, data: set):
@@ -131,6 +133,14 @@ class AugAlgMod2(BA.AlgebraMod2):
             raise BA.MyKeyError("Generator not found.")
         m = (0,) * (i - 1) + (1,)
         return cls(m).simplify()
+
+    @classmethod
+    def present(cls):
+        s = ", ".join(cls._gen_names)
+        print(f"Generators: ${s}$.\\\\")
+        print("Relations:\\\\")
+        for data in cls.get_rel_gens():
+            print(f"${cls(data)}=0$\\\\")
 
 
 class SubRing:
@@ -410,4 +420,17 @@ class FreeModuleMod2:
         return mon in self.data
 
 
-# 140, 248, 283
+def test():
+    R = AugAlgMod2.new_alg()
+    x = R.add_gen('x', 1)
+    y = R.add_gen('y', 1)
+    R.add_rel(y**10 - x**5 * y**5)
+    R.add_rel(x**2 * y**8 - x**6 * y**4)
+    R.add_rel(x*x)
+    R.present()
+
+
+if __name__ == "__main__":
+    test()
+
+# 140, 248, 283, 415, 436

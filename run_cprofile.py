@@ -1,5 +1,4 @@
 import cProfile
-import io
 import pstats
 from pstats import SortKey
 from spec.resolution import test_ext

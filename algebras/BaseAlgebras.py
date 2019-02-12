@@ -89,13 +89,13 @@ class Algebra(ABC):
     def __str__(self) -> str: pass
 
     @abstractmethod
-    def __add__(self, other) -> "Algebra": pass
+    def __add__(self, other): pass
 
     @abstractmethod
-    def __sub__(self, other) -> "Algebra": pass
+    def __sub__(self, other): pass
 
     @abstractmethod
-    def __mul__(self, other) -> "Algebra": pass
+    def __mul__(self, other): pass
 
     @classmethod
     @abstractmethod
