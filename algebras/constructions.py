@@ -1,4 +1,5 @@
-""" classes that are constructed by other classes """
+"""Classes that can be constructed by other classes."""
+# todo: create class AugModuleMod2
 import copy
 import itertools
 import operator
@@ -7,53 +8,56 @@ from algebras import BaseAlgebras as BA, linalg, mymath
 
 
 class AugAlgMod2(BA.AlgebraMod2):
-    """A factory for augmented algebras over F_2.
+    """A factory for commutative augmented graded algebras over F_2.
 
-    AugAlgMod2.new_alg() creates a new augmented algebra with
-    its own generators and relations."""
+    AugAlgMod2.new_alg() creates a new commutative augmented graded algebra with
+    its own generators and relations.
+    """
 
     _gen_names = None  # type: List[str]
     _gen_degs = None  # type: List[int]
-    _null_mons = None  # type: List[tuple]
     _rels = None  # type: Dict[tuple, set]
+    _rel_gens = None  # type: List[set]
+    _auto_simplify = None  # type: bool
     _name_index = 0
 
-    # ----- AlgebraMod2 -------------
-    @classmethod
-    def str_mon(cls, mon: tuple):
-        if mon:
-            return "".join(map(lambda ie: f"{cls._gen_names[ie[0]]}{mymath.tex_exponent(ie[1])}", enumerate(mon)))
-        else:
-            return "1"
-
-    @staticmethod
-    def mul_mons(mon1: tuple, mon2: tuple):
-        if len(mon1) < len(mon2):
-            return tuple(itertools.chain(map(operator.add, mon1, mon2), mon2[len(mon1):]))
-        else:
-            return tuple(itertools.chain(map(operator.add, mon1, mon2), mon1[len(mon2):]))
-
-    @classmethod
-    def deg_mon(cls, mon: tuple):
-        return sum(map(lambda ie: cls._gen_degs[ie[0]] * ie[1], enumerate(mon)))
-
-    # methods --------------------
     @staticmethod
     def new_alg():
         """Return a dynamically created subclass of AugAlgMod2."""
         cls = AugAlgMod2
         class_name = f"AugAlgMod2_{cls._name_index}"
         cls._name_index += 1
-        dct = {'_gen_names': [], '_gen_degs': [], '_null_mons': [], '_rels': {}}
+        dct = {'_gen_names': [], '_gen_degs': [], '_rels': {}, '_rel_gens': None, '_auto_simplify': True}
         return type(class_name, (cls,), dct)
 
+    # ----- AlgebraMod2 -------------
+    @classmethod
+    def mul_mons(cls, mon1: tuple, mon2: tuple):
+        if len(mon1) < len(mon2):
+            m = tuple(itertools.chain(map(operator.add, mon1, mon2), mon2[len(mon1):]))
+        else:
+            m = tuple(itertools.chain(map(operator.add, mon1, mon2), mon1[len(mon2):]))
+        return cls.simplify_data({m}) if cls._auto_simplify else m
+
+    @classmethod
+    def str_mon(cls, mon: tuple):
+        if mon:
+            return "".join(f"{cls._gen_names[i]}{mymath.tex_exponent(e)}" for i, e in enumerate(mon) if e)
+        else:
+            return "1"
+
+    @classmethod
+    def deg_mon(cls, mon: tuple):
+        return sum(map(lambda ie: cls._gen_degs[ie[0]] * ie[1], enumerate(mon)))
+
+    # methods --------------------
     @classmethod
     def add_gen(cls, k: str, deg):
         """Add a new generator and return it."""
         cls._gen_names.append(k)
         cls._gen_degs.append(deg)
         m = (0,) * (len(cls._gen_names) - 1) + (1,)
-        return cls(m)
+        return cls(m).simplify()
 
     @classmethod
     def add_gens(cls, iterable_names):
@@ -61,11 +65,61 @@ class AugAlgMod2(BA.AlgebraMod2):
         cls._gen_names += iterable_names
 
     @classmethod
+    def _add_rel(cls, rel_data):
+        """Assert rel_data is simplified and nonzero."""
+        mon = min(rel_data)
+        leading_mons = tuple(cls._rels)
+        cls._rels[mon] = rel_data - {mon}
+        for m in leading_mons:
+            if any(min(mon, m)):
+                lcm = mymath.max_tuple(m, mon)
+                dif = mymath.sub_tuple(lcm, mon)
+                rel1 = set(map(mymath.add_tuple, rel_data, itertools.repeat(dif)))
+                rel1 = cls.simplify_data(rel1)
+                if rel1:
+                    cls._add_rel(rel1)
+
+    @classmethod
     def add_rel(cls, rel: "AugAlgMod2"):
-        """Add a relation. Assert rel is simplified."""
-        if len(rel.data) == 1:
-            for m in rel.data:
-                cls._null_mons.append(m)
+        """Add a relation."""
+        cls._rel_gens = None
+        if rel.simplify():
+            cls._add_rel(rel.data)
+
+    @classmethod
+    def simplify_rels(cls):
+        rels, cls._rels = cls._rels, {}
+        cls._rel_gens = []
+        for mon in sorted(rels, key=cls.deg_mon):
+            rel_data = rels[mon] | {mon}
+            rel_data = cls.simplify_data(rel_data)
+            if rel_data:
+                cls._rel_gens.append(rel_data)
+                cls._add_rel(rel_data)
+        return cls._rel_gens
+
+    @classmethod
+    def simplify_data(cls, data: set):
+        """Simplify the data by relations."""
+        s = data.copy()
+        result = set()
+        while len(s) > 0:
+            mon = s.pop()
+            for m in cls._rels:
+                if mymath.le_tuple(m, mon):
+                    q, r = mymath.div_mod_tuple(mon, m)
+                    mon1 = set(mymath.add_tuple(tuple(map(operator.mul, m1, itertools.repeat(q))), r)
+                               for m1 in cls._rels[m])
+                    s ^= mon1
+                    break
+            else:
+                result ^= {mon}
+        return result
+
+    def simplify(self):
+        """Simplify self by relations."""
+        self.data = self.simplify_data(self.data)
+        return self
 
     @classmethod
     def gen(cls, k: str):
@@ -76,27 +130,7 @@ class AugAlgMod2(BA.AlgebraMod2):
         if i == len(cls._gen_names):
             raise BA.MyKeyError("Generator not found.")
         m = (0,) * (i - 1) + (1,)
-        return cls(m)
-
-    @classmethod
-    def simplify_data(cls, data: set):
-        s = data.copy()
-        result = set()
-        while len(s) > 0:
-            mon = s.pop()
-            for m in cls._null_mons:
-                if mymath.leq_tuple(m, mon):
-                    continue
-            for m in cls._rels:
-                if mymath.leq_tuple(m, mon):
-                    q, r = mymath.div_mod_tuple(mon, m)
-
-            is_adm, index = self.is_admissible(mon)
-            if is_adm:
-                self.data ^= {mon}
-            else:
-                s ^= self.adem(mon, index)
-        return self
+        return cls(m).simplify()
 
 
 class SubRing:

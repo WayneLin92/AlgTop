@@ -30,7 +30,7 @@ class Signature(tuple):
 
     def __mul__(self, other: int):
         """Broadcast multiplication."""
-        return Signature(map(lambda x: x * other, self))
+        return Signature(map(operator.mul, self, itertools.repeat(other)))
 
     def __bool__(self):
         """Return if any element in self is nonzero."""

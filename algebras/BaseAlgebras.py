@@ -107,14 +107,14 @@ class Algebra(ABC):
 
     @staticmethod
     @abstractmethod
-    def str_mon(mon: Hashable) -> str:
-        """ Return the str for the monomial """
+    def mul_mons(mon1: Hashable, mon2: Hashable):
+        """Return the product of two monomials."""
         pass
 
     @staticmethod
     @abstractmethod
-    def mul_mons(mon1: Hashable, mon2: Hashable):
-        """Return the product of two monomials."""
+    def str_mon(mon: Hashable) -> str:
+        """ Return the str for the monomial """
         pass
 
     @abstractmethod
