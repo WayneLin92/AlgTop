@@ -6,7 +6,7 @@ it might be modified. If you pass an algebra instead, the method would create
 a shallow copy of it.
 """
 
-from typing import Iterable, Set, Tuple, List, Callable, Union
+from typing import Iterable, Set, Tuple, List, Union
 import copy
 
 
@@ -14,7 +14,7 @@ _t_mon = Union[tuple, frozenset, int, str]  # todo: generic type
 
 
 class VectorSpaceMod2:
-    """This class is for modeling vector spaces."""
+    """A class for vector spaces."""
     def __init__(self, vectors=None, *, data=None, key=None):
         self.key = key
         self.data = data if data is not None else []
@@ -31,6 +31,7 @@ class VectorSpaceMod2:
             self.add_v(v)
 
     def add_v(self, v):
+        """Add a single vector."""
         if type(v) is not set:
             v = v.data.copy()
         for w, mw in self.data:
@@ -40,6 +41,7 @@ class VectorSpaceMod2:
             self.data.append((v, max(v, key=self.key) if self.key else max(v)))
 
     def simplify(self) -> "VectorSpaceMod2":
+        """Simplify the basis such that it forms a block matrix (I, A)."""
         for i in range(len(self.data) - 1, 0, -1):
             v, mv = self.data[i]
             for j in range(i):
@@ -57,7 +59,7 @@ class VectorSpaceMod2:
         return v if type(vector) is set else type(vector)(v)
 
     def quotient(self, other: "VectorSpaceMod2") -> "VectorSpaceMod2":
-        """Return self/other assuming other is a subspace."""
+        """Return self/other assuming other is a subspace of self."""
         result = other.data.copy()
         n = len(result)
         for v, mv in self.data:

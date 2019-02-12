@@ -1,9 +1,13 @@
-import algebras.polynomials
+"""Class of spectral sequences."""
+# TODO: log file
+
 import copy
-from numpy import array
 from GUI.draw import draw_ss
 from GUI.constants import *
-from typing import Union, Optional, Iterator, Tuple, List, Dict
+from typing import Union, Optional, Iterator, List, Dict
+
+from algebras import linalg, mymath
+from algebras.constructions import AugAlgMod2
 
 TYPE_REL = 0
 TYPE_IMAGE = 1
@@ -46,96 +50,6 @@ def nb_msg(msg_index, deg):
         # print("{}: 2. One less TBD!".format(deg))
 
 
-# TODO: log file
-
-
-class SSError(Exception):
-    pass
-
-
-class SSBulletsError(SSError):
-    pass
-
-
-class SSValueError(SSError):
-    pass
-
-
-class SSClassError(SSError):
-    pass
-
-
-def poly_proj_mod(poly, bullets) -> Tuple[list, 'MyPoly']:
-    """ return (proj, res) where poly = proj + res """
-    proj = []
-    res = poly.copy()
-    for bullet in bullets:
-        if bullet['mon'] in res.data:
-            coeff = res.data[bullet['mon']]
-            proj.append(coeff)
-            res -= bullet['base'] * coeff
-        else:
-            proj.append(0)
-    return proj, res
-
-
-def poly_mod(poly, bullets):
-    """ return poly - proj(poly, bullets) """
-    result = poly.copy()
-    for bullet in bullets:
-        if bullet['mon'] in result.data:
-            result -= bullet['base'] * result.data[bullet['mon']]
-    return result
-
-
-class MyPoly(algebras.polynomials.PolyAnyVarModP):
-    # -- PolyModP ---------
-    @classmethod
-    def gen(cls, key, deg: tuple = (1, 0)):
-        if key in cls.dict_deg_gen and cls.dict_deg_gen[key] != deg:
-            raise SSValueError("Warning: the degree of {} is changed from {} to {}".
-                               format(key, cls.dict_deg_gen[key], deg))
-        cls.dict_deg_gen[key] = deg
-        return cls(((key, 1),))
-
-    def deg_mon(self, mon) -> tuple:
-        try:
-            deg = sum((self.deg_gen(gen) * exp for gen, exp in mon), array([0, 0]))
-        except ValueError:
-            print(mon)
-            raise ValueError
-        return deg[0], deg[1]
-
-    def deg_gen(self, key) -> array:
-        return array(self.dict_deg_gen[key])
-
-    # methods
-    def get_mon(self):  # ######
-        """ return a monomial """
-        if len(self.data) > 0:
-            return max(self.data)
-        else:
-            return None
-
-    def get_item(self):  # ######
-        """ return a monomial with its coefficient """
-        if len(self.data) > 0:
-            return max(self.data.items())
-        else:
-            return None, None
-
-    @staticmethod
-    def prod_mons(mon1, mon2):
-        """ return the product of two monomials as a monomial """
-        mon_pro = dict(mon1)
-        for gen, exp in mon2:
-            if gen in mon_pro:
-                mon_pro[gen] += exp
-            else:
-                mon_pro[gen] = exp
-        return tuple(sorted(mon_pro.items()))
-
-
 class SpecSeq:
     """
     self.gen_deg[id] = (deg_x, deg_y)
@@ -143,19 +57,30 @@ class SpecSeq:
     self.indices[page-2][(x,y)] is [index_image, index_diff, index_TBD]
     """
 
-    def __init__(self, x_max: int, y_max: int, ss_type: str = "Serre-Cohomology"):
-        self.x_max = [x_max]
-        self.y_max = [y_max]
-        if ss_type == "Serre-Cohomology":
-            self.entries = [{(0, 0): [{'poly': MyPoly.unit(), 'base': MyPoly.unit(), 'mon': (),
-                                       'diff': MyPoly.zero(), 'type': TYPE_DIFF, 'base_diff': MyPoly.zero()}]}]
-        else:
-            self.entries = [{}]  # type: List[Dict[tuple, dict]]
-        self.indices = [{(0, 0): [0, 0, 1]}]
-        self.page = 2
-        strings = ss_type.split()
-        self.ss_type = SS_TYPE_DICT[strings[0]]
-        self.multiplicative = False if len(strings) > 1 and strings[1] == "Discrete" else True
+    def __init__(self, x_max: int, y_max: int, *, page=2, func=None):
+        """func is a function indicating the direction of the differential for each page."""
+        self.p_max = [x_max]  # type: List[int]
+        self.q_max = [y_max]  # type: List[int]
+        self.algebras = [AugAlgMod2.new_alg()]  # type: List[AugAlgMod2]
+        self.basis = [{}]  # type: List[Dict[tuple, set]]
+        self.diffs = [{}]  # type: List[Dict[tuple, linalg.LinearMapMod2]]
+        self._locked = False
+
+        self.bullets = [{}]   # type: List[Dict[tuple, List[tuple]]]
+        self._starting_page = page
+        self._func_deg_diff = func if func else lambda r: (r, r + 1)
+
+        dp, dq = self.deg_diff
+
+
+
+    @property
+    def page(self):
+        return self._starting_page + len(self.p_max) - 1
+
+    @property
+    def deg_diff(self):
+        return self._func_deg_diff(self.page)
 
     def present(self, keys: Iterator[str], deg: Optional[tuple] = None):
         if deg is None:
@@ -252,55 +177,55 @@ class SpecSeq:
         """ Iterator of degrees """
         if type_bullets == "trivial_diff":
             if self.ss_type == SS_TYPE_SERRE_COHOMOLOGY:
-                for i in range(0, self.x_max[-1] + 1):
-                    for j in range(0, min(self.page - 1, self.y_max[-1] + 1)):
+                for i in range(0, self.p_max[-1] + 1):
+                    for j in range(0, min(self.page - 1, self.q_max[-1] + 1)):
                         if (i, j) in self.entries[-1]:
                             yield i, j
             elif self.ss_type == SS_TYPE_ADAMS:
-                for s in range(0, self.y_max[-1] + 1):
+                for s in range(0, self.q_max[-1] + 1):
                     if (s, s) in self.entries[-1]:
                         yield s, s
         elif type_bullets == "square":
             p = MyPoly.get_prime()
             if self.ss_type == SS_TYPE_SERRE_COHOMOLOGY:
-                for i in range(0, self.x_max[-1] // p + 1):
-                    for j in range((self.page - 1 + p - 1) // p, self.y_max[-1] // p + 1):
+                for i in range(0, self.p_max[-1] // p + 1):
+                    for j in range((self.page - 1 + p - 1) // p, self.q_max[-1] // p + 1):
                         if (i, j) in self.entries[-1]:
                             yield i, j
             elif self.ss_type == SS_TYPE_ADAMS:
-                for s in range(0, self.y_max[-1] // p + 1):
-                    for t in range(s + 1, s + self.x_max[-1] // p + 1):
+                for s in range(0, self.q_max[-1] // p + 1):
+                    for t in range(s + 1, s + self.p_max[-1] // p + 1):
                         if (s, t) in self.entries[-1]:
                             yield s, t
         if type_bullets == "src_diff":
             if self.ss_type == SS_TYPE_SERRE_COHOMOLOGY:
-                for i in range(0, self.x_max[-1] - truncate_deg[0] - self.page + 1):
-                    for j in range(0, self.y_max[-1] - truncate_deg[1] + 1):
+                for i in range(0, self.p_max[-1] - truncate_deg[0] - self.page + 1):
+                    for j in range(0, self.q_max[-1] - truncate_deg[1] + 1):
                         if (i, j) in self.entries[-1]:
                             yield i, j
             elif self.ss_type == SS_TYPE_ADAMS:
-                for s in range(0, self.y_max[-1] - truncate_deg[0] - self.page + 1):
-                    for t in range(s, s + self.x_max[-1] - (truncate_deg[1] - truncate_deg[0]) + 1):
+                for s in range(0, self.q_max[-1] - truncate_deg[0] - self.page + 1):
+                    for t in range(s, s + self.p_max[-1] - (truncate_deg[1] - truncate_deg[0]) + 1):
                         if (s, t) in self.entries[-1]:
                             yield s, t
         if type_bullets == "bullet":
             if self.ss_type == SS_TYPE_SERRE_COHOMOLOGY:
-                for i in range(0, self.x_max[-1] - truncate_deg[0] + 1):
-                    for j in range(0, self.y_max[-1] - truncate_deg[1] + 1):
+                for i in range(0, self.p_max[-1] - truncate_deg[0] + 1):
+                    for j in range(0, self.q_max[-1] - truncate_deg[1] + 1):
                         if (i, j) in self.entries[-1]:
                             yield i, j
             elif self.ss_type == SS_TYPE_ADAMS:
-                for s in range(0, self.y_max[-1] - truncate_deg[0] + 1):
-                    for t in range(s, s + self.x_max[-1] - (truncate_deg[1] - truncate_deg[0]) + 1):
+                for s in range(0, self.q_max[-1] - truncate_deg[0] + 1):
+                    for t in range(s, s + self.p_max[-1] - (truncate_deg[1] - truncate_deg[0]) + 1):
                         if (s, t) in self.entries[-1]:
                             yield s, t
 
     def _inside_range(self, deg):
-        """ Test if deg is in the region determined by x_max, y_max """
+        """ Test if deg is in the region determined by p_max, q_max """
         if self.ss_type == SS_TYPE_SERRE_COHOMOLOGY:
-            return 0 <= deg[0] <= self.x_max[-1] and 0 <= deg[1] <= self.y_max[-1]
+            return 0 <= deg[0] <= self.p_max[-1] and 0 <= deg[1] <= self.q_max[-1]
         elif self.ss_type == SS_TYPE_ADAMS:
-            return 0 <= deg[0] <= self.y_max[-1] and 0 <= deg[1] - deg[0] <= self.x_max[-1]
+            return 0 <= deg[0] <= self.q_max[-1] and 0 <= deg[1] - deg[0] <= self.p_max[-1]
 
     def _get_addr(self, poly, surf_deg=None) -> Optional[tuple]:
         """ interface for draw.py """
@@ -607,13 +532,15 @@ class SpecSeq:
         return result
 
     def new_page(self):
-        self.x_max.append(self.x_max[-1] - self.page)
-        self.y_max.append(self.y_max[-1] - self.page + 1)
+        self.p_max.append(self.p_max[-1] - self.page)
+        self.q_max.append(self.q_max[-1] - self.page + 1)
         entries_page = dict((deg, self.homology(deg)) for deg in self.entries[-1]
-                            if deg[0] <= self.x_max[-1] and deg[1] <= self.y_max[-1])
+                            if deg[0] <= self.p_max[-1] and deg[1] <= self.q_max[-1])
         indices_page = dict((deg, self.gen_indices(bullets)) for deg, bullets in entries_page.items())
         self.entries.append(entries_page)
         self.indices.append(indices_page)
         self.page += 1
         self._gen_basis_new_page()
         self.deduce_init()
+
+# 623

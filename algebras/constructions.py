@@ -134,6 +134,11 @@ class AugAlgMod2(BA.AlgebraMod2):
         m = (0,) * (i - 1) + (1,)
         return cls(m).simplify()
 
+    @staticmethod
+    def basis_mons(deg_max):
+        # TODO: implement this
+        pass
+
     @classmethod
     def present(cls):
         s = ", ".join(cls._gen_names)
