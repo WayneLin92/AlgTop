@@ -6,6 +6,7 @@ from GUI.draw import draw_ss
 from GUI.constants import *
 from typing import Union, Optional, Iterator, List, Dict
 
+import itertools
 from algebras import linalg, mymath
 from algebras.constructions import AugAlgMod2
 
@@ -34,6 +35,10 @@ SS_TYPE_DICT = {"Serre-Cohomology": SS_TYPE_SERRE_COHOMOLOGY,
                 "Adams": SS_TYPE_ADAMS}
 
 
+class MyPoly:
+    pass
+
+
 def nb_msg(msg_index, deg):
     if msg_index == NB_REDUNDANT_REL:
         print("{}: Extra relation!".format(deg))
@@ -57,10 +62,10 @@ class SpecSeq:
     self.indices[page-2][(x,y)] is [index_image, index_diff, index_TBD]
     """
 
-    def __init__(self, x_max: int, y_max: int, *, page=2, func=None):
+    def __init__(self, p_max: int, q_max: int, *, page=2, func=None):
         """func is a function indicating the direction of the differential for each page."""
-        self.p_max = [x_max]  # type: List[int]
-        self.q_max = [y_max]  # type: List[int]
+        self.p_max = [p_max]  # type: List[int]
+        self.q_max = [q_max]  # type: List[int]
         self.algebras = [AugAlgMod2.new_alg()]  # type: List[AugAlgMod2]
         self.basis = [{}]  # type: List[Dict[tuple, set]]
         self.diffs = [{}]  # type: List[Dict[tuple, linalg.LinearMapMod2]]
@@ -71,6 +76,8 @@ class SpecSeq:
         self._func_deg_diff = func if func else lambda r: (r, r + 1)
 
         dp, dq = self.deg_diff
+        for p, q in self.degs_all():
+            self.diffs[-1][(p, q)] = linalg.LinearMapMod2()
 
 
 
@@ -81,6 +88,9 @@ class SpecSeq:
     @property
     def deg_diff(self):
         return self._func_deg_diff(self.page)
+
+    def degs_all(self):
+        return itertools.product(range(self.p_max[-1] + 1), range(self.q_max[-1] + 1))
 
     def present(self, keys: Iterator[str], deg: Optional[tuple] = None):
         if deg is None:
@@ -240,7 +250,7 @@ class SpecSeq:
                 return deg, i - index_image
         return None
 
-    def _get_bullet(self, poly: MyPoly, deg=None):
+    def _get_bullet(self, poly, deg=None):
         """ modified from get_surf_addr """
         if deg is None:
             deg = poly.deg()

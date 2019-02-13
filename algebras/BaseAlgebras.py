@@ -1,35 +1,12 @@
 from abc import ABC, abstractmethod
 from typing import Tuple, Set, Dict, Hashable, Any, Optional, Union
-from algebras import mymath
+from algebras import mymath, myerror
 # todo: check the class methods
 # todo: type is
 # todo: avoid creating new user-defined objects inside a class
-# todo: use __slots__
+# todo: try __slots__
 
 
-# Exceptions ---------------------------
-class MyBaseError(Exception):  # TODO: Do not use these exceptions
-    pass
-
-
-class MyClassError(MyBaseError):
-    """ This is called when something is wrong in the class hierarchy """
-    pass
-
-
-class MyValueError(MyBaseError):
-    pass
-
-
-class MyTypeError(MyBaseError):
-    pass
-
-
-class MyKeyError(MyBaseError):
-    pass
-
-
-# Base Algebras ----------------------------
 class Algebra(ABC):
     # methods -------------------
     def __eq__(self, other): return self.data == other.data
@@ -60,7 +37,7 @@ class Algebra(ABC):
         """ return a list of rings """
         list_homo = self.split_homo(d_max)
         if not list_homo or list_homo[0] != self.unit():
-            raise MyValueError("require the leading term to be one")
+            raise myerror.MyValueError("require the leading term to be one")
         result = [self.unit()]
         for d in range(1, d_max + 1):
             term_d = -sum((result[i] * list_homo[d - i] for i in range(0, d)), self.zero())
@@ -83,7 +60,7 @@ class Algebra(ABC):
     @abstractmethod
     def __init__(self, data):
         self.data = data  # type: Any
-        raise MyClassError
+        raise myerror.MyClassError
 
     @abstractmethod
     def __str__(self) -> str: pass
@@ -533,7 +510,7 @@ class BasePolySingZ(AlgebraDict, ABC):
 
     @staticmethod
     def deg_mon(mon: int) -> int:
-        raise MyClassError("This function is deprecated for the this class")
+        raise myerror.MyClassError("This function is deprecated for the this class")
 
     @classmethod
     def unit(cls):
@@ -548,7 +525,7 @@ class BasePolySingZ(AlgebraDict, ABC):
 
     def inverse(self, d_max):
         if 0 not in self.data or self.data[0] != 1:
-            raise MyValueError("require the leading term to be one")
+            raise myerror.MyValueError("require the leading term to be one")
         data = {0: 1}
         for d in range(1, d_max + 1):
             data[d] = -sum(data[i] * self.coeff(d - i) for i in range(0, d))
@@ -563,7 +540,7 @@ class BasePolySingZ(AlgebraDict, ABC):
     @classmethod
     def gen(cls, exp: int = 1):
         if exp < 0:
-            raise MyValueError("The exponent should be positive. Got {}".format(exp))
+            raise myerror.MyValueError("The exponent should be positive. Got {}".format(exp))
         return cls({exp: 1})
 
     def coeff(self, n):
@@ -656,7 +633,7 @@ class AlgebraMod2(Algebra, ABC):
         elif type(data) in (tuple, frozenset):  # monomial
             self.data = {data}  # type: Set[Union[tuple, frozenset]]
         else:
-            raise MyTypeError("{} can not initialize {}".format(data, type(self).__name__))
+            raise myerror.MyTypeError("{} can not initialize {}".format(data, type(self).__name__))
 
     # -- Algebra -----------
     def __str__(self):
@@ -769,7 +746,7 @@ class BaseExteriorMod2(BaseExteriorMulti, AlgebraMod2, ABC):
         elif type(data) is frozenset:  # monomial
             self.data = {data}  # type: Set[frozenset]
         else:
-            raise MyTypeError("{} can not initialize {}".format(data, type(self).__name__))
+            raise myerror.MyTypeError("{} can not initialize {}".format(data, type(self).__name__))
 
     def _sorted_mons(self) -> list:
         return sorted(self.data, key=lambda m: (self.deg_mon(m), tuple(m)), reverse=True)

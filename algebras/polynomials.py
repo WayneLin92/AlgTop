@@ -1,8 +1,8 @@
-from . import BaseAlgebras as BC
+from algebras import BaseAlgebras as BA, myerror
 
 
 # TODO commutativity at odd prime
-class PolySingZ(BC.BasePolySingZ):
+class PolySingZ(BA.BasePolySingZ):
     # -- BasePolySingZ -------------
     @staticmethod
     def str_mon(mon: int) -> str:
@@ -31,7 +31,7 @@ class PolySingZ(BC.BasePolySingZ):
     def inv_function(self, d_max):
         """ inverse in the sense of composition """
         if 1 not in self.data or self.data[1] != 1 or 0 in self.data:
-            raise BC.MyValueError("require the leading term to be x")
+            raise myerror.MyValueError("require the leading term to be x")
         data = {}
         y_powers = []
         prod = self.unit()
@@ -93,7 +93,7 @@ class PolySingZ(BC.BasePolySingZ):
         return type(self)(data)
 
 
-class PolyAnyVarZ(BC.BasePolyAnyVar, BC.AlgebraZ):
+class PolyAnyVarZ(BA.BasePolyAnyVar, BA.AlgebraZ):
     """
     This is for multi-variable polynomials over Z
     self.data is a dictionary of the form (monomial, coeff)
@@ -114,7 +114,7 @@ class PolyAnyVarZ(BC.BasePolyAnyVar, BC.AlgebraZ):
             yield dict(mon), coeff
 
 
-class PolyAnyVarModP(BC.BasePolyAnyVar, BC.AlgebraModP):
+class PolyAnyVarModP(BA.BasePolyAnyVar, BA.AlgebraModP):
     """
     This is for multi-variable polynomials over Z/p
     self.data is a dictionary of the form (monomial, coeff)
@@ -140,7 +140,7 @@ class PolyAnyVarModP(BC.BasePolyAnyVar, BC.AlgebraModP):
             yield dict(mon), coeff
 
 
-class PolyAnyVarMod2(BC.BasePolyAnyVar, BC.AlgebraMod2):
+class PolyAnyVarMod2(BA.BasePolyAnyVar, BA.AlgebraMod2):
     """
     This is for multi-variable polynomials over Z/2
     self.data is a set of ((gen, exp),...) which is a tuplized dictionary

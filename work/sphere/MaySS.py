@@ -166,7 +166,7 @@ class MaySS(BC.BasePolyMod2):
         for s in range(s_min, s_max + 1):
             print(f"{s}:")
             s1 = s - 1 if cls is MaySS else s + 1
-            homology[s] = list(lin_maps[s].kernel.quotient(lin_maps[s1].image()).simplify().basis(cls))
+            homology[s] = list(lin_maps[s].kernel.quotient(lin_maps[s1].image).simplify().basis(cls))
             for x in homology[s]:
                 print(x)
         return homology
@@ -234,9 +234,9 @@ class MaySS(BC.BasePolyMod2):
         print("kernel dim:", my_map1.kernel.dim())
         s1 = s - 1 if cls is MaySS else s + 1
         my_map2.add_maps((r, r.diff()) for r in cls.basis(s1, t, u))
-        print("image: dim", my_map2.image().dim())
+        print("image: dim", my_map2.image.dim())
         print("quotient:")
-        for r in my_map1.kernel.quotient(my_map2.image()).basis(cls):
+        for r in my_map1.kernel.quotient(my_map2.image.basis(cls)):
             print(r)
 
 
@@ -266,7 +266,7 @@ class DualMaySS(BC.AlgebraMod2):
                         if s <= s_max:
                             cycles = cls._maps[(s, t, u)].kernel
                             if (s + 1, t, u) in cls._maps:
-                                boundaries = cls._maps[(s + 1, t, u)].image()
+                                boundaries = cls._maps[(s + 1, t, u)].image
                                 cls._homology[(s, t, u)] = list(cycles.quotient(boundaries).simplify().basis(set))
                             else:
                                 cls._homology[(s, t, u)] = list(cycles.simplify().basis(set))

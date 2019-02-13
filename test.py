@@ -1,5 +1,5 @@
 import unittest
-from spec.specseq import SpecSeq, MyPoly
+from spec.specseq import SpecSeq
 from spec.resolution import Ext
 from notations import *
 
@@ -95,7 +95,6 @@ class BUTestCase(unittest.TestCase):
 
 class SpecSeqTestCase(unittest.TestCase):
     def test_serre(self):
-        MyPoly.set_prime(2)
         spec = SpecSeq(20, 16)
         x = spec.add_free_gen("x", (1, 0))
         y = spec.add_free_gen("y", (1, 0))
@@ -107,7 +106,6 @@ class SpecSeqTestCase(unittest.TestCase):
         self.assertTrue(True)
 
     def test_adams(self):
-        MyPoly.set_prime(2)
         spec = SpecSeq(13, 13, "Adams")
         spec.add_free_gen("h_{10}", (1, 1))
         spec.add_free_gen("h_{11}", (1, 2))
@@ -214,8 +212,8 @@ class LinAlgTestCase(unittest.TestCase):
             print(r)
 
     def test_graded_vector_space_mod2(self):
-        vs = GradedVectorSpaceMod2(10)
-        vs.add_vectors([Sq(10), Sq(9) * Sq(1)], 10)
+        vs = GradedVectorSpaceMod2()
+        vs.add_vectors([Sq(10), Sq(9) * Sq(1)])
         a = vs.res(Sq(10) + Sq(8) * Sq(2))
         self.assertEqual(a, Sq(8) * Sq(2))
 
@@ -223,7 +221,8 @@ class LinAlgTestCase(unittest.TestCase):
         lin_map = LinearMapMod2()
         lin_map.add_maps([(Sq(1), Sq(1)), (Sq(2), Sq(2)), (Sq(3), Sq(1)+Sq(2))])
         print("\n")
-        lin_map.present_kernel(Steenrod)
+        for r in lin_map.kernel.basis(Steenrod):
+            print(r)
         print(lin_map.f(Sq(1) + Sq(3)))
         print(lin_map.g(Sq(1) + Sq(2)))
         self.assertTrue(True)
@@ -235,7 +234,7 @@ class LinAlgTestCase(unittest.TestCase):
         for r in lin_map.kernel.basis(Steenrod):
             print(r)
         print("\nimage:\n")
-        for r in lin_map.image().basis(Steenrod):
+        for r in lin_map.image.basis(Steenrod):
             print(r)
         self.assertTrue(True)
 

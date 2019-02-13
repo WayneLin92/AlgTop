@@ -5,12 +5,14 @@ Warning: If you pass a set as a parameter to a method in this module,
 it might be modified. If you pass an algebra instead, the method would create
 a shallow copy of it.
 """
-
-from typing import Iterable, Set, Tuple, List, Union
 import copy
+import operator
+from typing import TypeVar, Tuple, List, Set, Dict, Iterable, Any
+from algebras import myerror
 
-
-_t_mon = Union[tuple, frozenset, int, str]  # todo: generic type
+_t_mon = TypeVar('_t_mon')
+_t_v = Set[_t_mon]
+_t_data = List[Tuple[_t_v, _t_mon]]
 
 
 class VectorSpaceMod2:
@@ -25,21 +27,36 @@ class VectorSpaceMod2:
         """Return a deep copy."""
         return VectorSpaceMod2(data=copy.deepcopy(self.data))
 
-    def add_vectors(self, vectors: Iterable):
-        """Add vectors to this vector space."""
+    # setters ----------------
+    def add_v_set(self, v):
+        """Add a single vector efficiently."""
+        for v1, mv1 in self.data:
+            if mv1 in v:
+                v ^= v1
+        if v:
+            self.data.append((v, max(v, key=self.key) if self.key else max(v)))
+
+    def add_vectors_set(self, vectors: Iterable[_t_v]):
+        """Add vectors efficiently."""
         for v in vectors:
-            self.add_v(v)
+            for v1, mv1 in self.data:
+                if mv1 in v:
+                    v ^= v1
+            if v:
+                self.data.append((v, max(v, key=self.key) if self.key else max(v)))
 
     def add_v(self, v):
         """Add a single vector."""
         if type(v) is not set:
             v = v.data.copy()
-        for w, mw in self.data:
-            if mw in v:
-                v ^= w
-        if v:
-            self.data.append((v, max(v, key=self.key) if self.key else max(v)))
+        self.add_v_set(v)
 
+    def add_vectors(self, vectors: Iterable):
+        """Add vectors."""
+        for v in vectors:
+            self.add_v(v)
+
+    # modifiers ------------------
     def simplify(self) -> "VectorSpaceMod2":
         """Simplify the basis such that it forms a block matrix (I, A)."""
         for i in range(len(self.data) - 1, 0, -1):
@@ -50,12 +67,31 @@ class VectorSpaceMod2:
                     w ^= v
         return self
 
+    # getters ------------------
+    def get_mons(self):
+        """Return the leading monomials."""
+        return map(operator.itemgetter(1), self.data)
+
+    def basis(self, type_alg):
+        """Return a basis of the vector space."""
+        return map(type_alg, map(operator.itemgetter(0), self.data))
+
+    def dim(self) -> int:
+        """Return the dimension of the vector space."""
+        return len(self.data)
+
+    # functions -----------------
+    def res_set(self, v):
+        """Return v mod self efficiently."""
+        for v1, mv1 in self.data:
+            if mv1 in v:
+                v ^= v1
+        return v
+
     def res(self, vector):
         """Return vector mod self."""
         v = vector if type(vector) is set else vector.data.copy()
-        for w, mw in self.data:
-            if mw in v:
-                v ^= w
+        self.res_set(v)
         return v if type(vector) is set else type(vector)(v)
 
     def quotient(self, other: "VectorSpaceMod2") -> "VectorSpaceMod2":
@@ -71,156 +107,216 @@ class VectorSpaceMod2:
                 result.append((v, max(v, key=self.key) if self.key else max(v)))
         return VectorSpaceMod2(data=result[n:])
 
-    def get_mons(self) -> Set[_t_mon]:
-        """Return the leading monomials."""
-        return set(m for _, m in self.data)
-
-    def basis(self, type_alg) -> Iterable:
-        return (type_alg(v) for v, mv in self.data)
-
-    def dim(self) -> int:
-        """Return the dimension of the vector space."""
-        return len(self.data)
-
 
 class GradedVectorSpaceMod2:
     """ a graded version of VectorSpaceMod2 """
-    def __init__(self, d_max, *, key=None):
-        self.d_max = d_max
-        self.data = [VectorSpaceMod2(key=key) for _ in range(d_max + 1)]  # type: List[VectorSpaceMod2]
+    def __init__(self, *, key=None):
+        self.key = key
+        self.data = {}  # type: Dict[Any, _t_data]
 
-    def add_vectors(self, vectors: Iterable[_t_mon], deg: int):
-        """ add vectors to this vector space """
-        assert(0 <= deg <= self.d_max)
-        self.data[deg].add_vectors(vectors)
-
-    def res(self, vector, is_homogeneous=True):
-        """ return vector mod this VectorSpace"""
-        if not vector:
-            return vector
-        assert(vector.deg() <= self.d_max)
-        if is_homogeneous:
-            return self.data[vector.deg()].res(vector)
-        else:
-            degs = set(vector.deg_mon(mon) for mon in vector.data)
-            res = vector
-            for deg in degs:
-                res = self.data[deg].res(vector)
-            return res
-
-    def get_mons(self, deg):
-        """ return the leading monomials """
-        return self.data[deg].get_mons()
-
-
-class LinearMapMod2:  # TODO: add key
-    """ this class is for modeling linear maps f: V leftrightarrow W: g"""
-    def __init__(self):
-        # self.maps is for f:V->W and self.inv_maps is for g:W->V
-        self.maps = []  # type: List[Tuple[Set[_t_mon], _t_mon, Set[_t_mon]]]
-        self.inv_maps = []  # type: List[Tuple[Set[_t_mon], _t_mon, Set[_t_mon]]]
-        self.kernel = []  # type: List[Tuple[Set[_t_mon], _t_mon]]
-
-    def clear(self):
-        self.__init__()
-
-    def add_maps(self, maps: Iterable):
-        for src, tgt in maps:
-            v = src.data.copy()  # type: Set[_t_mon]
-            fv = tgt.data.copy()  # type: Set[_t_mon]
-            for v1, mv1, fv1 in self.maps:
+    # setters ----------------
+    def add_v_set(self, v: _t_v, deg):
+        """Add a single vector efficiently."""
+        if deg in self.data:
+            for v1, mv1 in self.data[deg]:
                 if mv1 in v:
                     v ^= v1
+            if v:
+                self.data[deg].append((v, max(v, key=self.key) if self.key else max(v)))
+        else:
+            self.data[deg] = [(v, max(v, key=self.key) if self.key else max(v))]
+
+    def add_vectors_set(self, vectors: Iterable[_t_v], deg):
+        """Add vectors efficiently."""
+        if deg not in self.data:
+            self.data[deg] = []
+        for v in vectors:
+            for v1, mv1 in self.data[deg]:
+                if mv1 in v:
+                    v ^= v1
+            if v:
+                self.data[deg].append((v, max(v, key=self.key) if self.key else max(v)))
+
+    def add_v(self, v):
+        """Add a single vector from an algebra."""
+        deg = v.deg()
+        v = v.data.copy()
+        self.add_v_set(v, deg)
+
+    def add_vectors(self, vectors):
+        """Add vectors from an algebra."""
+        for v in vectors:
+            self.add_v(v)
+
+    # modifiers ------------------
+    def simplify(self) -> "GradedVectorSpaceMod2":
+        """Simplify the basis such that it forms a block matrix (I, A)."""
+        for deg in self.data:
+            for i in range(len(self.data[deg]) - 1, 0, -1):
+                v, mv = self.data[deg][i]
+                for j in range(i):
+                    w = self.data[deg][j][0]
+                    if mv in w:
+                        w ^= v
+        return self
+
+    # getters ------------------
+    def get_mons(self, deg):
+        """Return the leading monomials."""
+        return map(operator.itemgetter(1), self.data[deg]) if deg in self.data else ()
+
+    def basis(self, deg, type_alg):
+        """Return a basis of the vector space."""
+        return map(type_alg, map(operator.itemgetter(0), self.data[deg])) if deg in self.data else ()
+
+    def dim(self, deg) -> int:
+        """Return the dimension of the vector space."""
+        return len(self.data[deg]) if deg in self.data else 0
+
+    # functions -----------------
+    def res_set(self, v, deg):
+        """Return v mod self efficiently."""
+        if deg in self.data:
+            for v1, mv1 in self.data[deg]:
+                if mv1 in v:
+                    v ^= v1
+        return v
+
+    def res(self, vector):
+        """ return vector mod this VectorSpace"""
+        deg = vector.deg()
+        v = vector.data.copy()
+        self.res_set(v, deg)
+        return type(vector)(v)
+
+
+class LinearMapMod2:
+    """ this class is for modeling linear maps f: V leftrightarrow W: g"""
+    def __init__(self, *, key=None):
+        # self.maps is for f:V->W and self.inv_maps is for g:W->V
+        self.key = key
+        self._domain = []  # type: _t_data
+        self._f = []  # type: List[set]
+        self._image = []  # type: _t_data
+        self._g = []  # type: List[set]
+        self._kernel = VectorSpaceMod2(key=key)
+
+    # setters ----------------
+    def add_maps_set(self, maps: Iterable[Tuple[set, set]]):
+        """Add maps efficiently."""
+        for v, fv in maps:
+            for vm1, fv1 in zip(self._domain, self._f):
+                if vm1[1] in v:
+                    v ^= vm1[0]
                     fv ^= fv1
             if not v:
                 if fv:
-                    raise ValueError("linear map not well-defined")
+                    raise myerror.MyValueError("linear map not well-defined")
             else:
-                self.maps.append((v, max(v), fv))
+                self._domain.append((v, max(v, key=self.key) if self.key else max(v)))
+                self._f.append(fv)
 
                 w = fv.copy()
                 gw = v.copy()
-                for w1, mw1, gw1 in self.inv_maps:
-                    if mw1 in w:
-                        w ^= w1
+                for wm1, gw1 in zip(self._image, self._g):
+                    if wm1[1] in w:
+                        w ^= wm1[0]
                         gw ^= gw1
-                if not w:  # we get gw in the kernel
-                    for v1, mv1 in self.kernel:
-                        if mv1 in gw:
-                            gw ^= v1
-                    self.kernel.append((gw, max(gw)))
+                if not w:
+                    self._kernel.add_v_set(gw)
                 else:
-                    self.inv_maps.append((w, max(w), gw))
+                    self._image.append((w, max(w, key=self.key) if self.key else max(w)))
+                    self._g.append(gw)
 
+    def add_maps(self, maps):
+        """Add maps."""
+        self.add_maps_set((v.data.copy(), fv.data.copy()) for v, fv in maps)
+
+    def add_map(self, v, fv):
+        self.add_maps(((v, fv),))
+
+    # getters ------------------
+    @property
+    def domain(self):
+        return VectorSpaceMod2(data=self._domain)
+
+    @property
+    def image(self):
+        return VectorSpaceMod2(data=self._image)
+
+    @property
+    def kernel(self):
+        return self._kernel
+
+    # functions -----------------
     def f(self, vector):
-        """ return f(vector) """
-        type_vector = type(vector)
-        v = vector if type_vector is set else vector.data.copy()
+        """Return f(vector)."""
+        v = vector.data.copy()
         result = set()
-        for v1, mv1, fv1 in self.maps:
-            if mv1 in v:
-                v ^= v1
+        for vm1, fv1 in zip(self._domain, self._f):
+            if vm1[1] in v:
+                v ^= vm1[0]
                 result ^= fv1
-        if not v:
-            return result if type_vector is set else type_vector(result)
-        else:
-            return None
+        return None if v else type(vector)(result)
 
     def g(self, vector):
-        """ return f^{-1}(vector) """
-        w = vector if type(vector) is set else vector.data.copy()
+        """Return f^{-1}(vector)."""
+        w = vector.data.copy()
         result = set()
-        for w1, mw1, gw1 in self.inv_maps:
-            if mw1 in w:
-                w ^= w1
+        for wm1, gw1 in zip(self._image, self._g):
+            if wm1[1] in w:
+                w ^= wm1[0]
                 result ^= gw1
-        if not w:
-            return type(vector)(result)
-        else:
-            return None
-
-    def present_kernel(self, type_vector):
-        for v, mv in self.kernel:
-            print(type_vector(v))
+        return None if w else type(vector)(result)
 
 
 class LinearMapKernelMod2:
-    """ this is a optimized version of LinearMapMod2 that focus on computing the kernel """
+    """This is an optimized version of LinearMapMod2 that focus on computing the kernel."""
     def __init__(self, *, key=None):
-        # self.inv_maps is for g:W->V
+        # self.maps is for f:V->W and self.inv_maps is for g:W->V
         self.key = key
-        self.inv_maps = []  # type: List[Tuple[Set[_t_mon], _t_mon, Set[_t_mon]]]
-        self.kernel = VectorSpaceMod2(key=key)
+        self._image = []  # type: _t_data
+        self._g = []  # type: List[set]
+        self._kernel = VectorSpaceMod2(key=key)
 
-    def clear(self):
-        self.__init__()
-
-    def add_maps(self, maps: Iterable[tuple]):
-        for src, tgt in maps:
-            gw = src if type(src) is set else src.data.copy()  # type: Set[_t_mon]
-            w = tgt if type(tgt) is set else tgt.data.copy()  # type: Set[_t_mon]
-            for w1, mw1, gw1 in self.inv_maps:
-                if mw1 in w:
-                    w ^= w1
+    # setters ----------------
+    def add_maps_set(self, maps: Iterable[Tuple[set, set]]):
+        """Add maps efficiently."""
+        for gw, w in maps:
+            for wm1, gw1 in zip(self._image, self._g):
+                if wm1[1] in w:
+                    w ^= wm1[0]
                     gw ^= gw1
-            if not w:  # we get gw in the kernel
-                self.kernel.add_v(gw)
+            if not w:
+                self._kernel.add_v_set(gw)
             else:
-                self.inv_maps.append((w, max(w, key=self.key) if self.key else max(w), gw))
+                self._image.append((w, max(w, key=self.key) if self.key else max(w)))
+                self._g.append(gw)
+
+    def add_maps(self, maps):
+        """Add maps."""
+        self.add_maps_set((v.data.copy(), fv.data.copy()) for v, fv in maps)
+
+    def add_map(self, v, fv):
+        self.add_maps(((v, fv),))
+
+    # getters ------------------
+    @property
+    def image(self):
+        return VectorSpaceMod2(data=self._image)
+
+    @property
+    def kernel(self):
+        return self._kernel
 
     def g(self, vector):
-        """ return f^{-1}(vector) """
-        w = vector if type(vector) is set else vector.data.copy()
+        """Return f^{-1}(vector)."""
+        w = vector.data.copy()
         result = set()
-        for w1, mw1, gw1 in self.inv_maps:
-            if mw1 in w:
-                w ^= w1
+        for wm1, gw1 in zip(self._image, self._g):
+            if wm1[1] in w:
+                w ^= wm1[0]
                 result ^= gw1
-        if not w:
-            return type(vector)(result)
-        else:
-            return None
+        return None if w else type(vector)(result)
 
-    def image(self) -> VectorSpaceMod2:
-        """ warning: the return should not be modified """
-        return VectorSpaceMod2(data=[(w, mw) for w, mw, gw in self.inv_maps], key=self.key)
+# 226, 302, 311
