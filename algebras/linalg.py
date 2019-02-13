@@ -7,6 +7,7 @@ a shallow copy of it.
 """
 import copy
 import operator
+import collections
 from typing import TypeVar, Tuple, List, Set, Dict, Iterable, Any
 from algebras import myerror
 
@@ -109,7 +110,7 @@ class VectorSpaceMod2:
 
 
 class GradedVectorSpaceMod2:
-    """ a graded version of VectorSpaceMod2 """
+    """A graded version of VectorSpaceMod2."""
     def __init__(self, *, key=None):
         self.key = key
         self.data = {}  # type: Dict[Any, _t_data]
@@ -191,7 +192,7 @@ class GradedVectorSpaceMod2:
 
 
 class LinearMapMod2:
-    """ this class is for modeling linear maps f: V leftrightarrow W: g"""
+    """Linear map f: V leftrightarrow W: g."""
     def __init__(self, *, key=None):
         # self.maps is for f:V->W and self.inv_maps is for g:W->V
         self.key = key
@@ -314,6 +315,95 @@ class LinearMapKernelMod2:
         w = vector.data.copy()
         result = set()
         for wm1, gw1 in zip(self._image, self._g):
+            if wm1[1] in w:
+                w ^= wm1[0]
+                result ^= gw1
+        return None if w else type(vector)(result)
+
+
+class GradedLinearMapMod2:
+    """A graded version of GradedLinearMapMod2."""
+    MyTuple = collections.namedtuple('MyTuple', ('domain', 'f', 'image', 'g', 'kernel'))
+
+    def __init__(self, *, key=None):
+        # self.maps is for f:V->W and self.inv_maps is for g:W->V
+        self.key = key
+        self.data = {}  # type: Dict[Any, GradedLinearMapMod2.MyTuple]
+
+    # setters ----------------
+    def add_maps_set(self, maps: Iterable[Tuple[set, set]], deg):
+        """Add maps efficiently."""
+        if deg not in self.data:
+            self.data[deg] = self.MyTuple([], [], [], [], VectorSpaceMod2(key=self.key))
+        linmap = self.data[deg]
+        for v, fv in maps:
+            for vm1, fv1 in zip(linmap.domain, linmap.f):
+                if vm1[1] in v:
+                    v ^= vm1[0]
+                    fv ^= fv1
+            if not v:
+                if fv:
+                    raise myerror.MyValueError("linear map not well-defined")
+            else:
+                linmap.domain.append((v, max(v, key=self.key) if self.key else max(v)))
+                linmap.f.append(fv)
+
+                w = fv.copy()
+                gw = v.copy()
+                for wm1, gw1 in zip(linmap.image, linmap.g):
+                    if wm1[1] in w:
+                        w ^= wm1[0]
+                        gw ^= gw1
+                if not w:
+                    linmap.kernel.add_v_set(gw)
+                else:
+                    linmap.image.append((w, max(w, key=self.key) if self.key else max(w)))
+                    linmap.g.append(gw)
+
+    def add_maps(self, maps, deg):
+        """Add maps."""
+        self.add_maps_set(((v.data.copy(), fv.data.copy()) for v, fv in maps), deg)
+
+    def add_map(self, v, fv):
+        deg = v.deg()
+        self.add_maps(((v, fv),), deg)
+
+    # getters ------------------
+    def domain(self, deg):
+        return VectorSpaceMod2(data=self.data[deg].domain)
+
+    def image(self, deg):
+        return VectorSpaceMod2(data=self.data[deg].image)
+
+    def kernel(self, deg):
+        return self.data[deg].kernel
+
+    # functions -----------------
+    def f(self, vector):
+        """Return f(vector)."""
+        deg = vector.deg()
+        if deg in self.data:
+            linmap = self.data[deg]
+        else:
+            return vector
+        v = vector.data.copy()
+        result = set()
+        for vm1, fv1 in zip(linmap.domain, linmap.f):
+            if vm1[1] in v:
+                v ^= vm1[0]
+                result ^= fv1
+        return None if v else type(vector)(result)
+
+    def g(self, vector):
+        """Return f^{-1}(vector)."""
+        deg = vector.deg()
+        if deg in self.data:
+            linmap = self.data[deg]
+        else:
+            return vector
+        w = vector.data.copy()
+        result = set()
+        for wm1, gw1 in zip(linmap.image, linmap.g):
             if wm1[1] in w:
                 w ^= wm1[0]
                 result ^= gw1
