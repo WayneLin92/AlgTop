@@ -20,7 +20,7 @@ class VectorSpaceMod2:
     """A class for vector spaces."""
     def __init__(self, vectors=None, *, data=None, key=None):
         self.key = key
-        self.data = data if data is not None else []
+        self.data = data or []
         if vectors is not None:
             self.add_vectors(vectors)
 
@@ -83,7 +83,7 @@ class VectorSpaceMod2:
         return len(self.data)
 
     # functions -----------------
-    def res_set(self, v):
+    def res_set(self, v: set):
         """Return v mod self efficiently."""
         for v1, mv1 in self.data:
             if mv1 in v:
@@ -96,18 +96,11 @@ class VectorSpaceMod2:
         self.res_set(v)
         return v if type(vector) is set else type(vector)(v)
 
-    def quotient(self, other: "VectorSpaceMod2") -> "VectorSpaceMod2":
-        """Return self/other assuming other is a subspace of self."""
-        result = other.data.copy()
-        n = len(result)
-        for v, mv in self.data:
-            v = v.copy()
-            for v1, mv1 in result:
-                if mv1 in v:
-                    v ^= v1
-            if v:
-                result.append((v, max(v, key=self.key) if self.key else max(v)))
-        return VectorSpaceMod2(data=result[n:])
+    def __truediv__(self, other: "VectorSpaceMod2"):
+        """Return the quotient space self/other."""
+        result = VectorSpaceMod2()
+        result.add_vectors_set(map(other.res_set, self.basis(set)))
+        return result
 
 
 class GradedVectorSpaceMod2:
@@ -371,13 +364,13 @@ class GradedLinearMapMod2:
 
     # getters ------------------
     def domain(self, deg):
-        return VectorSpaceMod2(data=self.data[deg].domain)
+        return VectorSpaceMod2(data=self.data[deg].domain if deg in self.data else None)
 
     def image(self, deg):
-        return VectorSpaceMod2(data=self.data[deg].image)
+        return VectorSpaceMod2(data=self.data[deg].image if deg in self.data else None)
 
     def kernel(self, deg):
-        return self.data[deg].kernel
+        return self.data[deg].kernel if deg in self.data else VectorSpaceMod2()
 
     # functions -----------------
     def f(self, vector):
@@ -410,4 +403,4 @@ class GradedLinearMapMod2:
                 result ^= gw1
         return None if w else type(vector)(result)
 
-# 226, 302, 311, 412
+# 226, 302, 311, 412, 406
