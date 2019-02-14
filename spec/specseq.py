@@ -3,165 +3,70 @@
 
 import copy
 from GUI.draw import draw_ss
-from GUI.constants import *
-from typing import Union, Optional, Iterator, List, Dict
 
+import collections
 import itertools
+from typing import Union, Optional, Iterator, List, Dict, Tuple
 from algebras import linalg, mymath
 from algebras.constructions import AugAlgMod2
 
-TYPE_REL = 0
-TYPE_IMAGE = 1
+TYPE_IMAGE = 0
+TYPE_KERNEL = 1
 TYPE_DIFF = 2
 TYPE_TBD = 3
-
-IINDEX_IMAGE = 0
-IINDEX_DIFF = 1
-IINDEX_TBD = 2
-IINDEX_NUM = 3
-IINDEX_INSERT = {TYPE_REL: IINDEX_IMAGE, TYPE_IMAGE: IINDEX_DIFF, TYPE_DIFF: IINDEX_TBD, TYPE_TBD: None}
-
-NB_REDUNDANT_REL = 0
-NB_REDUNDANT_IMAGE = 1
-NB_REDUNDANT_DIFF = 2
-NB_REDUNDANT_IMAGE1 = 3
-NB_REDUNDANT_DIFF1 = 4
-NB_LESS_TBD = 5
-NB_NEW = 6
-
-SS_TYPE_SERRE_COHOMOLOGY = 0
-SS_TYPE_ADAMS = 1
-SS_TYPE_DICT = {"Serre-Cohomology": SS_TYPE_SERRE_COHOMOLOGY,
-                "Adams": SS_TYPE_ADAMS}
 
 
 class MyPoly:
     pass
 
 
-def nb_msg(msg_index, deg):
-    if msg_index == NB_REDUNDANT_REL:
-        print("{}: Extra relation!".format(deg))
-    elif msg_index == NB_REDUNDANT_IMAGE:
-        print("{}: There is a relation between images".format(deg))
-    elif msg_index == NB_REDUNDANT_DIFF:
-        print("{}: Redundant differential".format(deg))
-    elif msg_index == NB_REDUNDANT_IMAGE1:
-        print("{}: 2. There is a relation between images".format(deg))
-    elif msg_index == NB_REDUNDANT_DIFF1:
-        print("{}: 2. Redundant differential!".format(deg))
-    elif msg_index == NB_LESS_TBD:
-        pass
-        # print("{}: 2. One less TBD!".format(deg))
-
-
 class SpecSeq:
-    """
-    self.gen_deg[id] = (deg_x, deg_y)
-    self.entries[page-2][(x,y)] is a list of bullets {'poly': ?, 'base': ?, 'mon': ?, 'diff': ?, 'type': ?}
-    self.indices[page-2][(x,y)] is [index_image, index_diff, index_TBD]
-    """
+    """Spectral sequence."""
+    MyTuple = collections.namedtuple('MyTuple', ('p_max', 'q_max', 'Alg', 'basis', 'diff_map'))
 
-    def __init__(self, p_max: int, q_max: int, *, page=2, func=None):
+    def __init__(self, p_max: int, q_max: int, *, starting_page=2, func=None, Alg=None):
         """func is a function indicating the direction of the differential for each page."""
-        self.p_max = [p_max]  # type: List[int]
-        self.q_max = [q_max]  # type: List[int]
-        self.algebras = [AugAlgMod2.new_alg()]  # type: List[AugAlgMod2]
-        self.basis = [{}]  # type: List[Dict[tuple, set]]
-        self.diffs = [{}]  # type: List[Dict[tuple, linalg.LinearMapMod2]]
-        self._locked = False
-
-        self.bullets = [{}]   # type: List[Dict[tuple, List[tuple]]]
-        self._starting_page = page
+        self.data = [self.MyTuple(p_max, q_max, Alg or AugAlgMod2.new_alg(), None, linalg.GradedLinearMapMod2())]
+        self._locked = False  # flag for using Alg.add_gen, Alg.add_map
+        self._starting_page = starting_page
         self._func_deg_diff = func if func else lambda r: (r, r + 1)
-
-        dp, dq = self.deg_diff
-        for p, q in self.degs_all():
-            self.diffs[-1][(p, q)] = linalg.LinearMapMod2()
-
-
 
     @property
     def page(self):
-        return self._starting_page + len(self.p_max) - 1
+        """Get the page number of the last page."""
+        return self._starting_page + len(self.data) - 1
 
     @property
     def deg_diff(self):
+        """Get the direction of the differential of the last page."""
         return self._func_deg_diff(self.page)
 
-    def degs_all(self):
-        return itertools.product(range(self.p_max[-1] + 1), range(self.q_max[-1] + 1))
-
-    def present(self, keys: Iterator[str], deg: Optional[tuple] = None):
-        if deg is None:
-            for deg, bullets in sorted(self.entries[self.page-2].items()):
-                # noinspection PyTypeChecker
-                print("{}: {}".format(deg, [[str(bullet[key]) if key is not 'mon' else str(MyPoly({bullet[key]: 1}))
-                                             for key in keys] for bullet in bullets]))
-        else:
-            bullets = self.entries[self.page-2][deg]
-            print("{}: {}".format(deg, [[str(bullet[key]) if key is not 'mon' else str(MyPoly({bullet[key]: 1}))
-                                         for key in keys] for bullet in bullets]))
+    def present(self, deg):
+        pass
 
     def draw(self):
         draw_ss(self)
 
+    def get_basis(self, index):
+        """Get the basis of self.data[index].Alg. Return type: Iterator[deg, Iterator[tuple]]."""
+        p_max, q_max = self.data[index].p_max, self.data[index].q_max
+        d_max = mymath.Deg((p_max, q_max))
+        R = self.data[index].Alg
+        basis_mon = sorted(R.basis_mons_max(d_max), key=R.deg_mon)
+        return itertools.groupby(basis_mon, key=R.deg_mon)
+
     # interface functions for draw.py
-    def sd2deg(self, surf_deg: Optional[tuple]) -> Optional[tuple]:
-        """ interface for draw.py """
-        if surf_deg is None:
-            return None
-        if self.ss_type == SS_TYPE_SERRE_COHOMOLOGY:
-            return surf_deg
-        elif self.ss_type == SS_TYPE_ADAMS:
-            return surf_deg[1], surf_deg[0] + surf_deg[1]
+    def get_bullets_and_arrows(self) -> Tuple[Dict[tuple, list], List[Tuple[tuple, int]]]:
+        """Get a representation of self for drawing the spectral sequence."""
+        if self._locked:
+            basis = self.get_basis(0)
+            bullets = {d: [({m}, TYPE_TBD) for m in v] for d, v in basis}
+            return bullets, []
         else:
-            raise SSClassError
-
-    def deg2sd(self, deg: Optional[tuple]) -> Optional[tuple]:
-        """ interface for draw.py """
-        if deg is None:
-            return None
-        if self.ss_type == SS_TYPE_SERRE_COHOMOLOGY:
-            return deg
-        elif self.ss_type == SS_TYPE_ADAMS:
-            return deg[1] - deg[0], deg[0]
-        else:
-            raise SSClassError
-
-    def get_surf_degs(self) -> Iterator:
-        for deg in self.entries[self.page - 2]:
-            yield self.deg2sd(deg)
-
-    def get_surf_addr(self, poly, surf_deg=None) -> Optional[tuple]:
-        """ interface for draw.py """
-        addr = self._get_addr(poly, surf_deg)
-        if addr is None:
-            return None
-        else:
-            deg, index = addr
-            return self.deg2sd(deg), index
-
-    def get_poly(self, surf_addr):
-        """ interface for draw.py """
-        surf_deg, index = surf_addr
-        deg = self.sd2deg(surf_deg)
-        index_image = self.indices[self.page - 2][deg][IINDEX_IMAGE]
-        return self.entries[self.page - 2][deg][index_image + index]['poly']
-
-    def get_bullet_color(self, surf_addr):
-        """ interface for draw.py """
-        surf_deg, index = surf_addr
-        deg = self.sd2deg(surf_deg)
-        index_image = self.indices[self.page - 2][deg][IINDEX_IMAGE]
-        bullet = self.entries[self.page - 2][deg][index_image + index]
-        return COLOR_BULLET_TBD if bullet['type'] == TYPE_TBD else COLOR_BULLET_NON_TBD
-
-    def get_num_nonrel_bullets(self, surf_deg) -> int:
-        deg = self.sd2deg(surf_deg)
-        num_rel = self.indices[self.page - 2][deg][IINDEX_IMAGE]
-        num_total = len(self.entries[self.page - 2][deg])
-        return num_total - num_rel
+            basis = self.data[-1].basis
+            bullets = {}
+            for deg in basis:
+                pass
 
     def get_arrows(self, expansion):
         """

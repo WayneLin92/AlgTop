@@ -75,7 +75,8 @@ class VectorSpaceMod2:
 
     def basis(self, type_alg):
         """Return a basis of the vector space."""
-        return map(type_alg, map(operator.itemgetter(0), self.data))
+        vectors = map(operator.itemgetter(0), self.data)
+        return vectors if type_alg is set else map(type_alg, vectors)
 
     def dim(self) -> int:
         """Return the dimension of the vector space."""
@@ -385,7 +386,7 @@ class GradedLinearMapMod2:
         if deg in self.data:
             linmap = self.data[deg]
         else:
-            return vector
+            return None
         v = vector.data.copy()
         result = set()
         for vm1, fv1 in zip(linmap.domain, linmap.f):
@@ -400,7 +401,7 @@ class GradedLinearMapMod2:
         if deg in self.data:
             linmap = self.data[deg]
         else:
-            return vector
+            return None
         w = vector.data.copy()
         result = set()
         for wm1, gw1 in zip(linmap.image, linmap.g):
@@ -409,4 +410,4 @@ class GradedLinearMapMod2:
                 result ^= gw1
         return None if w else type(vector)(result)
 
-# 226, 302, 311
+# 226, 302, 311, 412

@@ -8,7 +8,7 @@ class Deg(tuple):
     """A subclass of tuple with element-wise addition and broadcast multiplication.
 
     All Deg instances should have the same length when added together."""
-    def __new__(cls, iterable):
+    def __new__(cls, iterable) -> "Deg":
         # noinspection PyTypeChecker
         return tuple.__new__(cls, iterable)
 
@@ -20,9 +20,20 @@ class Deg(tuple):
         """This is implemented for supporting sum()."""
         return Deg(map(operator.add, self, other)) if other is not 0 else self
 
+    def __sub__(self, other):
+        """Element-wise addition."""
+        return Deg(map(operator.sub, self, other))
+
     def __mul__(self, other: int):
         """Broadcast multiplication."""
         return Deg(map(operator.mul, self, itertools.repeat(other)))
+
+    def __rmul__(self, other: int):
+        """Broadcast multiplication."""
+        return Deg(map(operator.mul, self, itertools.repeat(other)))
+
+    def __floordiv__(self, other) -> int:
+        return min(itertools.starmap(operator.floordiv, filter(operator.itemgetter(1), zip(self, other))))
 
 
 class FrozenDict(dict):
@@ -74,6 +85,11 @@ def max_tuple(t1: tuple, t2: tuple):
         return tuple(itertools.chain(map(max, t1, t2), t2[len(t1):]))
     else:
         return tuple(itertools.chain(map(max, t1, t2), t1[len(t2):]))
+
+
+def div_tuple(t1, t2):
+    """Assert le_tuple(t2, t1) and return t1 // t2."""
+    return min(itertools.starmap(operator.floordiv, filter(operator.itemgetter(1), zip(t1, t2))))
 
 
 def div_mod_tuple(t1, t2: tuple):
@@ -174,4 +190,4 @@ def print_tex_iter(iterable):
     for obj in iterable:
         print(f"${obj}$\\\\")
 
-# 73, 87
+# 73, 87, 177

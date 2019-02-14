@@ -4,7 +4,7 @@ import copy
 import itertools
 import operator
 from typing import Union, Set, Tuple, List, Dict
-from algebras import BaseAlgebras as BA, linalg, mymath
+from algebras import BaseAlgebras as BA, linalg, mymath, myerror
 
 
 class AugAlgMod2(BA.AlgebraMod2):
@@ -15,7 +15,7 @@ class AugAlgMod2(BA.AlgebraMod2):
     """
 
     _gen_names = None  # type: List[str]
-    _gen_degs = None  # type: List[int]
+    _gen_degs = None  # type: list
     _rels = None  # type: Dict[tuple, set]
     _auto_simplify = None  # type: bool
     _name_index = 0
@@ -42,13 +42,13 @@ class AugAlgMod2(BA.AlgebraMod2):
     @classmethod
     def str_mon(cls, mon: tuple):
         if mon:
-            return "".join(f"{cls._gen_names[i]}{mymath.tex_exponent(e)}" for i, e in enumerate(mon) if e)
+            return "".join(f"{s}{mymath.tex_exponent(e)}" for e, s in zip(mon, cls._gen_names) if e)
         else:
             return "1"
 
     @classmethod
     def deg_mon(cls, mon: tuple):
-        return sum(map(lambda ie: cls._gen_degs[ie[0]] * ie[1], enumerate(mon)))
+        return sum(map(operator.mul, mon, cls._gen_degs))
 
     # methods --------------------
     @classmethod
@@ -130,14 +130,39 @@ class AugAlgMod2(BA.AlgebraMod2):
         while i < len(cls._gen_names) and cls._gen_names[i] != k:
             i += 1
         if i == len(cls._gen_names):
-            raise BA.MyKeyError("Generator not found.")
+            raise myerror.MyKeyError("Generator not found.")
         m = (0,) * (i - 1) + (1,)
         return cls(m).simplify()
 
-    @staticmethod
-    def basis_mons(deg_max):
-        # TODO: implement this
-        pass
+    @classmethod
+    def _basis_mons_max(cls, deg_max, n_max):
+        """Return an iterator of basis with length n_max + 1 and possibly trailing zeroes."""
+        if n_max == -1:
+            yield (), 0
+            return
+        for m, d in cls._basis_mons_max(deg_max, n_max - 1):
+            for e in range((deg_max - d if d else deg_max) // cls._gen_degs[n_max] + 1):
+                m1 = m + (e,)
+                if any(map(mymath.le_tuple, cls._rels, itertools.repeat(m1))):
+                    break
+                else:
+                    yield m1, d + cls._gen_degs[n_max] * e
+
+    @classmethod
+    def basis_mons_max(cls, deg_max):
+        """Return an iterator of basis."""
+        for n_max in range(len(cls._gen_degs)):
+            for m, d in cls._basis_mons_max(deg_max, n_max - 1):
+                for e in range(1, (deg_max - d if d else deg_max) // cls._gen_degs[n_max] + 1):
+                    m1 = m + (e,)
+                    if any(map(mymath.le_tuple, cls._rels, itertools.repeat(m1))):
+                        break
+                    else:
+                        yield m1
+
+    @classmethod
+    def basis_max(cls, deg_max):
+        return map(cls, cls.basis_mons_max(deg_max))
 
     @classmethod
     def present(cls):
