@@ -1,12 +1,12 @@
 """Class of spectral sequences."""
 # TODO: log file
 
-import copy
 from GUI.draw import draw_ss
 
+import copy
 import collections
 import itertools
-from typing import Union, Optional, Iterator, List, Dict, Tuple
+from typing import Union, Optional, List, Dict, Tuple, Set, Callable
 from algebras import linalg, mymath
 from algebras.constructions import AugAlgMod2
 
@@ -21,7 +21,10 @@ class MyPoly:
 
 
 class SpecSeq:
-    """Spectral sequence."""
+    """Spectral sequence.
+
+    All the internal degree has data type mymath.Deg.
+    """
     MyTuple = collections.namedtuple('MyTuple', ('p_max', 'q_max', 'Alg', 'basis', 'diff_map'))
 
     def __init__(self, p_max: int, q_max: int, *, starting_page=2, func=None, Alg=None):
@@ -29,7 +32,7 @@ class SpecSeq:
         self.data = [self.MyTuple(p_max, q_max, Alg or AugAlgMod2.new_alg(), None, linalg.GradedLinearMapMod2())]
         self._locked = False  # flag for using Alg.add_gen, Alg.add_map
         self._starting_page = starting_page
-        self._func_deg_diff = func if func else lambda r: (r, r + 1)
+        self._func_deg_diff = func if func else lambda r: (r, r + 1)  # type: Callable[[int], Tuple[int, int]]
 
     @property
     def page(self):
@@ -39,7 +42,7 @@ class SpecSeq:
     @property
     def deg_diff(self):
         """Get the direction of the differential of the last page."""
-        return self._func_deg_diff(self.page)
+        return mymath.Deg(self._func_deg_diff(self.page))
 
     def present(self, deg):
         pass
@@ -47,295 +50,69 @@ class SpecSeq:
     def draw(self):
         draw_ss(self)
 
-    def get_basis(self, index):
-        """Get the basis of self.data[index].Alg. Return type: Iterator[deg, Iterator[tuple]]."""
-        p_max, q_max = self.data[index].p_max, self.data[index].q_max
+    def get_basis(self):
+        """Get the basis of self.data[-1].Alg. Return type: Iterator[deg, Iterator[tuple]]."""
+        p_max, q_max = self.data[-1].p_max, self.data[-1].q_max
         d_max = mymath.Deg((p_max, q_max))
-        R = self.data[index].Alg
+        R = self.data[-1].Alg
         basis_mon = sorted(R.basis_mons_max(d_max), key=R.deg_mon)
         return itertools.groupby(basis_mon, key=R.deg_mon)
 
-    # interface functions for draw.py
+    # GUI interface
     def get_bullets_and_arrows(self) -> Tuple[Dict[tuple, list], List[Tuple[tuple, int]]]:
         """Get a representation of self for drawing the spectral sequence."""
+        R = self.data[-1].Alg
+        linmap = self.data[-1].diff_map
         if self._locked:
-            basis = self.get_basis(0)
-            bullets = {d: [({m}, TYPE_TBD) for m in v] for d, v in basis}
-            return bullets, []
-        else:
-            basis = self.data[-1].basis
+            basis = self.data[-1].basis  # type: Dict[mymath.Deg, Set[tuple]]
             bullets = {}
+            arrows = []
             for deg in basis:
-                pass
+                deg_src = deg - self.deg_diff
+                vs_image = linmap.image(deg_src)
+                vs_kernel = linmap.kernel(deg)
+                list_inv_image = linmap.data[deg].g
+                set_TBD = basis[deg] - set(linmap.domain(deg).get_mons())
 
-    def get_arrows(self, expansion):
-        """
-        interface for draw.py
-        Iterator of arrows
-        """
-        for deg, bullets in self.entries[self.page - 2].items():
-            index_image = self.indices[self.page - 2][deg][IINDEX_IMAGE]
-            index_diff = self.indices[self.page - 2][deg][IINDEX_DIFF]
-            index_tbd = self.indices[self.page - 2][deg][IINDEX_TBD]
-            for i in range(index_diff, index_tbd):
-                diff = bullets[i]['diff']
-                if diff:
-                    yield (self.deg2sd(deg), i-index_image), self.get_surf_addr(diff)
-                    if self.get_num_nonrel_bullets(self.deg2sd(deg)) > 9 and \
-                            self.get_num_nonrel_bullets(self.deg2sd(self._diff_target(deg))) > 9 \
-                            and self.deg2sd(deg) not in expansion and \
-                            self.deg2sd((deg[0] + self.page, deg[1] - self.page + 1)) not in expansion:
-                        break
-    # end of interface
-
-    def _get_degs(self, type_bullets: str, truncate_deg: tuple = (0, 0)) -> Iterator:
-        """ Iterator of degrees """
-        if type_bullets == "trivial_diff":
-            if self.ss_type == SS_TYPE_SERRE_COHOMOLOGY:
-                for i in range(0, self.p_max[-1] + 1):
-                    for j in range(0, min(self.page - 1, self.q_max[-1] + 1)):
-                        if (i, j) in self.entries[-1]:
-                            yield i, j
-            elif self.ss_type == SS_TYPE_ADAMS:
-                for s in range(0, self.q_max[-1] + 1):
-                    if (s, s) in self.entries[-1]:
-                        yield s, s
-        elif type_bullets == "square":
-            p = MyPoly.get_prime()
-            if self.ss_type == SS_TYPE_SERRE_COHOMOLOGY:
-                for i in range(0, self.p_max[-1] // p + 1):
-                    for j in range((self.page - 1 + p - 1) // p, self.q_max[-1] // p + 1):
-                        if (i, j) in self.entries[-1]:
-                            yield i, j
-            elif self.ss_type == SS_TYPE_ADAMS:
-                for s in range(0, self.q_max[-1] // p + 1):
-                    for t in range(s + 1, s + self.p_max[-1] // p + 1):
-                        if (s, t) in self.entries[-1]:
-                            yield s, t
-        if type_bullets == "src_diff":
-            if self.ss_type == SS_TYPE_SERRE_COHOMOLOGY:
-                for i in range(0, self.p_max[-1] - truncate_deg[0] - self.page + 1):
-                    for j in range(0, self.q_max[-1] - truncate_deg[1] + 1):
-                        if (i, j) in self.entries[-1]:
-                            yield i, j
-            elif self.ss_type == SS_TYPE_ADAMS:
-                for s in range(0, self.q_max[-1] - truncate_deg[0] - self.page + 1):
-                    for t in range(s, s + self.p_max[-1] - (truncate_deg[1] - truncate_deg[0]) + 1):
-                        if (s, t) in self.entries[-1]:
-                            yield s, t
-        if type_bullets == "bullet":
-            if self.ss_type == SS_TYPE_SERRE_COHOMOLOGY:
-                for i in range(0, self.p_max[-1] - truncate_deg[0] + 1):
-                    for j in range(0, self.q_max[-1] - truncate_deg[1] + 1):
-                        if (i, j) in self.entries[-1]:
-                            yield i, j
-            elif self.ss_type == SS_TYPE_ADAMS:
-                for s in range(0, self.q_max[-1] - truncate_deg[0] + 1):
-                    for t in range(s, s + self.p_max[-1] - (truncate_deg[1] - truncate_deg[0]) + 1):
-                        if (s, t) in self.entries[-1]:
-                            yield s, t
-
-    def _inside_range(self, deg):
-        """ Test if deg is in the region determined by p_max, q_max """
-        if self.ss_type == SS_TYPE_SERRE_COHOMOLOGY:
-            return 0 <= deg[0] <= self.p_max[-1] and 0 <= deg[1] <= self.q_max[-1]
-        elif self.ss_type == SS_TYPE_ADAMS:
-            return 0 <= deg[0] <= self.q_max[-1] and 0 <= deg[1] - deg[0] <= self.p_max[-1]
-
-    def _get_addr(self, poly, surf_deg=None) -> Optional[tuple]:
-        """ interface for draw.py """
-        deg = self.sd2deg(surf_deg)
-        if deg is None:
-            deg = poly.deg()
-        bullets = self.entries[self.page - 2][deg]
-        index_image = self.indices[self.page - 2][deg][IINDEX_IMAGE]
-        num_total = len(bullets)
-        for i in range(index_image, num_total):
-            if bullets[i]['poly'] == poly:
-                return deg, i - index_image
-        return None
-
-    def _get_bullet(self, poly, deg=None):
-        """ modified from get_surf_addr """
-        if deg is None:
-            deg = poly.deg()
-        bullets = self.entries[self.page - 2][deg]
-        index_image = self.indices[self.page - 2][deg][IINDEX_IMAGE]
-        num_total = len(bullets)
-        for i in range(index_image, num_total):
-            if bullets[i]['poly'] == poly:
-                return bullets[i]
-        return None
-
-    def _get_nonrel_bullets(self, deg):
-        """ Iterator for nonrel bullets """
-        num_rel = self.indices[self.page - 2][deg][IINDEX_IMAGE]
-        num_total = len(self.entries[self.page - 2][deg])
-        for i in range(num_rel, num_total):
-            yield self.entries[self.page - 2][deg][i]
-
-    def _diff_target(self, deg_src):
-        if self.ss_type == SS_TYPE_SERRE_COHOMOLOGY:
-            return deg_src[0] + self.page, deg_src[1] - self.page + 1
-        elif self.ss_type == SS_TYPE_ADAMS:
-            return deg_src[0] + self.page, deg_src[1] + self.page - 1
-
-    def _gen_basis_new_bullet(self, deg: tuple, index_nb: int) -> int:
-        """ executed when a new bullet is added """
-        result = None
-        bullets = self.entries[-1][deg]
-        indices = self.indices[-1][deg]
-
-        i = index_nb
-        # deal with the new added bullet
-        proj, poly_res = poly_proj_mod(bullets[i]['poly'], bullets[:i])
-        mon, coeff = poly_res.get_item()
-        if mon is None:
-            if bullets[i]['type'] == TYPE_REL:
-                result = NB_REDUNDANT_REL
-            elif bullets[i]['type'] == TYPE_IMAGE:  #
-                result = NB_REDUNDANT_IMAGE
-                bul_inv = self._get_bullet(bullets[i]['inv_diff'])
-                if bul_inv is not None:
-                    bul_inv['poly'] -= sum(bullets[j]['base_inv_diff'] * proj[j]
-                                           for j in range(indices[IINDEX_IMAGE], i))
-                    bul_inv['diff'] = MyPoly.zero()
-            elif bullets[i]['type'] == TYPE_DIFF:
-                diff = sum(bullets[j]['base_diff'] * proj[j] for j in range(indices[IINDEX_DIFF], i))
-                if diff != bullets[i]['diff']:
-                    raise SSBulletsError('{}: Contradictory differentials: d({})={} vs d({})={}'.
-                                         format(deg, bullets[i]['poly'], diff, bullets[i]['poly'], bullets[i]['diff']))
-                else:
-                    result = NB_REDUNDANT_DIFF
-            else:
-                raise SSBulletsError("{}:  Unexpected new tbd bullet!".format(deg))
-            del bullets[i]
-            for j in range(len(indices)):
-                if indices[j] > i:
-                    indices[j] -= 1
-            return result
+                bullets[deg] = [(x, TYPE_IMAGE) for x in vs_image.basis(R)]
+                bullets[deg].extend((x, TYPE_KERNEL) for x in (vs_kernel / vs_image).basis(R))
+                bullets[deg].extend((x, TYPE_DIFF) for x in map(R, list_inv_image))
+                bullets[deg].extend((x, TYPE_TBD) for x in map(R, sorted(set_TBD)))
+                dim_kernel = vs_kernel.dim
+                num_arrow = len(list_inv_image)
+                arrows.extend(((deg, dim_kernel + i), (deg + self.deg_diff, i)) for i in range(num_arrow))
+            return bullets, arrows
         else:
-            poly = poly_res * MyPoly.INV[coeff]
-            bullets[i]['base'] = poly
-            bullets[i]['mon'] = mon
-            if bullets[i]['type'] == TYPE_DIFF:
-                bullets[i]['base_diff'] = (bullets[i]['diff'] -
-                                           sum(bullets[j]['base_diff'] * proj[j]
-                                               for j in range(indices[IINDEX_DIFF], i))) * MyPoly.INV[coeff]
-            elif bullets[i]['type'] == TYPE_IMAGE:
-                bullets[i]['base_inv_diff'] = (bullets[i]['inv_diff'] -
-                                               sum(bullets[j]['base_inv_diff'] * proj[j]
-                                                   for j in range(indices[IINDEX_IMAGE], i))) * MyPoly.INV[coeff]
+            basis = self.get_basis()
+            bullets = {d: [(R(m), TYPE_TBD) for m in v] for d, v in basis}
+            return bullets, []
 
-        # deal with the bullets after the new bullet
-        index_nb = i  # index of the new bullet
-        i = index_nb + 1
-        while i < len(bullets) and bullets[index_nb]['mon'] not in bullets[i]['base'].data:
-            i += 1
-        if i >= len(bullets) and index_nb < len(bullets) - 1:
-            raise SSBulletsError("{}: Expecting a relation".format(deg))
-        while i < len(bullets):
-            proj, poly_res = poly_proj_mod(bullets[i]['base'], bullets[index_nb:i])  #
-            mon, coeff = poly_res.get_item()
-            if mon is None:
-                # not possible to be TYPE_REL
-                if bullets[i]['type'] == TYPE_IMAGE:  # this case is very unusual
-                    result = NB_REDUNDANT_IMAGE1
-                elif bullets[i]['type'] == TYPE_DIFF:
-                    if bullets[i]['base_diff']:
-                        raise SSBulletsError("{}: 2. Contradictory differentials!".format(deg))
-                    else:
-                        result = NB_REDUNDANT_DIFF1
-                else:
-                    result = NB_LESS_TBD
-                del bullets[i]
-                for j in range(len(indices)):
-                    if indices[j] > i:
-                        indices[j] -= 1
-            else:
-                poly = poly_res * MyPoly.INV[coeff]
-                bullets[i]['base'] = poly
-                bullets[i]['mon'] = mon
-                if bullets[i]['type'] == TYPE_DIFF:  #
-                    bullets[i]['base_diff'] = (bullets[i]['base_diff'] -
-                                               sum(bullets[j]['base_diff'] * proj[j-index_nb]
-                                                   for j in range(indices[IINDEX_DIFF], i))) * MyPoly.INV[coeff]
-                elif bullets[i]['type'] == TYPE_IMAGE:
-                    bullets[i]['base_inv_diff'] = (bullets[i]['base_inv_diff'] -
-                                                   sum(bullets[j]['base_inv_diff'] * proj[j-index_nb]
-                                                       for j in range(indices[IINDEX_IMAGE], i))) * MyPoly.INV[coeff]
-                i += 1
-        return result
-
-    def _gen_basis_new_page(self):
-        """ executed when a new bullet is added """
-        for deg, bullets in self.entries[-1].items():
-            indices = self.indices[-1][deg]
-            for i in range(indices[IINDEX_IMAGE], len(bullets)):
-                poly_res = poly_mod(bullets[i]['poly'], bullets[:i])
-                mon, coeff = poly_res.get_item()
-                poly = poly_res * MyPoly.INV[coeff]
-                bullets[i]['base'] = poly
-                bullets[i]['mon'] = mon
-
-    def add_bullet(self, bullet: dict, deg: Optional[tuple] = None) -> int:
-        if deg is None:
-            deg = bullet['poly'].deg()
-        if self.page > 2 and bullet['type'] == TYPE_REL:
-            raise SSValueError("{}: Please add relations only on page 2".format(deg))
-        if deg not in self.entries[-1]:
-            if bullet['type'] == TYPE_TBD:
-                self.indices[-1][deg] = [0, 0, 0]
-            elif bullet['type'] == TYPE_REL:
-                self.indices[-1][deg] = [1, 1, 1]
-            else:
-                raise SSValueError("{}: Illegal new bullet".format(deg))
-            self.entries[-1][deg] = [bullet]
-            return NB_NEW
-        else:
-            iindex = IINDEX_INSERT[bullet['type']]
-            if iindex is not None:
-                insert_index = self.indices[-1][deg][iindex]
-                self.entries[-1][deg].insert(insert_index, bullet)
-                for i in range(iindex, IINDEX_NUM):
-                    self.indices[-1][deg][i] += 1
-                if bullet['base'] is None:
-                    result = self._gen_basis_new_bullet(deg, insert_index)
-                    return result
-                return NB_NEW
-            else:
-                self.entries[-1][deg].append(bullet)
-                return NB_NEW
-
-    def add_single_gen(self, g: str, deg: tuple):
-        """ add a single bullet """
-        if self.multiplicative:
-            raise SSClassError("This spectral sequence requires multiplicative structure")
-        if not self._inside_range(deg):
-            print("generator outside of the range")
+    def add_gen(self, k, deg: tuple):
+        if self._locked:
+            print("Error: the algebra is locked.")
             return
-        gen_poly = MyPoly.gen(g, deg)
-        bullet = {'poly': gen_poly, 'base': gen_poly,
-                  'mon': ((g, 1),), 'diff': None, 'type': TYPE_TBD}
-        self.add_bullet(bullet, deg)
+        deg = mymath.Deg(deg)
+        self.data[0].Alg.add_gen(k, deg)
 
-    def add_free_gen(self, g: str, deg: tuple) -> Optional[MyPoly]:
-        """ add a generator g with deg freely """
-        if not self.multiplicative:
-            raise SSClassError("This spectral sequence does not support multiplicative structure")
-        if not self._inside_range(deg):
-            print("generator outside of the range")
-            return None
-        gen_poly = MyPoly.gen(g, deg)
-        for i, j in self._get_degs("bullet", deg):
-            for bullet in self.entries[0][(i, j)]:
-                bul = {'poly': gen_poly * bullet['poly'], 'base': gen_poly * bullet['base'],
-                       'mon': MyPoly.prod_mons(((g, 1),), bullet['mon']),
-                       'diff': None, 'type': TYPE_REL if bullet['type'] == TYPE_REL else TYPE_TBD}
-                self.add_bullet(bul, (deg[0] + i, deg[1] + j))
-        return gen_poly
+    def add_rel(self, rel):
+        if self._locked:
+            print("Error: the algebra is locked.")
+            return
+        self.data[0].Alg.add_rel(rel)
 
-    def add_diff(self, poly_saddr1, poly_saddr2, b_log=True):
+    def add_diff(self, src, tgt):
+        deg_diff = tgt.deg() - src.deg()
+        if deg_diff != self.deg_diff:
+            print("Error: wrong degree of differential.")
+            return
+        self.data[-1].diff_map.add_map(src, tgt)
+
+        if not self._locked:
+            self._locked = True
+            self.data[-1].basis = {}
+            pass
+
+    def add_diff1(self, poly_saddr1, poly_saddr2, b_log=True):
         # type: (Union[MyPoly, tuple, None], Union[MyPoly, tuple, None], bool) -> Optional[MyPoly]
         """
         partly interface for draw.py
