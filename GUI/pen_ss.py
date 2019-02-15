@@ -16,6 +16,11 @@ STATUS_ON_CANVAS = 2
 STATUS_ON_CANVAS_MOVING = 3
 ZOOM_RATE = 1.3
 
+TYPE_IMAGE = 0
+TYPE_KERNEL = 1
+TYPE_DIFF = 2
+TYPE_TBD = 3
+
 font = None
 
 
@@ -172,6 +177,7 @@ class Pen:
         self.wait_for_update = True
 
         self.ss = ss
+        self.bullets, self.arrows = ss.get_bullets_and_arrows()
 
         const_adjust(GRID_WIDTH)
         global font
@@ -186,7 +192,7 @@ class Pen:
 
     def expand(self, deg):
         """ rect is a surface rect """
-        n = self.ss.get_num_nonrel_bullets(deg)
+        n = len(self.bullets[deg])
         num_edge = math.ceil(math.sqrt(n))
         length_edge = BULLETS_SEP * (num_edge + 1)
         size = array([length_edge, length_edge])
@@ -205,7 +211,7 @@ class Pen:
         self.expansion = {}
 
     def sp2addr(self, surf_pos):
-        """ Return (alg, deg) where deg is for the expansion """
+        """ Return (deg, index) where deg is for the expansion """
         deg = self.exp_collide_point(surf_pos)
         if deg is not None:
             rect = self.expansion[deg]['rect']
@@ -220,8 +226,8 @@ class Pen:
                     return deg, index
             return None
         deg = sp2deg(surf_pos)
-        if deg in self.ss.get_surf_degs():
-            n = self.ss.get_num_nonrel_bullets(deg)
+        if deg in self.bullets:
+            n = len(self.bullets[deg])
             if 0 < n <= 9:
                 offset = array(surf_pos) - array(deg2sp(deg))
                 index = offset_to_bullet(offset, n)
@@ -243,7 +249,7 @@ class Pen:
         deg, index = addr
         if index is None:
             return deg2sp(deg)
-        n = self.ss.get_num_nonrel_bullets(deg)
+        n = len(self.bullets[deg])
         if n <= 9:
             return deg2sp(deg) + array(BULLETS[n - 1][index])
         else:
@@ -255,10 +261,25 @@ class Pen:
                 return pos_bullet
             else:
                 return deg2sp(deg)
+    
+    def addr2alg(self, addr):
+        deg, index = addr
+        return self.bullets[deg][index][0]
+    
+    def addr2color(self, addr):
+        deg, index = addr
+        type_bullet = self.bullets[deg][index][1]
+        return COLOR_BULLET_TBD if type_bullet == TYPE_TBD else COLOR_BULLET_NON_TBD
+
+    def alg2addr(self, alg):
+        deg = alg.deg()
+        for i, bullet in enumerate(self.bullets[deg]):
+            if alg == bullet[0]:
+                return deg, i
 
     def mouse_down(self, msg):
-        # TODO: context manager
-        # TODO: add generators
+        # todo: context manager
+        # todo: add generators
         if msg['button'] == 1:
             if self.status == STATUS_START:
                 self.addr_mouse_down = self.sp2addr(msg['pos'])
@@ -270,7 +291,8 @@ class Pen:
                     self.expand(self.addr_mouse_down[0])
                     self.wait_for_update = True
                 else:
-                    if self.ss.get_bullet_color(self.addr_mouse_down) == COLOR_BULLET_TBD:
+                    deg, index = self.addr_mouse_down
+                    if self.bullets[deg][index][1] == TYPE_TBD:
                         self.status = STATUS_ON_BULLET
                     else:
                         self.addr_mouse_down = None
@@ -290,9 +312,10 @@ class Pen:
             addr2 = self.sp2addr(msg['pos'])
             if addr2 is not None and addr2[1] is not None:
                 if addr1[0] != addr2[0]:
-                    poly = self.ss.add_diff(addr1, addr2)
-                    if poly is not None:
-                        self.ss.deduce_new_diff(poly)
+                    poly1, poly2 = self.addr2alg(addr1), self.addr2alg(addr2) 
+                    self.ss.add_diff(poly1, poly2)
+                    self.bullets, self.arrows = self.ss.get_bullets_and_arrows()
+                    self.alg_hover_on = None
                 self.status = STATUS_START
             elif addr2 is None or addr2[0] == addr1[0]:
                 self.status = STATUS_START
@@ -322,8 +345,8 @@ class Pen:
             self.wait_for_update = True
         addr = self.sp2addr(msg['pos'])
         if addr is not None and addr[1] is not None:
-            if self.alg_hover_on != self.ss.get_poly(addr):
-                self.alg_hover_on = self.ss.get_poly(addr)
+            if self.alg_hover_on is None or self.alg_hover_on != self.bullets[addr[0]][addr[1]][0]:
+                self.alg_hover_on = self.bullets[addr[0]][addr[1]][0]
                 self.wait_for_update = True
         else:
             if self.alg_hover_on is not None:
@@ -332,7 +355,7 @@ class Pen:
 
     def key_down(self, msg):
         if msg['unicode'] == '\x03':  # Ctrl+C => output for tex
-            # TODO save and open diagrams
+            # todo: save and open diagrams
             x_min = NUM_GRID_X
             y_min = NUM_GRID_Y
             x_max = 0
@@ -429,11 +452,11 @@ class Pen:
 
         self.bg(surface)
         # draw bullets
-        for deg in self.ss.get_surf_degs():
-            n = self.ss.get_num_nonrel_bullets(deg)
+        for deg in self.bullets:
+            n = len(self.bullets[deg])
             if n <= 9:
                 for i in range(n):
-                    draw_circle(surface, self.ss.get_bullet_color((deg, i)),
+                    draw_circle(surface, self.addr2color((deg, i)),
                                 array(deg2sp(deg)) + array(BULLETS[n-1][i]), BULLETS_RADIUS)
             else:
                 draw_circle(surface, PEN_COLOR, deg2sp(deg), BULLETS_RADIUS)
@@ -448,13 +471,13 @@ class Pen:
             for i in range(n):
                 y, x = divmod(i, num_edge)
                 pos_bullet = array(rect.topleft) + array((x + 1, y + 1)) * BULLETS_SEP
-                draw_circle(surface, self.ss.get_bullet_color((deg, i)), pos_bullet, BULLETS_RADIUS)
+                draw_circle(surface, self.addr2color((deg, i)), pos_bullet, BULLETS_RADIUS)
         # enlarge hovered-on bullet
         if self.alg_hover_on is not None:
-            deg, i = self.ss.get_surf_addr(self.alg_hover_on)
-            n = self.ss.get_num_nonrel_bullets(deg)
+            deg, i = self.alg2addr(self.alg_hover_on)
+            n = len(self.bullets[deg])
             if n <= 9:
-                draw_circle(surface, self.ss.get_bullet_color((deg, i)),
+                draw_circle(surface, self.addr2color((deg, i)),
                             array(deg2sp(deg)) + array(BULLETS[n - 1][i]), BULLETS_RADIUS * 1.5)
             else:
                 v = self.expansion[deg]
@@ -462,9 +485,10 @@ class Pen:
                 num_edge = v['num_edge']
                 y, x = divmod(i, num_edge)
                 pos_bullet = array(rect.topleft) + array((x + 1, y + 1)) * BULLETS_SEP
-                draw_circle(surface, self.ss.get_bullet_color((deg, i)), pos_bullet, BULLETS_RADIUS * 1.5)
+                draw_circle(surface, self.addr2color((deg, i)), pos_bullet, BULLETS_RADIUS * 1.5)
         # draw arrows
-        for arrow in self.ss.get_arrows(self.expansion):
+        # for arrow in self.ss.get_arrows(self.expansion):
+        for arrow in self.arrows:
             draw_arrow(surface, self.addr2sp(arrow[0]), self.addr2sp(arrow[1]))
         if self.status == STATUS_ON_BULLET:
             if self.addr_mouse_down is not None and self.addr_mouse_down[1] is not None:
@@ -473,3 +497,5 @@ class Pen:
         if self.alg_hover_on is not None:
             s = str(self.alg_hover_on)
             draw_text(surface, s, (WIN_WIDTH // 2, WIN_HEIGHT-MARGIN_BOTTOM // 2))
+
+# 477

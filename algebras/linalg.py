@@ -207,7 +207,7 @@ class LinearMapMod2:
                     fv ^= fv1
             if not v:
                 if fv:
-                    raise myerror.MyValueError("linear map not well-defined")
+                    raise myerror.MyValueError("Incompatible linear map.")
             else:
                 self._domain.append((v, max(v, key=self.key) if self.key else max(v)))
                 self._f.append(fv)
@@ -267,7 +267,9 @@ class LinearMapMod2:
 
 
 class LinearMapKernelMod2:
-    """This is an optimized version of LinearMapMod2 that focus on computing the kernel."""
+    """This is an optimized version of LinearMapMod2 that focus on computing the kernel.
+
+    Warning: Incompatible maps will not be reported."""
     def __init__(self, *, key=None):
         # self.maps is for f:V->W and self.inv_maps is for g:W->V
         self.key = key
@@ -338,7 +340,7 @@ class GradedLinearMapMod2:
                     fv ^= fv1
             if not v:
                 if fv:
-                    raise myerror.MyValueError("linear map not well-defined")
+                    raise myerror.MyValueError("Incompatible linear map.")
             else:
                 linmap.domain.append((v, max(v, key=self.key) if self.key else max(v)))
                 linmap.f.append(fv)

@@ -1,5 +1,5 @@
 import pygame
-from .pen import Pen
+from .pen_ss import Pen
 from .constants import *
 
 
@@ -39,6 +39,7 @@ def draw_ss(spec_seq):
                 pygame.time.wait(5)
 
         elif loop_index == loop_exit:
+            pygame.display.quit()
             pygame.quit()
             return None
 

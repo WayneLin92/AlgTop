@@ -1,5 +1,6 @@
 """Classes that can be constructed by other classes."""
 # todo: create class AugModuleMod2
+# TODO: construct AugAlgMod2 from other algebras
 import copy
 import itertools
 import operator
@@ -16,17 +17,18 @@ class AugAlgMod2(BA.AlgebraMod2):
 
     _gen_names = None  # type: List[str]
     _gen_degs = None  # type: list
+    _unit_deg = None
     _rels = None  # type: Dict[tuple, set]
     _auto_simplify = None  # type: bool
     _name_index = 0
 
     @staticmethod
-    def new_alg() -> "AugAlgMod2":
+    def new_alg(unit_deg=None) -> "AugAlgMod2":
         """Return a dynamically created subclass of AugAlgMod2."""
         cls = AugAlgMod2
         class_name = f"AugAlgMod2_{cls._name_index}"
         cls._name_index += 1
-        dct = {'_gen_names': [], '_gen_degs': [], '_rels': {}, '_auto_simplify': True}
+        dct = {'_gen_names': [], '_gen_degs': [], '_unit_deg': unit_deg or 0, '_rels': {}, '_auto_simplify': True}
         # noinspection PyTypeChecker
         return type(class_name, (cls,), dct)
 
@@ -48,7 +50,7 @@ class AugAlgMod2(BA.AlgebraMod2):
 
     @classmethod
     def deg_mon(cls, mon: tuple):
-        return sum(map(operator.mul, mon, cls._gen_degs))
+        return sum(map(operator.mul, mon, cls._gen_degs), cls._unit_deg)
 
     # methods --------------------
     @classmethod
@@ -150,7 +152,7 @@ class AugAlgMod2(BA.AlgebraMod2):
 
     @classmethod
     def basis_mons_max(cls, deg_max):
-        """Return an iterator of basis."""
+        """Return an iterator of basis. Warning: () is excluded."""
         for n_max in range(len(cls._gen_degs)):
             for m, d in cls._basis_mons_max(deg_max, n_max - 1):
                 for e in range(1, (deg_max - d if d else deg_max) // cls._gen_degs[n_max] + 1):

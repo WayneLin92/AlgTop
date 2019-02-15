@@ -5,6 +5,7 @@ from algebras import mymath, myerror
 # todo: type is
 # todo: avoid creating new user-defined objects inside a class
 # todo: try __slots__
+# todo: consider unit degree
 
 
 class Algebra(ABC):
@@ -411,6 +412,10 @@ class BasePolyAnyVar(BasePolyMulti, ABC):
 
 
 class Operations(ABC):
+    def square(self):
+        # noinspection PyUnresolvedReferences
+        return self * self
+
     # abstract ------------
     @abstractmethod
     def simplify(self, degree: Optional[int] = None):
@@ -691,6 +696,7 @@ class AlgebraMod2(Algebra, ABC):
         return list_homo
 
     def square(self):
+        """Warning: non-commutative algebra should overwrite this."""
         data = set()
         for m in self.data:
             prod = self.mul_mons(m, m)
