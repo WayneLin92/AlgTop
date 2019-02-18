@@ -7,7 +7,6 @@ import itertools
 from typing import List, Dict, Tuple, Set, Callable
 from algebras import linalg, mymath, myerror
 from algebras.constructions import AugAlgMod2
-import GUI.draw
 
 TYPE_IMAGE = 0
 TYPE_KERNEL = 1
@@ -113,7 +112,7 @@ class SpecSeq:
                         squares.add((i * 2 for i in m))
             for d in mask:
                 deg2 = d + self.deg_diff
-                if deg2[0] < 0 or deg2[1] < 0:
+                if deg2[0] < 0 or deg2[1] < 0 and d in basis:
                     for m in basis[d]:
                         self.add_diff(R(m), R.zero())
 
@@ -153,7 +152,9 @@ class SpecSeq:
             return bullets, []
 
     def draw(self):
+        import GUI.draw
         GUI.draw.draw_ss(self)
+        del GUI
 
 
 def test():
@@ -165,7 +166,7 @@ def test():
     R12 = spec.add_gen("R12", (0, 2))
     R03 = spec.add_gen("R03", (0, 3))
     spec.add_rel(h0 * h1)
-    # spec.init_diff()
+    spec.init_diff()
     # spec.add_diff(h2, h2.zero())
     # spec.add_diff(R12, h1*h2)
     # spec.add_diff(R03, h0*R12)

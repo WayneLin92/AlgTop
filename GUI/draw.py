@@ -3,7 +3,7 @@ from .pen_ss import Pen
 from .constants import *
 
 
-def draw_ss(spec_seq):
+def draw_ss(spec_seq):  # TODO: fix the reopen failing problem.
     """ interface for drawing spectral sequences """
     pygame.init()
     surface = pygame.display.set_mode([WIN_WIDTH, WIN_HEIGHT])
@@ -39,7 +39,6 @@ def draw_ss(spec_seq):
                 pygame.time.wait(5)
 
         elif loop_index == loop_exit:
-            pygame.display.quit()
             pygame.quit()
             return None
 
