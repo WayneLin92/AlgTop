@@ -4,7 +4,7 @@
 import copy
 import itertools
 import operator
-from typing import Union, Set, Tuple, List, Dict
+from typing import Union, Set, Tuple, List, Dict, Optional
 from algebras import BaseAlgebras as BA, linalg, mymath, myerror
 
 
@@ -52,7 +52,12 @@ class AugAlgMod2(BA.AlgebraMod2):
     def deg_mon(cls, mon: tuple):
         return sum(map(operator.mul, mon, cls._gen_degs), cls._unit_deg)
 
-    # methods --------------------
+    def deg(self):
+        """self should always be homogeneous."""
+        for m in self.data:
+            return self.deg_mon(m)
+
+    # setters ----------------------------
     @classmethod
     def add_gen(cls, k: str, deg):
         """Add a new generator and return it."""
@@ -91,18 +96,6 @@ class AugAlgMod2(BA.AlgebraMod2):
             cls._add_rel(rel.data)
 
     @classmethod
-    def get_rel_gens(cls):
-        rels, cls._rels = cls._rels, {}
-        rel_gens = []
-        for mon in sorted(rels, key=cls.deg_mon):
-            rel_data = rels[mon] | {mon}
-            rel_data = cls.simplify_data(rel_data)
-            if rel_data:
-                rel_gens.append(rel_data)
-                cls._add_rel(rel_data)
-        return rel_gens
-
-    @classmethod
     def simplify_data(cls, data: set):
         """Simplify the data by relations."""
         s = data.copy()
@@ -124,6 +117,19 @@ class AugAlgMod2(BA.AlgebraMod2):
         """Simplify self by relations."""
         self.data = self.simplify_data(self.data)
         return self
+
+    # getters --------------------------
+    @classmethod
+    def get_rel_gens(cls):
+        rels, cls._rels = cls._rels, {}
+        rel_gens = []
+        for mon in sorted(rels, key=cls.deg_mon):
+            rel_data = rels[mon] | {mon}
+            rel_data = cls.simplify_data(rel_data)
+            if rel_data:
+                rel_gens.append(rel_data)
+                cls._add_rel(rel_data)
+        return rel_gens
 
     @classmethod
     def gen(cls, k: str):
@@ -173,6 +179,11 @@ class AugAlgMod2(BA.AlgebraMod2):
         print("Relations:\\\\")
         for data in cls.get_rel_gens():
             print(f"${cls(data)}=0$\\\\")
+
+    @classmethod
+    def ann(cls, x):
+        """Return a basis for the ideal {y | xy=0}."""
+        pass  # TODO: implement this
 
 
 class SubRing:
