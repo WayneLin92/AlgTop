@@ -172,6 +172,23 @@ class MaySS(BC.BasePolyMod2):
         return homology
 
     # methods -----------------
+    @classmethod
+    def h(cls, i: int, S: tuple):
+        """Return h_i(S)."""
+        k = len(S)
+        seq = set(range(i, i + 2 * k + 2))
+        S = {i + s for s in S} | {i}
+        T = seq - S
+        assert len(S) + len(T) == 2 * k + 2
+        S, T = sorted(S), sorted(T)
+        data = set()
+        for T1 in itertools.permutations(T):
+            J = tuple(map(operator.sub, T1, S))
+            if all(j > 0 for j in J):
+                m = tuple(zip(zip(S, J), itertools.repeat(1)))
+                data.add(m)
+        return cls(data)
+
     @staticmethod
     def deg_t_gen(k: tuple) -> int:
         return (1 << k[1]) - 1 << k[0]
@@ -226,6 +243,12 @@ class MaySS(BC.BasePolyMod2):
                         result += MaySS(m[:ind] + m[ind + 1:]) * dk
         return result
 
+    def inv_diff(self) -> bool:
+        s, t, u = self.deg()
+        my_map2 = linalg.LinearMapKernelMod2()
+        my_map2.add_maps((r, r.diff()) for r in self.basis(s - 1, t, u))
+        return my_map2.g(self)
+
     @classmethod
     def homology(cls, s, t, u):
         my_map1 = linalg.LinearMapKernelMod2()
@@ -238,6 +261,9 @@ class MaySS(BC.BasePolyMod2):
         print("quotient:")
         for r in (my_map1.kernel / my_map2.image).basis(cls):
             print(r)
+
+    def print_tex_graph(self):
+        print_tex_graph(self.data, sep="\\hspace{5pt}+\\hspace{5pt}")
 
 
 class DualMaySS(BC.AlgebraMod2):
@@ -380,12 +406,6 @@ class DualMaySS(BC.AlgebraMod2):
                         data ^= {tuple(sorted(item for item in mon_diff.items() if item[1]))}
         return DualMaySS(data)
 
-    def inv_diff(self) -> bool:
-        s, t, u = self.deg()
-        my_map2 = linalg.LinearMapKernelMod2()
-        my_map2.add_maps((r, r.diff()) for r in self.basis(s + 1, t, u))
-        return my_map2.g(self)
-
     def is_primitive(self):
         """ assert self.diff() == 0 """
         coprod = self.coprod()
@@ -425,9 +445,6 @@ class DualMaySS(BC.AlgebraMod2):
     @staticmethod
     def lexicographic(mon) -> list:
         return sorted(mon, key=lambda g: (g[0][0] + g[0][1], -g[0][0]))
-
-    def tex_graph(self):
-        return "\\hspace{6pt}+\\hspace{6pt}\n".join(map(tex_graph_mon, sorted(self.data, key=key_lex)))
 
 
 class DualMaySST2(BC.AlgebraT2Mod2):
@@ -489,12 +506,12 @@ def tex_graph_mon(mon):
     return result
 
 
-def print_tex_graph(iterable, row=5):
+def print_tex_graph(iterable, *, row=5, sep=',\\hspace{5pt}'):
     i = 0
     for i, m in enumerate(iterable):
         if i % row == 0:
             print("$$")
-        print(f"{tex_graph_mon(m)},\\hspace{{5pt}}")
+        print(f"{tex_graph_mon(m)}{sep}")
         if i % row == row - 1:
             print("$$\n")
     if i % row != row - 1:
@@ -564,6 +581,7 @@ def test():
 
 
 if __name__ == "__main__":
-    print("MaySS")
+    x = MaySS.h(0, (1, 2)) * MaySS.h(3, (1, 2))
+    y = x.inv_diff()
 
 # 389, 551, 596, 536, 542
