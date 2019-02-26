@@ -189,6 +189,18 @@ class MaySS(BC.BasePolyMod2):
                 data.add(m)
         return cls(data)
 
+    @classmethod
+    def Phi(cls, S, T):
+        """Return H^S_T."""
+        assert len(S) == len(T)
+        data = set()
+        for T1 in itertools.permutations(T):
+            J = tuple(map(operator.sub, T1, S))
+            if all(j > 0 for j in J):
+                m = tuple(zip(zip(S, J), itertools.repeat(1)))
+                data.add(m)
+        return cls(data)
+
     @staticmethod
     def deg_t_gen(k: tuple) -> int:
         return (1 << k[1]) - 1 << k[0]
@@ -519,69 +531,30 @@ def print_tex_graph(iterable, *, row=5, sep=',\\hspace{5pt}'):
 
 
 def test():
-    # sig1 = Signature((1, 1, 1, 1, -1, -1, -1, -1))
-    # sig2 = Signature((0, 1, 1, -1, -1))
-    sig = Signature((1, 2, 0, -1, -1, -1)).accumulate()
-    s = 4
-    basis_s = set()
-    lead_d_mon = set()
-    image_diff = linalg.VectorSpaceMod2(key=key_lex)
-    trail_delta_mon = set()
-    image_delta = linalg.VectorSpaceMod2(key=key_lex_reverse)
-    for m in DualMaySS.basis_sig_mon(sig):
-        length = DualMaySS.deg_s_mon(m)
-        if length == s:
-            basis_s.add(m)
-        elif length == s + 1:
-            diff = DualMaySS(m).diff()
-            if diff:
-                lead_d_mon.add(max(diff.data, key=key_lex))
-            image_diff.add_v(diff.data)
-        elif length == s - 1:
-            delta = MaySS(m).diff()
-            if delta:
-                trail_delta_mon.add(max(delta.data, key=key_lex_reverse))
-            image_delta.add_v(delta.data)
-    lead_d_cycle = image_diff.get_mons()
-    non_lead, lead_chains, lead_mons = basis_s - lead_d_cycle, lead_d_cycle - lead_d_mon, lead_d_mon
-    assert basis_s >= lead_d_cycle >= lead_d_mon
+    S1, T1 = {0, 1, 2, 5}, {3, 4, 6, 7}
+    S2, T2 = {3, 4, 6}, {5, 7, 8}
+    S2, T2 = {3, 4, 5, 6}, {7, 8, 9, 10}
+    # S1, T1 = {0}, {1}
+    # S2, T2 = {1}, {2}
+    Phi = MaySS.Phi
+    x = Phi(S1, T1) * Phi(S2, T2)
+    y = sum((Phi(S1 - {s}, T1 - {i}) * Phi(S2 - {i} | {s}, T2)
+             for s in S1 if s < min(S2) for i in T1 & S2), MaySS.zero())
 
-    trail_delta_cochain = image_delta.get_mons()
-    non_trail, trail_cochains = basis_s - trail_delta_cochain, trail_delta_cochain - trail_delta_mon
-    trail_mons = trail_delta_mon
-    assert basis_s >= trail_delta_cochain >= trail_delta_mon
-
-    lin_map = linalg.LinearMapKernelMod2(key=key_lex)
-    lin_map.add_maps((DualMaySS(m), DualMaySS(m).diff()) for m in non_lead)
-
-    non_lead = sorted(non_lead, key=key_lex)
-    lead_chains = sorted(lead_chains, key=key_lex)
-    lead_mons = sorted(lead_mons, key=key_lex)
-
-    non_trail = sorted(non_trail, key=key_lex)
-    trail_cochains = sorted(trail_cochains, key=key_lex)
-    trail_mons = sorted(trail_mons, key=key_lex)
-
-    print(f"$f={sig.diff()}$, $s={s}$.")
-    print("Non-leading terms:\n")
-    print_tex_graph(non_lead)
-    print("Leading terms of boundary of chains:\n")
-    print_tex_graph(lead_chains)
-    print("Leading terms of boundary of monomials:\n")
-    print_tex_graph(lead_mons)
-    print("Non-trailing terms:\n")
-    print_tex_graph(non_trail)
-    print("trailing terms of coboundary of cochains:\n")
-    print_tex_graph(trail_cochains)
-    print("trailing terms of coboundary of monomials:\n")
-    print_tex_graph(trail_mons)
-    print("Homology:\n")
-    for x in lin_map.kernel.basis(DualMaySS):
-        print(f"$$\n{x.tex_graph()}\n$$\n")
+    x1 = sum((Phi(S1 - {s}, T1 - {i}) * Phi(S2, T2) * Phi({s}, {i})
+              for s in S1 if s < min(S2) for i in T1 & S2), MaySS.zero())
+    x2 = sum((Phi(S1 - {s}, T1 - {i}) * Phi(S2 - {s2} | {s}, T2) * Phi({s2}, {i})
+              for s in S1 if s < min(S2) for i in T1 & S2 for s2 in S2 & S1), MaySS.zero())
+    x3 = sum((Phi(S1 - {s}, T1 - {t1}) * Phi(S2 - {i} | {s}, T2) * Phi({i}, {t1})
+              for s in S1 if s < min(S2) for i in T1 & S2 for t1 in T1 & T2), MaySS.zero())
+    x4 = sum((Phi(S1 - {s}, T1 - {t2}) * Phi(S2 - {i}, T2 - {t2}) * Phi({s}, {t2}) * Phi({i}, {t2})
+              for s in S1 if s < min(S2) for i in T1 & S2 for t2 in T1 & T2), MaySS.zero())
+    print(x == x1 + x2 + x3)
+    print(x4 == x2 + x3)
+    return x, y, (x1, x2, x3)
 
 
 if __name__ == "__main__":
-    x = MaySS.h(0, (1, 2)) * MaySS.h(3, (1, 2))
-    y = x.inv_diff()
+    pass
 
 # 389, 551, 596, 536, 542
