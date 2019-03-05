@@ -66,40 +66,8 @@ class Signature(tuple):
         return Signature((self[0],) + tuple(self[i] - self[i-1] for i in range(1, len(self))) + (-self[-1],))
 
 
-class MaySS(BC.BasePolyMod2):
-    """This is for the May spectral sequence starting from E_1."""
-    # ----- BasePolyMod2 ----------------
-    @classmethod
-    def gen(cls, *key: int):
-        """Return (R^i_j)^r."""
-        if len(key) == 2:
-            i, j = key
-            return cls((((i, j), 1),))
-        else:
-            i, j, r = key
-            return cls((((i, j), r),))
-
-    @staticmethod
-    def deg_gen(k) -> mymath.Deg:
-        i, j = k
-        return mymath.Deg((1, (1 << j) - 1 << i, j))
-
-    @staticmethod
-    def str_gen(k):
-        return "R^{}_{}".format(*map(mymath.tex_index, k))
-
-    @classmethod
-    def str_mon(cls, mon):
-        result = ""
-        for gen, exp in mon:
-            if exp == 1:
-                result += cls.str_gen(gen)
-            else:
-                result += f"({cls.str_gen(gen)})^{mymath.tex_index(exp)}"
-        if result == "":
-            result = "1"
-        return result
-
+# noinspection PyUnresolvedReferences
+class MayDGA:
     # ----- Signature ------------------
     @staticmethod
     def sig_mon(mon: tuple):
@@ -129,7 +97,7 @@ class MaySS(BC.BasePolyMod2):
         for j in range(j_max, 1, -1):
             r_max = min(sig[i:i + j])
             for r in range(1, r_max + 1):
-                for m in MaySS._fixed_i_sig_mon(sig - ((0,) * i + (r,) * j), i, j - 1):
+                for m in MayDGA._fixed_i_sig_mon(sig - ((0,) * i + (r,) * j), i, j - 1):
                     yield m + (((i, j), r),)
         j, r = 1, sig[i]
         if r > 0:
@@ -143,9 +111,9 @@ class MaySS(BC.BasePolyMod2):
         i = 0
         while not sig[i]:
             i += 1
-        for m in MaySS._fixed_i_sig_mon(sig, i):
-            sig_m = MaySS.sig_mon(m)
-            for m1 in MaySS.basis_sig_mon(sig - sig_m):
+        for m in MayDGA._fixed_i_sig_mon(sig, i):
+            sig_m = MayDGA.sig_mon(m)
+            for m1 in MayDGA.basis_sig_mon(sig - sig_m):
                 yield m + m1
 
     @classmethod
@@ -171,6 +139,41 @@ class MaySS(BC.BasePolyMod2):
                 print(x)
         return homology
 
+
+class MaySS(MayDGA, BC.BasePolyMod2):
+    """This is for the May spectral sequence starting from E_1."""
+    # ----- BasePolyMod2 ----------------
+    @classmethod
+    def gen(cls, *key: int):
+        """Return (R^i_j)^r."""
+        if len(key) == 2:
+            i, j = key
+            return cls((((i, j), 1),))
+        else:
+            i, j, r = key
+            return cls((((i, j), r),))
+
+    @staticmethod
+    def deg_gen(k) -> mymath.Deg:
+        i, j = k
+        return mymath.Deg((1, (1 << j) - 1 << i, j))
+
+    @staticmethod
+    def str_gen(k):
+        return "K^{}_{}".format(*map(mymath.tex_index, (k[0], k[0] + k[1])))
+
+    @classmethod
+    def str_mon(cls, mon):
+        result = ""
+        for gen, exp in mon:
+            if exp == 1:
+                result += cls.str_gen(gen)
+            else:
+                result += f"({cls.str_gen(gen)})^{mymath.tex_index(exp)}"
+        if result == "":
+            result = "1"
+        return result
+
     # methods -----------------
     @classmethod
     def h(cls, i: int, S: tuple):
@@ -192,7 +195,8 @@ class MaySS(BC.BasePolyMod2):
     @classmethod
     def Phi(cls, S, T):
         """Return H^S_T."""
-        assert len(S) == len(T)
+        assert len(S) == len(T) == len(set(S)) == len(set(T))
+        S, T = sorted(S), sorted(T)
         data = set()
         for T1 in itertools.permutations(T):
             J = tuple(map(operator.sub, T1, S))
@@ -278,7 +282,7 @@ class MaySS(BC.BasePolyMod2):
         print_tex_graph(self.data, sep="\\hspace{5pt}+\\hspace{5pt}")
 
 
-class DualMaySS(BC.AlgebraMod2):
+class DualMaySS(MayDGA, BC.AlgebraMod2):
     """ This is the dual of the May spectral sequence """
     _maps = None
     _homology = None
@@ -358,15 +362,6 @@ class DualMaySS(BC.AlgebraMod2):
 
     def _sorted_mons(self) -> list:
         return sorted(self.data, key=lambda m: (self.deg_mon(m), m))
-
-    # ----- Signature ------------------
-    sig_mon = MaySS.sig_mon
-    sig = MaySS.sig
-    # noinspection PyProtectedMember
-    _fixed_i_sig_mon = MaySS._fixed_i_sig_mon
-    basis_sig_mon = MaySS.basis_sig_mon
-    basis_sig = MaySS.basis_sig
-    homology_signature = MaySS.homology_signature
 
     # methods -----------------
     deg_t_k = MaySS.deg_t_gen
@@ -530,28 +525,20 @@ def print_tex_graph(iterable, *, row=5, sep=',\\hspace{5pt}'):
         print("$$\n")
 
 
-def test():
-    S1, T1 = {0, 1, 2, 5}, {3, 4, 6, 7}
-    S2, T2 = {3, 4, 6}, {5, 7, 8}
-    S2, T2 = {3, 4, 5, 6}, {7, 8, 9, 10}
-    # S1, T1 = {0}, {1}
-    # S2, T2 = {1}, {2}
-    Phi = MaySS.Phi
-    x = Phi(S1, T1) * Phi(S2, T2)
-    y = sum((Phi(S1 - {s}, T1 - {i}) * Phi(S2 - {i} | {s}, T2)
-             for s in S1 if s < min(S2) for i in T1 & S2), MaySS.zero())
+def Phi(S, T=None):
+    if type(S) is str:
+        nums = [int(c) for c in S if c in "0123456789"]
+        assert len(nums) % 2 == 0
+        half = len(nums) // 2
+        return MaySS.Phi(nums[:half], nums[half:])
+    elif type(S) is int:
+        return MaySS.Phi((S,), [T])
+    else:
+        return MaySS.Phi(S, T)
 
-    x1 = sum((Phi(S1 - {s}, T1 - {i}) * Phi(S2, T2) * Phi({s}, {i})
-              for s in S1 if s < min(S2) for i in T1 & S2), MaySS.zero())
-    x2 = sum((Phi(S1 - {s}, T1 - {i}) * Phi(S2 - {s2} | {s}, T2) * Phi({s2}, {i})
-              for s in S1 if s < min(S2) for i in T1 & S2 for s2 in S2 & S1), MaySS.zero())
-    x3 = sum((Phi(S1 - {s}, T1 - {t1}) * Phi(S2 - {i} | {s}, T2) * Phi({i}, {t1})
-              for s in S1 if s < min(S2) for i in T1 & S2 for t1 in T1 & T2), MaySS.zero())
-    x4 = sum((Phi(S1 - {s}, T1 - {t2}) * Phi(S2 - {i}, T2 - {t2}) * Phi({s}, {t2}) * Phi({i}, {t2})
-              for s in S1 if s < min(S2) for i in T1 & S2 for t2 in T1 & T2), MaySS.zero())
-    print(x == x1 + x2 + x3)
-    print(x4 == x2 + x3)
-    return x, y, (x1, x2, x3)
+
+def test():
+    pass
 
 
 if __name__ == "__main__":
