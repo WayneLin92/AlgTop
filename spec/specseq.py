@@ -1,5 +1,4 @@
 """Class of spectral sequences."""
-# TODO: add_diff
 # TODO: next_page
 # TODO: improve GUI
 import collections
@@ -49,7 +48,6 @@ class SpecSeq:
         for d, g in itertools.groupby(basis_mon, key=R.deg_mon):
             if d in mask:
                 yield d, g
-        yield mymath.Deg((0, 0)), ((),)
 
     def present(self, deg):
         pass

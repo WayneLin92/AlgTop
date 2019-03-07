@@ -45,3 +45,7 @@ test_sq_benchmark
 test_simplify_sQ_benchmark
 12/29/2018 11:24PM 0.189s
     number of function calls = {'sQ2Q': 6400, 'PQ_mon': 8782, 'DyerLashof.adem': 322}
+
+
+constructions.test
+03/06/2019 11:48PM 1.901s

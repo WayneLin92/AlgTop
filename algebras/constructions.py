@@ -1,10 +1,10 @@
 """Classes that can be constructed by other classes."""
 # todo: create class AugModuleMod2
-# TODO: construct AugAlgMod2 from other algebras
+# Todo: construct AugAlgMod2 from other algebras
 import copy
 import itertools
 import operator
-from typing import Union, Set, Tuple, List, Dict, Optional
+from typing import Union, Set, Tuple, List, Dict
 from algebras import BaseAlgebras as BA, linalg, mymath, myerror
 
 
@@ -35,10 +35,7 @@ class AugAlgMod2(BA.AlgebraMod2):
     # ----- AlgebraMod2 -------------
     @classmethod
     def mul_mons(cls, mon1: tuple, mon2: tuple):
-        if len(mon1) < len(mon2):
-            m = tuple(itertools.chain(map(operator.add, mon1, mon2), mon2[len(mon1):]))
-        else:
-            m = tuple(itertools.chain(map(operator.add, mon1, mon2), mon1[len(mon2):]))
+        m = mymath.add_tuple(mon1, mon2)
         return cls.simplify_data({m}) if cls._auto_simplify else m
 
     @classmethod
@@ -74,11 +71,14 @@ class AugAlgMod2(BA.AlgebraMod2):
     @classmethod
     def _add_rel(cls, rel_data):
         """Assert rel_data is simplified and nonzero."""
+        # TODO: use heapq
         mon = min(rel_data)
+        # print(cls(mon))
+        BA.Monitor.count("AugAlgMod2._add_rel")
         leading_mons = tuple(cls._rels)
         cls._rels[mon] = rel_data - {mon}
         for m in leading_mons:
-            if any(min(mon, m)):
+            if m in cls._rels and any(map(min, mon, m)):
                 lcm = mymath.max_tuple(m, mon)
                 dif = mymath.sub_tuple(lcm, mon)
                 rel1 = set(map(mymath.add_tuple, rel_data, itertools.repeat(dif)))
@@ -91,9 +91,13 @@ class AugAlgMod2(BA.AlgebraMod2):
     @classmethod
     def add_rel(cls, rel: "AugAlgMod2"):
         """Add a relation."""
-        cls._rel_gens = None
         if rel.simplify():
             cls._add_rel(rel.data)
+
+    @classmethod
+    def simplify_rels(cls):
+        for m in cls._rels:
+            cls._rels[m] = cls.simplify_data(cls._rels[m])
 
     @classmethod
     def simplify_data(cls, data: set):
@@ -123,13 +127,16 @@ class AugAlgMod2(BA.AlgebraMod2):
     def get_rel_gens(cls):
         rels, cls._rels = cls._rels, {}
         rel_gens = []
-        for mon in sorted(rels, key=cls.deg_mon):
-            rel_data = rels[mon] | {mon}
-            rel_data = cls.simplify_data(rel_data)
-            if rel_data:
-                rel_gens.append(rel_data)
-                cls._add_rel(rel_data)
-        return rel_gens
+        try:
+            for mon in sorted(rels, key=cls.deg_mon):
+                rel_data = rels[mon] | {mon}
+                rel_data = cls.simplify_data(rel_data)
+                if rel_data:
+                    rel_gens.append(rel_data)
+                    cls._add_rel(rel_data)
+            return rel_gens
+        finally:
+            cls._rels = rels
 
     @classmethod
     def gen(cls, k: str):
@@ -158,7 +165,8 @@ class AugAlgMod2(BA.AlgebraMod2):
 
     @classmethod
     def basis_mons_max(cls, deg_max):
-        """Return an iterator of basis. Warning: () is excluded."""
+        """Return an iterator of basis."""
+        yield ()
         for n_max in range(len(cls._gen_degs)):
             for m, d in cls._basis_mons_max(deg_max, n_max - 1):
                 for e in range(1, (deg_max - d if d else deg_max) // cls._gen_degs[n_max] + 1):
@@ -179,6 +187,16 @@ class AugAlgMod2(BA.AlgebraMod2):
         print("Relations:\\\\")
         for data in cls.get_rel_gens():
             print(f"${cls(data)}=0$\\\\")
+
+    @classmethod
+    def nil(cls):
+        """Return a basis for the nilradical."""
+        leading_mons = sorted(cls._rels)
+        leading_masks = [tuple(map(int, map(bool, m))) for m in leading_mons]
+        for m in leading_mons:
+            mask_odd = map(operator.mod, m, itertools.repeat(2))
+            m1 = tuple(map(operator.add, m, mask_odd))
+            square = {m1}
 
     @classmethod
     def ann(cls, x):
@@ -465,15 +483,24 @@ class FreeModuleMod2:
 
 def test():
     R = AugAlgMod2.new_alg()
-    x = R.add_gen('x', 1)
-    y = R.add_gen('y', 1)
-    R.add_rel(y**10 - x**5 * y**5)
-    R.add_rel(x**2 * y**8 - x**6 * y**4)
-    R.add_rel(x*x)
-    R.present()
+    B = {}
+    n_max = 5
+    for t in range(1, n_max + 1):
+        for s in reversed(range(0, t)):
+            exec(f"B[({s}, {t})] = R.add_gen('B_{{{s}{t}}}', {2 ** (t + 1) - 2 ** (s + 1)})")
+    for j in range(2, n_max + 1):
+        for s in reversed(range(0, n_max - j + 1)):
+            t = s + j
+            rel = sum((B[(s, k)] * B[(k, t)] for k in range(s + 1, t)), R.zero())
+            # print(s, t)
+            R.add_rel(rel)
+        R.simplify_rels()
+    # BA.Monitor.present()
+    return R, B
 
 
 if __name__ == "__main__":
-    test()
+    import timeit
+    print(timeit.timeit("test()", "from __main__ import test", number=100))
 
 # 140, 248, 283, 415, 436
