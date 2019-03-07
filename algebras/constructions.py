@@ -4,6 +4,7 @@
 import copy
 import itertools
 import operator
+import heapq
 from typing import Union, Set, Tuple, List, Dict
 from algebras import BaseAlgebras as BA, linalg, mymath, myerror
 
@@ -69,30 +70,29 @@ class AugAlgMod2(BA.AlgebraMod2):
         cls._gen_names += iterable_names
 
     @classmethod
-    def _add_rel(cls, rel_data):
-        """Assert rel_data is simplified and nonzero."""
-        # TODO: use heapq
-        mon = min(rel_data)
-        # print(cls(mon))
-        BA.Monitor.count("AugAlgMod2._add_rel")
-        leading_mons = tuple(cls._rels)
-        cls._rels[mon] = rel_data - {mon}
-        for m in leading_mons:
-            if m in cls._rels and any(map(min, mon, m)):
-                lcm = mymath.max_tuple(m, mon)
-                dif = mymath.sub_tuple(lcm, mon)
-                rel1 = set(map(mymath.add_tuple, rel_data, itertools.repeat(dif)))
-                rel1 = cls.simplify_data(rel1)
-                if rel1:
-                    cls._add_rel(rel1)  # recursive
-                elif mymath.le_tuple(mon, m):
-                    del cls._rels[m]
-
-    @classmethod
     def add_rel(cls, rel: "AugAlgMod2"):
         """Add a relation."""
-        if rel.simplify():
-            cls._add_rel(rel.data)
+        hq = [(rel.deg(), rel.data)]
+        while hq:
+            deg, r = heapq.heappop(hq)
+            r = cls.simplify_data(r)
+            if r:
+                m = min(r)
+                redundant_leading_terms = []
+                for m1, v1 in cls._rels.items():
+                    if any(map(min, m, m1)):  # gcd > 0
+                        if mymath.le_tuple(m, m1):
+                            redundant_leading_terms.append(m1)
+                            heapq.heappush(hq, (cls.deg_mon(m1), v1 | {m1}))
+                        else:
+                            lcm = mymath.max_tuple(m, m1)
+                            dif = mymath.sub_tuple(lcm, m)
+                            new_rel = set(map(mymath.add_tuple, r, itertools.repeat(dif)))
+                            heapq.heappush(hq, (cls.deg_mon(lcm), new_rel))
+                for m_redundant in redundant_leading_terms:
+                    del cls._rels[m_redundant]
+                cls._rels[m] = r - {m}
+                print(cls(m))
 
     @classmethod
     def simplify_rels(cls):
@@ -484,7 +484,7 @@ class FreeModuleMod2:
 def test():
     R = AugAlgMod2.new_alg()
     B = {}
-    n_max = 5
+    n_max = 7
     for t in range(1, n_max + 1):
         for s in reversed(range(0, t)):
             exec(f"B[({s}, {t})] = R.add_gen('B_{{{s}{t}}}', {2 ** (t + 1) - 2 ** (s + 1)})")
@@ -492,10 +492,10 @@ def test():
         for s in reversed(range(0, n_max - j + 1)):
             t = s + j
             rel = sum((B[(s, k)] * B[(k, t)] for k in range(s + 1, t)), R.zero())
-            # print(s, t)
+            print(s, t)
             R.add_rel(rel)
         R.simplify_rels()
-    # BA.Monitor.present()
+    BA.Monitor.present()
     return R, B
 
 
