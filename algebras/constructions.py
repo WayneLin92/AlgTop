@@ -114,7 +114,9 @@ class AugAlgMod2(BA.AlgebraMod2):
         s = list(data)
         heapq.heapify(s)
         result = set()
-        leading_terms = cls._rels
+        leading_terms = sorted(cls._rels)
+        len_leadings = len(leading_terms)
+        index = 0
         while s:
             mon = heapq.heappop(s)
             while s and mon == s[0]:
@@ -122,8 +124,9 @@ class AugAlgMod2(BA.AlgebraMod2):
                 mon = heapq.heappop(s) if s else None
             if mon is None:
                 break
-
-            for m in leading_terms:
+            while index < len_leadings and leading_terms[index] <= mon:
+                index += 1
+            for m in reversed(leading_terms[:index]):
                 if mymath.le_tuple(m, mon):
                     q, r = mymath.div_mod_tuple(mon, m)
                     s += (mymath.add_tuple(r, tuple(map(operator.mul, m1, itertools.repeat(q))))
