@@ -70,9 +70,14 @@ class AugAlgMod2(BA.AlgebraMod2):
         cls._gen_names += iterable_names
 
     @classmethod
-    def add_rel(cls, rel: "AugAlgMod2"):
+    def add_rel(cls, rel):
         """Add a relation."""
-        hq = [(rel.deg(), rel.data)]
+        if not rel:
+            return
+        if type(rel) is not set:
+            hq = [(rel.deg(), rel.data)]
+        else:
+            hq = [(cls(rel).deg(), rel)]
         while hq:
             deg, r = heapq.heappop(hq)
             r = cls.simplify_data(r)
@@ -87,7 +92,11 @@ class AugAlgMod2(BA.AlgebraMod2):
                         else:
                             lcm = mymath.max_tuple(m, m1)
                             dif = mymath.sub_tuple(lcm, m)
+                            dif1 = mymath.sub_tuple(lcm, m1)
                             new_rel = set(map(mymath.add_tuple, r, itertools.repeat(dif)))
+                            v1dif1 = set(map(mymath.add_tuple, v1, itertools.repeat(dif1)))
+                            new_rel -= {lcm}
+                            new_rel ^= v1dif1
                             heapq.heappush(hq, (cls.deg_mon(lcm), new_rel))
                 for m_redundant in redundant_leading_terms:
                     del cls._rels[m_redundant]
@@ -102,19 +111,27 @@ class AugAlgMod2(BA.AlgebraMod2):
     @classmethod
     def simplify_data(cls, data: set):
         """Simplify the data by relations."""
-        s = data.copy()
+        s = list(data)
+        heapq.heapify(s)
         result = set()
-        while len(s) > 0:
-            mon = s.pop()
-            for m in cls._rels:
+        leading_terms = cls._rels
+        while s:
+            mon = heapq.heappop(s)
+            while s and mon == s[0]:
+                heapq.heappop(s)
+                mon = heapq.heappop(s) if s else None
+            if mon is None:
+                break
+
+            for m in leading_terms:
                 if mymath.le_tuple(m, mon):
                     q, r = mymath.div_mod_tuple(mon, m)
-                    mon1 = set(mymath.add_tuple(tuple(map(operator.mul, m1, itertools.repeat(q))), r)
-                               for m1 in cls._rels[m])
-                    s ^= mon1
+                    s += (mymath.add_tuple(r, tuple(map(operator.mul, m1, itertools.repeat(q))))
+                          for m1 in cls._rels[m])
+                    heapq.heapify(s)
                     break
             else:
-                result ^= {mon}
+                result.add(mon)
         return result
 
     def simplify(self):
@@ -133,7 +150,7 @@ class AugAlgMod2(BA.AlgebraMod2):
                 rel_data = cls.simplify_data(rel_data)
                 if rel_data:
                     rel_gens.append(rel_data)
-                    cls._add_rel(rel_data)
+                    cls.add_rel(rel_data)
             return rel_gens
         finally:
             cls._rels = rels
@@ -481,13 +498,12 @@ class FreeModuleMod2:
         return mon in self.data
 
 
-def test():
+def alg_bij(n_max):
     R = AugAlgMod2.new_alg()
     B = {}
-    n_max = 7
     for t in range(1, n_max + 1):
         for s in reversed(range(0, t)):
-            exec(f"B[({s}, {t})] = R.add_gen('B_{{{s}{t}}}', {2 ** (t + 1) - 2 ** (s + 1)})")
+            exec(f"B[({s}, {t})] = R.add_gen('B_{{{s}{t}}}', {2})")
     for j in range(2, n_max + 1):
         for s in reversed(range(0, n_max - j + 1)):
             t = s + j
@@ -495,12 +511,20 @@ def test():
             print(s, t)
             R.add_rel(rel)
         R.simplify_rels()
-    BA.Monitor.present()
     return R, B
+
+
+def test():
+    R = AugAlgMod2.new_alg()
+    x = R.add_gen('x', 1)
+    y = R.add_gen('y', 1)
+    R.add_rel(y**7 * x + y**3 * x ** 5)
+    R.add_rel(y**10 + x**2 * y**8)
+    return R, x, y
 
 
 if __name__ == "__main__":
     import timeit
-    print(timeit.timeit("test()", "from __main__ import test", number=100))
+    print(timeit.timeit("alg_bij(7)", "from __main__ import alg_bij", number=1))
 
 # 140, 248, 283, 415, 436
