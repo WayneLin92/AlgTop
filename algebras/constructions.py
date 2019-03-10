@@ -6,7 +6,7 @@ import itertools
 import operator
 import heapq
 from typing import Union, Set, Tuple, List, Dict
-from algebras import BaseAlgebras as BA, linalg, mymath, myerror
+from algebras import BaseAlgebras as BA, linalg, mymath
 
 
 class AugAlgMod2(BA.AlgebraMod2):
@@ -65,9 +65,10 @@ class AugAlgMod2(BA.AlgebraMod2):
         return cls(m).simplify()
 
     @classmethod
-    def add_gens(cls, iterable_names):
+    def add_gens(cls, names, degs):
         """Add generators."""
-        cls._gen_names += iterable_names
+        cls._gen_names += names
+        cls._gen_degs += degs
 
     @classmethod
     def add_rel(cls, rel):
@@ -101,10 +102,13 @@ class AugAlgMod2(BA.AlgebraMod2):
                 for m_redundant in redundant_leading_terms:
                     del cls._rels[m_redundant]
                 cls._rels[m] = r - {m}
-                print(cls(m))
+                # print(cls(m))
 
     @classmethod
     def simplify_rels(cls):
+        """Simplify cls._rels.
+        Should be called after the completion of the construction of the algebra.
+        """
         for m in cls._rels:
             cls._rels[m] = cls.simplify_data(cls._rels[m])
 
@@ -114,9 +118,8 @@ class AugAlgMod2(BA.AlgebraMod2):
         s = list(data)
         heapq.heapify(s)
         result = set()
-        leading_terms = sorted(cls._rels)
-        len_leadings = len(leading_terms)
-        index = 0
+
+        leading_masks = tuple({i for i, e in enumerate(m) if e} for m in cls._rels)
         while s:
             mon = heapq.heappop(s)
             while s and mon == s[0]:
@@ -124,10 +127,9 @@ class AugAlgMod2(BA.AlgebraMod2):
                 mon = heapq.heappop(s) if s else None
             if mon is None:
                 break
-            while index < len_leadings and leading_terms[index] <= mon:
-                index += 1
-            for m in reversed(leading_terms[:index]):
-                if mymath.le_tuple(m, mon):
+            mask_mon = {i for i, e in enumerate(mon) if e}
+            for m, mask_m in zip(cls._rels, leading_masks):
+                if mask_m <= mask_mon and mymath.le_tuple(m, mon):
                     q, r = mymath.div_mod_tuple(mon, m)
                     s += (mymath.add_tuple(r, tuple(map(operator.mul, m1, itertools.repeat(q))))
                           for m1 in cls._rels[m])
@@ -145,6 +147,7 @@ class AugAlgMod2(BA.AlgebraMod2):
     # getters --------------------------
     @classmethod
     def get_rel_gens(cls):
+        """Return a basis of relations."""
         rels, cls._rels = cls._rels, {}
         rel_gens = []
         try:
@@ -161,11 +164,7 @@ class AugAlgMod2(BA.AlgebraMod2):
     @classmethod
     def gen(cls, k: str):
         """Return a generator."""
-        i = 0
-        while i < len(cls._gen_names) and cls._gen_names[i] != k:
-            i += 1
-        if i == len(cls._gen_names):
-            raise myerror.MyKeyError("Generator not found.")
+        i = cls._gen_names.index(k)
         m = (0,) * (i - 1) + (1,)
         return cls(m).simplify()
 
@@ -209,14 +208,57 @@ class AugAlgMod2(BA.AlgebraMod2):
             print(f"${cls(data)}=0$\\\\")
 
     @classmethod
-    def nil(cls):
-        """Return a basis for the nilradical."""
-        leading_mons = sorted(cls._rels)
-        leading_masks = [tuple(map(int, map(bool, m))) for m in leading_mons]
-        for m in leading_mons:
-            mask_odd = map(operator.mod, m, itertools.repeat(2))
-            m1 = tuple(map(operator.add, m, mask_odd))
-            square = {m1}
+    def _sqrt_zero(cls, non_square: set, square: set, mask: list, bound: list):
+        """Generate expressions of squares of nilpotent elements.
+        non_square should be simplified. mask is constant.
+        """
+        if not non_square:
+            yield square
+            return
+        mon = min(non_square)
+        for m in cls._rels:
+            if mymath.le_tuple(mon, m):
+                if all(m[i] - mon[i] <= b if i < len(mon) else
+                       m[i] <= b if i < len(m) else True
+                       for i, b in zip(mask, bound)):
+                    dif = mymath.sub_tuple(m, mon)
+                    dif = tuple(i + (i & 1) for i in dif)
+                    square = set(map(mymath.add_tuple, square, itertools.repeat(dif)))
+                    non_square = set(map(mymath.add_tuple, non_square, itertools.repeat(dif)))
+                    non_square = cls.simplify_data(non_square)
+                    new_square = set(m1 for m1 in non_square if all(i % 2 == 0 for i in m1))
+                    square ^= new_square
+                    non_square -= new_square
+                    for i in range(len(bound)):
+                        bound[i] -= dif[mask[i]] if mask[i] < len(dif) else 0
+                    for sq in cls._sqrt_zero(non_square, square, mask, bound):
+                        yield sq
+
+    @classmethod
+    def sqrt_zero(cls):
+        """Return a basis for the sqrt(0).
+        Warning: cls._rels should be simplified.
+        """
+        nil_rels = []
+        for m in cls._rels:
+            mask = [i for i, e in enumerate(m) if e]
+            bound = [m[i] - (m[i] & 1) for i in mask]
+            if all(i % 2 == 0 for i in m):
+                non_square = cls._rels[m]
+            else:
+                m = tuple(i + (i & 1) for i in m)
+                non_square = cls.simplify_data({m})
+            square = set(m1 for m1 in non_square if all(i % 2 == 0 for i in m1))
+            square.add(m)
+            non_square -= square
+            for square in cls._sqrt_zero(non_square, square, mask, bound):
+                root = set(tuple(i // 2 for i in m1) for m1 in square)
+                nil_rels.append(cls.simplify_data(root))
+        R = AugAlgMod2.new_alg()
+        R.add_gens(cls._gen_names, cls._gen_degs)
+        for rel in nil_rels:
+            R.add_rel(rel)
+        return map(cls, R.get_rel_gens())
 
     @classmethod
     def ann(cls, x):
@@ -501,33 +543,57 @@ class FreeModuleMod2:
         return mon in self.data
 
 
-def alg_bij(n_max):
+def alg_may(n_max):
     R = AugAlgMod2.new_alg()
     B = {}
+    K = {}
+    # add generators
+    for s in range(n_max):
+        exec(f"K[{s}] = R.add_gen('K_{s}', {1})")
     for t in range(1, n_max + 1):
         for s in reversed(range(0, t)):
-            exec(f"B[({s}, {t})] = R.add_gen('B_{{{s}{t}}}', {2})")
-    for j in range(2, n_max + 1):
+            if s == t - 1:
+                B[(s, s + 1)] = K[s] * K[s]
+            else:
+                exec(f"B[({s}, {t})] = R.add_gen('B_{{{s}{t}}}', 2)")
+    for s in range(n_max - 2):
+        exec(f"K[({s}, {s+1})] = R.add_gen('K_{{{s}{s+1}}}', 2)")
+    for s in range(n_max - 4):
+        exec(f"K[({s}, {s+1}, {s+2})] = R.add_gen('K_{{{s}{s+1}{s+2}}}', 3)")
+    for s in range(n_max - 4):
+        exec(f"K[({s}, {s+1}, {s+3})] = R.add_gen('K_{{{s}{s+1}{s+2}}}', 3)")
+
+    # add relations
+    for j in range(n_max + 1):
         for s in reversed(range(0, n_max - j + 1)):
             t = s + j
             rel = sum((B[(s, k)] * B[(k, t)] for k in range(s + 1, t)), R.zero())
-            print(s, t)
             R.add_rel(rel)
-        R.simplify_rels()
-    return R, B
+            print(s, t)
+    for s in range(n_max):
+        rel = K[s] * K[s] + B[(s, s + 1)]
+        R.add_rel(rel)
+        print(s)
+    for s in range(n_max - 2):
+        rel = K[(s, s + 1)] * K[(s, s + 1)] + B[(s, s + 3)] * B[(s + 1, s + 2)] + \
+              B[(s, s + 2)] * B[(s + 1, s + 3)]
+        R.add_rel(rel)
+        print(s)
+    return R, B, K
 
 
 def test():
     R = AugAlgMod2.new_alg()
     x = R.add_gen('x', 1)
     y = R.add_gen('y', 1)
-    R.add_rel(y**7 * x + y**3 * x ** 5)
-    R.add_rel(y**10 + x**2 * y**8)
-    return R, x, y
+    R.add_rel(y**10 + y**7 * x**3)
+    R.add_rel(y**7 * x**4 + y**2 * x**9)
+    for root in R.sqrt_zero():
+        print("nil =", root)
 
 
 if __name__ == "__main__":
     import timeit
-    print(timeit.timeit("alg_bij(7)", "from __main__ import alg_bij", number=1))
+    print(timeit.timeit("alg_may(7)", "from __main__ import alg_bij", number=1))
 
 # 140, 248, 283, 415, 436
