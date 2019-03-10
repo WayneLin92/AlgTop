@@ -165,7 +165,7 @@ class AugAlgMod2(BA.AlgebraMod2):
     def gen(cls, k: str):
         """Return a generator."""
         i = cls._gen_names.index(k)
-        m = (0,) * (i - 1) + (1,)
+        m = (0,) * i + (1,)
         return cls(m).simplify()
 
     @classmethod
@@ -209,7 +209,7 @@ class AugAlgMod2(BA.AlgebraMod2):
 
     @classmethod
     def _sqrt_zero(cls, non_square: set, square: set, mask: list, bound: list):
-        """Generate expressions of squares of nilpotent elements.
+        """Generate some square-nilpotent elements(data).
         non_square should be simplified. mask is constant.
         """
         if not non_square:
@@ -217,11 +217,11 @@ class AugAlgMod2(BA.AlgebraMod2):
             return
         mon = min(non_square)
         for m in cls._rels:
-            if mymath.le_tuple(mon, m):
-                if all(m[i] - mon[i] <= b if i < len(mon) else
-                       m[i] <= b if i < len(m) else True
-                       for i, b in zip(mask, bound)):
-                    dif = mymath.sub_tuple(m, mon)
+            if any(map(min, mon, m)):  # gcd > 0
+                lcm = mymath.max_tuple(mon, m)
+                dif = mymath.sub_tuple(lcm, mon)
+                if all(i >= len(dif) or dif[i] <= b for i, b in zip(mask, bound)) and \
+                        not all(i < len(dif) and dif[i] == b for i, b in zip(mask, bound)):
                     dif = tuple(i + (i & 1) for i in dif)
                     square = set(map(mymath.add_tuple, square, itertools.repeat(dif)))
                     non_square = set(map(mymath.add_tuple, non_square, itertools.repeat(dif)))
@@ -231,20 +231,20 @@ class AugAlgMod2(BA.AlgebraMod2):
                     non_square -= new_square
                     for i in range(len(bound)):
                         bound[i] -= dif[mask[i]] if mask[i] < len(dif) else 0
-                    for sq in cls._sqrt_zero(non_square, square, mask, bound):
+                    for sq in cls._sqrt_zero(non_square, square, mask, bound):  # recursive
                         yield sq
 
     @classmethod
-    def sqrt_zero(cls):
-        """Return a basis for the sqrt(0).
-        Warning: cls._rels should be simplified.
-        """
-        nil_rels = []
+    def _reduce(cls):
+        """Reduce some square-nilpotent elements."""
+        nilpotents = []
         for m in cls._rels:
             mask = [i for i, e in enumerate(m) if e]
             bound = [m[i] - (m[i] & 1) for i in mask]
             if all(i % 2 == 0 for i in m):
                 non_square = cls._rels[m]
+            elif all(i <= 1 for i in m):
+                continue
             else:
                 m = tuple(i + (i & 1) for i in m)
                 non_square = cls.simplify_data({m})
@@ -253,12 +253,20 @@ class AugAlgMod2(BA.AlgebraMod2):
             non_square -= square
             for square in cls._sqrt_zero(non_square, square, mask, bound):
                 root = set(tuple(i // 2 for i in m1) for m1 in square)
-                nil_rels.append(cls.simplify_data(root))
-        R = AugAlgMod2.new_alg()
-        R.add_gens(cls._gen_names, cls._gen_degs)
-        for rel in nil_rels:
-            R.add_rel(rel)
-        return map(cls, R.get_rel_gens())
+                root = cls.simplify_data(root)
+                if root:
+                    nilpotents.append(root)
+        # for data in nilpotents:
+        #     print("test:", cls(data))
+        for rel in nilpotents:
+            cls.add_rel(rel)
+        return bool(nilpotents)
+
+    @classmethod
+    def reduce(cls):
+        """Reduce all nilpotent elements."""
+        while cls._reduce():
+            cls.simplify_rels()
 
     @classmethod
     def ann(cls, x):
@@ -569,16 +577,18 @@ def alg_may(n_max):
             t = s + j
             rel = sum((B[(s, k)] * B[(k, t)] for k in range(s + 1, t)), R.zero())
             R.add_rel(rel)
-            print(s, t)
+            # print(s, t)
     for s in range(n_max):
         rel = K[s] * K[s] + B[(s, s + 1)]
         R.add_rel(rel)
-        print(s)
+        # print(s)
     for s in range(n_max - 2):
         rel = K[(s, s + 1)] * K[(s, s + 1)] + B[(s, s + 3)] * B[(s + 1, s + 2)] + \
               B[(s, s + 2)] * B[(s + 1, s + 3)]
         R.add_rel(rel)
-        print(s)
+        # print(s)
+    R.reduce()
+    R.present()
     return R, B, K
 
 
@@ -586,14 +596,17 @@ def test():
     R = AugAlgMod2.new_alg()
     x = R.add_gen('x', 1)
     y = R.add_gen('y', 1)
+    # R.add_rel(y**2 + x**2)
+    # R.add_rel(y**3)
     R.add_rel(y**10 + y**7 * x**3)
     R.add_rel(y**7 * x**4 + y**2 * x**9)
-    for root in R.sqrt_zero():
-        print("nil =", root)
+    R.reduce()
+    R.present()
+    return R
 
 
 if __name__ == "__main__":
     import timeit
-    print(timeit.timeit("alg_may(7)", "from __main__ import alg_bij", number=1))
+    print(timeit.timeit("alg_may(7)", "from __main__ import alg_may", number=1))
 
 # 140, 248, 283, 415, 436
