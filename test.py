@@ -241,15 +241,15 @@ class ConstructionsTestCase(unittest.TestCase):
     def test_subring(self):
         self.assertTrue(True)
 
-    # def test_quo_ring(self):
-    #     x = MyQuoRing.gen
-    #     MyQuoRing.init(10)
-    #     rels = [x(i) * x(i) for i in range(1, 6)]
-    #     MyQuoRing.add_relations(rels)
-    #     for r in MyQuoRing.basis(7):
-    #         print(r)
-    #     print(x(1) * (x(2) + x(1) * x(1)))
-    #     self.assertTrue(True)
+    def test_AugAlgMod2(self):
+        R = AugAlgMod2.new_alg()
+        x = R.add_gen('x', 1)
+        y = R.add_gen('y', 1)
+        R.add_rel(y**10 + y**7 * x**3)
+        R.add_rel(y**7 * x**4 + y**2 * x**9)
+        R.reduce()
+        answer = {(0, 10): {(3, 7)}, (4, 7): {(10, 1)}, (6, 2): {(7, 1)}}
+        self.assertEqual(R._rels, answer)
 
 
 class MyDyerLashofTestCase(unittest.TestCase):

@@ -2,6 +2,7 @@
 import operator
 import functools
 import itertools
+from typing import Tuple
 
 
 class Deg(tuple):
@@ -49,7 +50,7 @@ class FrozenDict(dict):
 
 
 # tuple operations as monomials, everything nonnegative.
-def le_tuple(t1: tuple, t2: tuple):
+def le_tuple(t1, t2):
     """Return if t1 <= t2 element-wise."""
     return len(t1) <= len(t2) and all(map(operator.le, t1, t2))
 
@@ -62,13 +63,13 @@ def rstrip_tuple(t):
     return t if right == len(t) else t[:right]
 
 
-def sub_tuple(t1: tuple, t2: tuple):
+def sub_tuple(t1, t2):
     """Assert le_tuple(t2, t1) and return t1 - t2 element-wise"""
     result = tuple(itertools.chain(map(operator.sub, t1, t2), t1[len(t2):]))
     return rstrip_tuple(result)
 
 
-def add_tuple(t1: tuple, t2: tuple):
+def add_tuple(t1, t2):
     """Return t1 + t2 element-wise"""
     if len(t1) < len(t2):
         return tuple(itertools.chain(map(operator.add, t1, t2), t2[len(t1):]))
@@ -80,19 +81,19 @@ def min_tuple(t1, t2):
     return rstrip_tuple(tuple(map(min, t1, t2)))
 
 
-def max_tuple(t1: tuple, t2: tuple):
+def max_tuple(t1, t2):
     if len(t1) < len(t2):
         return tuple(itertools.chain(map(max, t1, t2), t2[len(t1):]))
     else:
         return tuple(itertools.chain(map(max, t1, t2), t1[len(t2):]))
 
 
-def div_tuple(t1, t2):
+def div_tuple(t1, t2) -> int:
     """Assert le_tuple(t2, t1) and return t1 // t2."""
     return min(itertools.starmap(operator.floordiv, filter(operator.itemgetter(1), zip(t1, t2))))
 
 
-def div_mod_tuple(t1, t2: tuple):
+def div_mod_tuple(t1, t2) -> Tuple[int, tuple]:
     """Assert le_tuple(t2, t1) and return div_mod(t1, t2)."""
     q = min(itertools.starmap(operator.floordiv, filter(operator.itemgetter(1), zip(t1, t2))))
     r = tuple(itertools.chain(map(operator.sub, t1, map(operator.mul, t2, itertools.repeat(q))), t1[len(t2):]))

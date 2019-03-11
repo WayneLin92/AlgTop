@@ -1,6 +1,7 @@
 """Classes that can be constructed by other classes."""
 # todo: create class AugModuleMod2
 # Todo: construct AugAlgMod2 from other algebras
+# todo: use {generator} instead of set(generator)
 import copy
 import itertools
 import operator
@@ -94,8 +95,8 @@ class AugAlgMod2(BA.AlgebraMod2):
                             lcm = mymath.max_tuple(m, m1)
                             dif = mymath.sub_tuple(lcm, m)
                             dif1 = mymath.sub_tuple(lcm, m1)
-                            new_rel = set(map(mymath.add_tuple, r, itertools.repeat(dif)))
-                            v1dif1 = set(map(mymath.add_tuple, v1, itertools.repeat(dif1)))
+                            new_rel = {mymath.add_tuple(_m, dif) for _m in r}
+                            v1dif1 = {mymath.add_tuple(_m, dif1) for _m in v1}
                             new_rel -= {lcm}
                             new_rel ^= v1dif1
                             heapq.heappush(hq, (cls.deg_mon(lcm), new_rel))
@@ -145,6 +146,12 @@ class AugAlgMod2(BA.AlgebraMod2):
         return self
 
     # getters --------------------------
+    @classmethod
+    def is_admissible(cls, mon):
+        """Determine if mon is in the basis."""
+        print(cls(mon), not any(mymath.le_tuple(m, mon) for m in cls._rels))
+        return not any(mymath.le_tuple(m, mon) for m in cls._rels)
+
     @classmethod
     def get_rel_gens(cls):
         """Return a basis of relations."""
@@ -205,33 +212,33 @@ class AugAlgMod2(BA.AlgebraMod2):
         print(f"Generators: ${s}$.\\\\")
         print("Relations:\\\\")
         for data in cls.get_rel_gens():
-            print(f"${cls(data)}=0$\\\\")
+            lead = min(data)
+            print(f"${cls(lead)}={cls(data - {lead})}$\\\\")
 
     @classmethod
-    def _sqrt_zero(cls, non_square: set, square: set, mask: list, bound: list):
-        """Generate some square-nilpotent elements(data).
-        non_square should be simplified. mask is constant.
+    def _sqrt_zero(cls, lead: tuple, square: set, non_square: set):
+        """Generate some x^2(=0) where x is nonzero.
+        non_square should be simplified.
         """
         if not non_square:
-            yield square
+            yield square | {lead}
             return
         mon = min(non_square)
         for m in cls._rels:
             if any(map(min, mon, m)):  # gcd > 0
                 lcm = mymath.max_tuple(mon, m)
                 dif = mymath.sub_tuple(lcm, mon)
-                if all(i >= len(dif) or dif[i] <= b for i, b in zip(mask, bound)) and \
-                        not all(i < len(dif) and dif[i] == b for i, b in zip(mask, bound)):
-                    dif = tuple(i + (i & 1) for i in dif)
-                    square = set(map(mymath.add_tuple, square, itertools.repeat(dif)))
-                    non_square = set(map(mymath.add_tuple, non_square, itertools.repeat(dif)))
-                    non_square = cls.simplify_data(non_square)
-                    new_square = set(m1 for m1 in non_square if all(i % 2 == 0 for i in m1))
-                    square ^= new_square
-                    non_square -= new_square
-                    for i in range(len(bound)):
-                        bound[i] -= dif[mask[i]] if mask[i] < len(dif) else 0
-                    for sq in cls._sqrt_zero(non_square, square, mask, bound):  # recursive
+                dif = tuple(i + (i & 1) for i in dif)
+                lead1 = mymath.add_tuple(lead, dif)
+                print(" lead1 =", cls(lead1))
+                if cls.is_admissible(tuple(i // 2 for i in lead1)):  # TODO: correct this
+                    square1 = {mymath.add_tuple(m1, dif) for m1 in square}
+                    non_square1 = {mymath.add_tuple(m1, dif) for m1 in non_square}
+                    non_square1 = cls.simplify_data(non_square1)
+                    new_square = {m1 for m1 in non_square1 if all(i % 2 == 0 for i in m1)}
+                    square1 ^= new_square
+                    non_square1 -= new_square
+                    for sq in cls._sqrt_zero(lead1, square1, non_square1):  # recursive
                         yield sq
 
     @classmethod
@@ -239,25 +246,18 @@ class AugAlgMod2(BA.AlgebraMod2):
         """Reduce some square-nilpotent elements."""
         nilpotents = []
         for m in cls._rels:
-            mask = [i for i, e in enumerate(m) if e]
-            bound = [m[i] - (m[i] & 1) for i in mask]
-            if all(i % 2 == 0 for i in m):
-                non_square = cls._rels[m]
-            elif all(i <= 1 for i in m):
+            if all(i <= 1 for i in m):
                 continue
-            else:
-                m = tuple(i + (i & 1) for i in m)
-                non_square = cls.simplify_data({m})
-            square = set(m1 for m1 in non_square if all(i % 2 == 0 for i in m1))
-            square.add(m)
+            lead = tuple(i + (i & 1) for i in m)
+            print("lead =", cls(lead))
+            non_square = cls.simplify_data({lead})
+            square = {_m for _m in non_square if all(i % 2 == 0 for i in _m)}
             non_square -= square
-            for square in cls._sqrt_zero(non_square, square, mask, bound):
-                root = set(tuple(i // 2 for i in m1) for m1 in square)
+            for sq in cls._sqrt_zero(lead, square, non_square):
+                root = {tuple(i // 2 for i in m1) for m1 in sq}
                 root = cls.simplify_data(root)
-                if root:
-                    nilpotents.append(root)
-        # for data in nilpotents:
-        #     print("test:", cls(data))
+                print("  root =", cls(root))  #
+                nilpotents.append(root)
         for rel in nilpotents:
             cls.add_rel(rel)
         return bool(nilpotents)
@@ -587,7 +587,7 @@ def alg_may(n_max):
               B[(s, s + 2)] * B[(s + 1, s + 3)]
         R.add_rel(rel)
         # print(s)
-    R.reduce()
+    R._reduce()
     R.present()
     return R, B, K
 
@@ -609,4 +609,4 @@ if __name__ == "__main__":
     import timeit
     print(timeit.timeit("alg_may(7)", "from __main__ import alg_may", number=1))
 
-# 140, 248, 283, 415, 436
+# 140, 248, 283, 415, 436, 612

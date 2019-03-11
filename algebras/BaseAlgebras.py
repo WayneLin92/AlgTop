@@ -642,7 +642,7 @@ class AlgebraMod2(Algebra, ABC):
 
     # -- Algebra -----------
     def __str__(self):
-        result = "+".join(map(self.str_mon, self._sorted_mons()))
+        result = " + ".join(map(self.str_mon, self._sorted_mons()))
         return result if result else "0"
 
     def _sorted_mons(self) -> list:
