@@ -6,7 +6,7 @@ import copy
 import itertools
 import operator
 import heapq
-from typing import Union, Set, Tuple, List, Dict
+from typing import Union, Set, Tuple, List, Dict, Type
 from algebras import BaseAlgebras as BA, linalg, mymath
 
 
@@ -25,7 +25,7 @@ class AugAlgMod2(BA.AlgebraMod2):
     _name_index = 0
 
     @staticmethod
-    def new_alg(unit_deg=None) -> "AugAlgMod2":
+    def new_alg(unit_deg=None) -> "Type[AugAlgMod2]":
         """Return a dynamically created subclass of AugAlgMod2."""
         cls = AugAlgMod2
         class_name = f"AugAlgMod2_{cls._name_index}"
@@ -145,11 +145,107 @@ class AugAlgMod2(BA.AlgebraMod2):
         self.data = self.simplify_data(self.data)
         return self
 
+    @staticmethod
+    def _is_square(mon):
+        return all(i % 2 == 0 for i in mon)
+
+    @staticmethod
+    def _first_non_square(data):
+        for m in sorted(data):
+            if any(i & 1 for i in m):
+                return m
+
+    @classmethod
+    def _sqrt_zero(cls, lead: tuple, square: set, non_square: set, rels_lead_non_square: dict, deg_max_rel):
+        """Generate an x^2(=0) where x is nonzero."""
+        if not non_square:
+            return square ^ {lead}
+        mon = min(non_square)
+        lcms1, lcms2 = {}, {}
+        for m in cls._rels:
+            if any(map(min, mon, m)):
+                lcm = mymath.max_tuple(mon, m)
+                dif = mymath.sub_tuple(lcm, mon)  # ############
+                lcm = tuple(i + (j & 1) for i, j in itertools.zip_longest(lcm, dif, fillvalue=0))
+                lcms1[lcm] = m
+        for m in rels_lead_non_square:
+            if any(map(min, mon, m)):
+                lcm = mymath.max_tuple(mon, m)
+                dif = mymath.sub_tuple(lcm, mon)  # ############
+                lcm = tuple(i + (j & 1) for i, j in itertools.zip_longest(lcm, dif, fillvalue=0))
+                dif1 = mymath.sub_tuple(lcm, m)
+                if cls._is_square(dif1):
+                    lcms2[lcm] = m
+
+        lcms = [(m, 1) for m in lcms1]
+        lcms += [(m, 2) for m in lcms2]
+        lcms.sort(key=lambda _x: (cls.deg_mon(_x[0]), _x[1]))
+        for lcm, index in lcms:
+            dif = mymath.sub_tuple(lcm, mon)
+            lead1 = mymath.add_tuple(lead, dif)
+            lead1_half = tuple(i // 2 for i in lead1)
+            if cls.is_admissible(lead1_half) and cls.deg_mon(lead1_half) < deg_max_rel:
+                print(" lead1 =", cls(lead1), ",", cls(mon), index)
+                square1 = {mymath.add_tuple(m, dif) for m in square}
+                non_square1 = {mymath.add_tuple(m, dif) for m in non_square}
+                if index == 2:
+                    non_square1.remove(lcm)
+                    dif1 = mymath.sub_tuple(lcm, lcms2[lcm])
+                    rels_nsq = {mymath.add_tuple(m, dif1) for m in rels_lead_non_square[lcms2[lcm]]}
+                    non_square1 ^= rels_nsq
+                    new_square = {m for m in non_square1 if cls._is_square(m)}
+                    square1 ^= new_square
+                    non_square1 -= new_square
+                    assert min(non_square1) > lcm
+                non_square1 = cls.simplify_data(non_square1)
+                new_square = {m1 for m1 in non_square1 if cls._is_square(m1)}
+                square1 ^= new_square
+                non_square1 -= new_square
+                sq = cls._sqrt_zero(lead1, square1, non_square1, rels_lead_non_square, deg_max_rel)  # recursive
+                if sq:
+                    return sq
+
+    @classmethod
+    def _reduce(cls):
+        """Reduce a square-nilpotent element. Return True if find one, otherwise False."""
+        leads = [tuple(i + (i & 1) for i in m) for m in cls._rels if any(i > 1 for i in m)]
+        leads.sort(key=cls.deg_mon)
+        rels_lead_non_square = {}
+        deg_max_rel = max(map(cls.deg_mon, cls._rels))
+        for m in cls._rels:
+            if not cls._is_square(m):
+                dif = tuple(i & 1 for i in m)
+                rel = {mymath.add_tuple(_m, dif) for _m in cls._rels[m]}
+                rel.add(mymath.add_tuple(m, dif))
+                mon = cls._first_non_square(rel)
+                if mon:
+                    rel.remove(mon)
+                    rels_lead_non_square[mon] = rel
+        for lead in leads:
+            print("lead =", cls(lead))
+            non_square = cls.simplify_data({lead})
+            square = {_m for _m in non_square if cls._is_square(_m)}
+            non_square -= square
+            sq = cls._sqrt_zero(lead, square, non_square, rels_lead_non_square, deg_max_rel)
+            if sq:
+                root = {tuple(i // 2 for i in m1) for m1 in sq}
+                root = cls.simplify_data(root)
+                print("  new rel =", cls(root))
+                cls.add_rel(root)
+                return True
+        return False
+
+    @classmethod
+    def reduce(cls):
+        """Reduce all nilpotent elements."""
+        while cls._reduce():
+            pass
+        cls.simplify_rels()
+
     # getters --------------------------
     @classmethod
     def is_admissible(cls, mon):
         """Determine if mon is in the basis."""
-        print(cls(mon), not any(mymath.le_tuple(m, mon) for m in cls._rels))
         return not any(mymath.le_tuple(m, mon) for m in cls._rels)
 
     @classmethod
@@ -207,71 +303,22 @@ class AugAlgMod2(BA.AlgebraMod2):
         return map(cls, cls.basis_mons_max(deg_max))
 
     @classmethod
-    def present(cls):
+    def present(cls, show_all=False):
         s = ", ".join(cls._gen_names)
         print(f"Generators: ${s}$.\\\\")
         print("Relations:\\\\")
-        for data in cls.get_rel_gens():
-            lead = min(data)
-            print(f"${cls(lead)}={cls(data - {lead})}$\\\\")
-
-    @classmethod
-    def _sqrt_zero(cls, lead: tuple, square: set, non_square: set):
-        """Generate some x^2(=0) where x is nonzero.
-        non_square should be simplified.
-        """
-        if not non_square:
-            yield square | {lead}
-            return
-        mon = min(non_square)
-        for m in cls._rels:
-            if any(map(min, mon, m)):  # gcd > 0
-                lcm = mymath.max_tuple(mon, m)
-                dif = mymath.sub_tuple(lcm, mon)
-                dif = tuple(i + (i & 1) for i in dif)
-                lead1 = mymath.add_tuple(lead, dif)
-                print(" lead1 =", cls(lead1))
-                if cls.is_admissible(tuple(i // 2 for i in lead1)):  # TODO: correct this
-                    square1 = {mymath.add_tuple(m1, dif) for m1 in square}
-                    non_square1 = {mymath.add_tuple(m1, dif) for m1 in non_square}
-                    non_square1 = cls.simplify_data(non_square1)
-                    new_square = {m1 for m1 in non_square1 if all(i % 2 == 0 for i in m1)}
-                    square1 ^= new_square
-                    non_square1 -= new_square
-                    for sq in cls._sqrt_zero(lead1, square1, non_square1):  # recursive
-                        yield sq
-
-    @classmethod
-    def _reduce(cls):
-        """Reduce some square-nilpotent elements."""
-        nilpotents = []
-        for m in cls._rels:
-            if all(i <= 1 for i in m):
-                continue
-            lead = tuple(i + (i & 1) for i in m)
-            print("lead =", cls(lead))
-            non_square = cls.simplify_data({lead})
-            square = {_m for _m in non_square if all(i % 2 == 0 for i in _m)}
-            non_square -= square
-            for sq in cls._sqrt_zero(lead, square, non_square):
-                root = {tuple(i // 2 for i in m1) for m1 in sq}
-                root = cls.simplify_data(root)
-                print("  root =", cls(root))  #
-                nilpotents.append(root)
-        for rel in nilpotents:
-            cls.add_rel(rel)
-        return bool(nilpotents)
-
-    @classmethod
-    def reduce(cls):
-        """Reduce all nilpotent elements."""
-        while cls._reduce():
-            cls.simplify_rels()
+        if show_all:
+            for m in cls._rels:
+                print(cls(m), "=", cls(cls._rels[m]))
+        else:
+            for data in cls.get_rel_gens():
+                lead = min(data)
+                print(f"${cls(lead)} = {cls(data - {lead})}$\\\\")
 
     @classmethod
     def ann(cls, x):
         """Return a basis for the ideal {y | xy=0}."""
-        pass  # TODO: implement this
+        pass  # Todo: implement this
 
 
 class SubRing:
@@ -557,19 +604,19 @@ def alg_may(n_max):
     K = {}
     # add generators
     for s in range(n_max):
-        exec(f"K[{s}] = R.add_gen('K_{s}', {1})")
+        exec(f"K[{s}] = R.add_gen('h_{s}', {1})")
     for t in range(1, n_max + 1):
         for s in reversed(range(0, t)):
             if s == t - 1:
                 B[(s, s + 1)] = K[s] * K[s]
             else:
-                exec(f"B[({s}, {t})] = R.add_gen('B_{{{s}{t}}}', 2)")
+                exec(f"B[({s}, {t})] = R.add_gen('b^{s}_{t-s}', 2)")
     for s in range(n_max - 2):
-        exec(f"K[({s}, {s+1})] = R.add_gen('K_{{{s}{s+1}}}', 2)")
+        exec(f"K[({s}, {s+1})] = R.add_gen('h_{s}(1)', 2)")
     for s in range(n_max - 4):
-        exec(f"K[({s}, {s+1}, {s+2})] = R.add_gen('K_{{{s}{s+1}{s+2}}}', 3)")
+        exec(f"K[({s}, {s+1}, {s+2})] = R.add_gen('h_{s}(1,2)', 3)")
     for s in range(n_max - 4):
-        exec(f"K[({s}, {s+1}, {s+3})] = R.add_gen('K_{{{s}{s+1}{s+2}}}', 3)")
+        exec(f"K[({s}, {s+1}, {s+3})] = R.add_gen('h_{s}(1,3)', 3)")
 
     # add relations
     for j in range(n_max + 1):
@@ -587,26 +634,16 @@ def alg_may(n_max):
               B[(s, s + 2)] * B[(s + 1, s + 3)]
         R.add_rel(rel)
         # print(s)
-    R._reduce()
+    R.reduce()
     R.present()
     return R, B, K
 
 
 def test():
-    R = AugAlgMod2.new_alg()
-    x = R.add_gen('x', 1)
-    y = R.add_gen('y', 1)
-    # R.add_rel(y**2 + x**2)
-    # R.add_rel(y**3)
-    R.add_rel(y**10 + y**7 * x**3)
-    R.add_rel(y**7 * x**4 + y**2 * x**9)
-    R.reduce()
-    R.present()
-    return R
+    pass
 
 
 if __name__ == "__main__":
-    import timeit
-    print(timeit.timeit("alg_may(7)", "from __main__ import alg_may", number=1))
+    pass
 
-# 140, 248, 283, 415, 436, 612
+# 140, 248, 283, 415, 436, 612, 600

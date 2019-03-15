@@ -247,9 +247,12 @@ class ConstructionsTestCase(unittest.TestCase):
         y = R.add_gen('y', 1)
         R.add_rel(y**10 + y**7 * x**3)
         R.add_rel(y**7 * x**4 + y**2 * x**9)
+        for m in R._rels:
+            print(R(m), "=", R(R._rels[m]))
         R.reduce()
-        answer = {(0, 10): {(3, 7)}, (4, 7): {(10, 1)}, (6, 2): {(7, 1)}}
-        self.assertEqual(R._rels, answer)
+        R.present()
+        answer = {(0, 2): {(1, 1)}}
+        self.assertEqual(answer, R._rels)
 
 
 class MyDyerLashofTestCase(unittest.TestCase):

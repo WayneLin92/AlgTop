@@ -3,6 +3,7 @@ import operator
 import functools
 import itertools
 from typing import Tuple
+# TODO: use zip_longest
 
 
 class Deg(tuple):
@@ -123,6 +124,27 @@ def multinom_mod2(*args: int) -> bool:
 
 
 # others
+def xgcd(a, b):
+    """Return gcd(a, b), x, y such that ax+by=gcd(a, b)."""
+    x, x1 = 1, 0
+    y, y1 = 0, 1
+    while b:
+        q, r = divmod(a, b)
+        x1, x = x - q * x1, x1
+        y1, y = y - q * y1, y1
+        a, b = b, r
+    return a, x, y
+
+
+def inv_mod(a, m):
+    """Return x such that ax=1 mod m."""
+    d, x, y = xgcd(a, m)
+    if d == 1:
+        return x % m
+    else:
+        raise ValueError("Modular inverse does not exist.")
+
+
 def two_expansion(n: int):
     """If n = 2^k1 + ... + 2^kn,
     return an generator of k1, ..., kn.
