@@ -163,7 +163,7 @@ class AlgebraDict(Algebra, ABC):
                 self.data[mon] += coeff
             else:
                 self.data[mon] = coeff
-        self.data = dict((mon, coeff) for mon, coeff in self.data.items() if coeff != 0)
+        self.data = dict((mon, coeff) for mon, coeff in self.data.items() if coeff)
         return self
 
     def __radd__(self, other):
@@ -188,7 +188,7 @@ class AlgebraDict(Algebra, ABC):
                 self.data[mon] -= coeff
             else:
                 self.data[mon] = -coeff
-        self.data = dict((mon, coeff) for mon, coeff in self.data.items() if coeff != 0)
+        self.data = dict((mon, coeff) for mon, coeff in self.data.items() if coeff)
         return self
 
     def __mul__(self, other):
@@ -306,16 +306,7 @@ class AlgebraDict(Algebra, ABC):
 class BasePolyMulti(Algebra, ABC):
     """ class for multi-var polynomials """
     # -- Algebra --------------
-    @staticmethod
-    def mul_mons(mon1: tuple, mon2: tuple) -> tuple:
-        mon_prod = dict(mon1)
-        for gen, exp in mon2:
-            if gen in mon_prod:
-                mon_prod[gen] += exp
-            else:
-                mon_prod[gen] = exp
-        mon_prod = tuple(sorted(mon_prod.items()))
-        return mon_prod
+    mul_mons = staticmethod(mymath.add_dict)
 
     @classmethod
     def str_mon(cls, mon: tuple):
@@ -323,7 +314,7 @@ class BasePolyMulti(Algebra, ABC):
         for gen, exp in mon:
             if exp == 1:
                 result += cls.str_gen(gen)
-            else:
+            elif exp:
                 result += f"{cls.str_gen(gen)}^{mymath.tex_index(exp)}"
         if result == "":
             result = "1"
@@ -490,7 +481,7 @@ class AlgebraZ(AlgebraDict, ABC):
         if type(data) is tuple:
             self.data = {data: 1}
         elif type(data) is dict:
-            self.data = dict(mon_coeff for mon_coeff in data.items() if mon_coeff[1] != 0)  # type: Dict[tuple, int]
+            self.data = dict(mon_coeff for mon_coeff in data.items() if mon_coeff[1])  # type: Dict[tuple, int]
         else:
             raise TypeError("{} can not initialize {}".format(data, type(self).__name__))
 
@@ -503,7 +494,7 @@ class BasePolySingZ(AlgebraDict, ABC):
     # -- AlgebraDict -------------
     def __init__(self, data: dict):
         if type(data) is dict:
-            self.data = dict((mon, coeff) for mon, coeff in data.items() if coeff != 0)  # type: Dict[int, int]
+            self.data = dict((mon, coeff) for mon, coeff in data.items() if coeff)  # type: Dict[int, int]
         else:
             raise TypeError("{} can not initialize {}".format(data, type(self).__name__))
 
@@ -570,7 +561,7 @@ class AlgebraModP(AlgebraDict, ABC):
             self.data = {data: 1}
         elif type(data) is dict:
             self.data = dict((mon, coeff % self.PRIME)
-                             for mon, coeff in data.items() if coeff % self.PRIME != 0)  # type: Dict[tuple, int]
+                             for mon, coeff in data.items() if coeff % self.PRIME)  # type: Dict[tuple, int]
         else:
             raise TypeError("{} can not initialize {}".format(data, type(self).__name__))
 
@@ -582,7 +573,7 @@ class AlgebraModP(AlgebraDict, ABC):
                 self.data[mon] += coeff
             else:
                 self.data[mon] = coeff
-        self.data = dict((mon, coeff % self.PRIME) for mon, coeff in self.data.items() if coeff % self.PRIME != 0)
+        self.data = dict((mon, coeff % self.PRIME) for mon, coeff in self.data.items() if coeff % self.PRIME)
         return self
 
     def __isub__(self, other):
@@ -593,7 +584,7 @@ class AlgebraModP(AlgebraDict, ABC):
                 self.data[mon] -= coeff
             else:
                 self.data[mon] = -coeff
-        self.data = dict((mon, coeff % self.PRIME) for mon, coeff in self.data.items() if coeff % self.PRIME != 0)
+        self.data = dict((mon, coeff % self.PRIME) for mon, coeff in self.data.items() if coeff % self.PRIME)
         return self
 
     def __imul__(self, other):
