@@ -131,7 +131,7 @@ class PolyTestCase(unittest.TestCase):
         x = PolyAnyVarMod2.gen("x")
         y = PolyAnyVarMod2.gen("y")
         p = (x - y) ** 3
-        self.assertEqual(str(p), "x^3+x^2y+xy^2+y^3")
+        self.assertEqual("x^3 + x^2y + xy^2 + y^3", str(p))
         self.assertTrue(True)
 
     def test_polymodp(self):
@@ -149,8 +149,8 @@ class PolyTestCase(unittest.TestCase):
         x = PolyAnyVarZ.gen("x")
         y = PolyAnyVarZ.gen("y")
         p = (x - y) ** 3
-        self.assertEqual(p, x**3 - x**2 * y * 3 + x * y**2 * 3 - y**3)
-        self.assertEqual(str(p), "x^3-3x^2y+3xy^2-y^3")
+        self.assertEqual(x**3 - x**2 * y * 3 + x * y**2 * 3 - y**3, p)
+        self.assertEqual("x^3-3x^2y+3xy^2-y^3", str(p))
         self.assertTrue(True)
 
     def test_polySingZ(self):
@@ -243,15 +243,15 @@ class ConstructionsTestCase(unittest.TestCase):
 
     def test_AugAlgMod2(self):
         R = AugAlgMod2.new_alg()
-        x = R.add_gen('x', 1)
         y = R.add_gen('y', 1)
+        x = R.add_gen('x', 1)
         R.add_rel(y**10 + y**7 * x**3)
         R.add_rel(y**7 * x**4 + y**2 * x**9)
         for m in R._rels:
             print(R(m), "=", R(R._rels[m]))
         R.reduce()
         R.present()
-        answer = {(0, 2): {(1, 1)}}
+        answer = {(2,): {(1, 1)}}
         self.assertEqual(answer, R._rels)
 
 

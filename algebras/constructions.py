@@ -66,14 +66,16 @@ class AugAlgMod2(BA.AlgebraMod2):
         return cls(m).simplify()
 
     @classmethod
-    def add_gens(cls, names, degs):
+    def add_gens(cls, names_degs):
         """Add generators."""
-        cls._gen_names += names
-        cls._gen_degs += degs
+        for nd in names_degs:
+            cls._gen_names.append(nd[0])
+            cls._gen_degs.append(nd[1])
 
     @classmethod
     def add_rel(cls, rel):
         """Add a relation."""
+        print("  rel:", cls(rel) if type(rel) is set else rel)
         if not rel:
             return
         if type(rel) is not set:
@@ -85,6 +87,7 @@ class AugAlgMod2(BA.AlgebraMod2):
             r = cls.simplify_data(r)
             if r:
                 m = max(r)
+                print("    leading:", cls(m), "deg:", deg)
                 redundant_leading_terms = []
                 for m1, v1 in cls._rels.items():
                     if any(map(min, m, m1)):  # gcd > 0
@@ -142,22 +145,35 @@ class AugAlgMod2(BA.AlgebraMod2):
     @classmethod
     def reduce_frob(cls):
         """Reduce the algebra by the square root of the ideal of relations."""
-        rels = cls._rels.copy()
+        rels, cls._rels = cls._rels, {}
         n_gen = len(cls._gen_names)
+
+        #
+        import string
+        cls._gen_names += [string.capwords(m) for m in cls._gen_names]
+        cls._gen_degs += [2 * d for d in cls._gen_degs]
+
         for i in range(n_gen):
             y = (0,) * (n_gen + i) + (1,)
             x2 = (0,) * i + (2,)
             cls.add_rel({x2, y})
+        print("number of relations:", len(rels))
+        for m, v in sorted(rels.items(), reverse=True):
+            m_del = []
+            for m1 in sorted(cls._rels, reverse=True):
+                if m1 > m:
+                    m_del.append(m1)
+                else:
+                    for m2 in m_del:
+                        del cls._rels[m2]
+                    break
+            print("rel:", cls(m), '=', cls(v), len(cls._rels))
+            cls.add_rel(v | {m})
         m_del = []
         zero = (0,) * n_gen
         for m in sorted(cls._rels):
             if len(m) <= n_gen or m[:n_gen] != zero:
                 m_del.append(m)
-
-        cls._gen_names = cls._gen_names + ['X', 'Y']
-        cls._gen_degs = cls._gen_degs + [2, 2]
-        for m in cls._rels:
-            print(cls(m), '=', cls(cls._rels[m]))
 
         for m in m_del:
             del cls._rels[m]
@@ -529,50 +545,51 @@ class FreeModuleMod2:
 
 def alg_may(n_max):
     R = AugAlgMod2.new_alg()
-    B = {}
-    K = {}
+    gens = []
+
+    def b(_i, _j):
+        return R.gen(f"b^{_i}_{_j}") if _j > 1 else R.gen(f"h_{_i}") ** 2
+
     # add generators
     for s in range(n_max):
-        exec(f"K[{s}] = R.add_gen('h_{s}', {1})")
+        gens.append((f"h_{s}", 1, (1, -2 ** s)))
     for t in range(1, n_max + 1):
         for s in reversed(range(0, t)):
-            if s == t - 1:
-                B[(s, s + 1)] = K[s] * K[s]
-            else:
-                exec(f"B[({s}, {t})] = R.add_gen('b^{s}_{t-s}', 2)")
+            if t - s > 1:
+                gens.append((f"b^{s}_{t-s}", 2, (0, -2 * (2 ** t - 2 ** s))))
     for s in range(n_max - 2):
-        exec(f"K[({s}, {s+1})] = R.add_gen('h_{s}(1)', 2)")
+        gens.append((f"h_{s}(1)", 2, (2, -9 * 2 ** s)))
     for s in range(n_max - 4):
-        exec(f"K[({s}, {s+1}, {s+2})] = R.add_gen('h_{s}(1,2)', 3)")
+        gens.append((f"h_{s}(1,2)", 3, (3, -49 * 2 ** s)))
     for s in range(n_max - 4):
-        exec(f"K[({s}, {s+1}, {s+3})] = R.add_gen('h_{s}(1,3)', 3)")
+        gens.append((f"h_{s}(1,3)", 3, (3, -41 * 2 ** s)))
+    gens.sort(key=lambda _x: _x[2], reverse=True)
+    R.add_gens(gens)
 
     # add relations
     for j in range(n_max + 1):
         for s in reversed(range(0, n_max - j + 1)):
             t = s + j
-            rel = sum((B[(s, k)] * B[(k, t)] for k in range(s + 1, t)), R.zero())
+            rel = sum((b(s, k-s) * b(k, t-k) for k in range(s + 1, t)), R.zero())
             R.add_rel(rel)
             # print(s, t)
-    for s in range(n_max):
-        rel = K[s] * K[s] + B[(s, s + 1)]
-        R.add_rel(rel)
-        # print(s)
     for s in range(n_max - 2):
-        rel = K[(s, s + 1)] * K[(s, s + 1)] + B[(s, s + 3)] * B[(s + 1, s + 2)] + \
-              B[(s, s + 2)] * B[(s + 1, s + 3)]
+        rel = R.gen(f"h_{s}(1)") * R.gen(f"h_{s}(1)") + b(s, 3) * b(s+1, 1) + \
+              b(s, 2) * b(s+1, 2)
         R.add_rel(rel)
         # print(s)
-    R.reduce()
+    R.reduce_frob()
     R.present()
-    return R, B, K
+    return R
 
 
 def test():
-    pass
+    R = alg_may(3)
 
 
 if __name__ == "__main__":
-    pass
+    from timeit import timeit
+    t = timeit("test()", "from __main__ import test", number=10)
+    print("time =", t)
 
 # 140, 248, 283, 415, 436, 612, 600, 588

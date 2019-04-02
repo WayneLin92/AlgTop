@@ -101,6 +101,18 @@ def div_mod_tuple(t1, t2) -> Tuple[int, tuple]:
     return q, rstrip_tuple(r)
 
 
+def add_dict(d1: tuple, d2: tuple):
+    """Add tuples from tuple(sorted(d.items()))."""
+    result = dict(d1)
+    for gen, exp in d2:
+        if gen in result:
+            result[gen] += exp
+        else:
+            result[gen] = exp
+    result = tuple(sorted(result.items()))
+    return result
+
+
 # binomial coefficients
 def choose_mod2(m: int, n: int) -> bool:
     """Compute m choose n modulo 2."""
