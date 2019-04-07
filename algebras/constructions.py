@@ -583,13 +583,38 @@ def alg_may(n_max):
     return R
 
 
+def alg_B(n_max):
+    gens = []
+    for i in range(n_max):
+        for j in range(i + 1, n_max + 1):
+            gens.append((f"B^{i}_{j}", 2 ** j - 2 ** i, (j, i)))
+    gens.sort(key=lambda _x: _x[2])
+
+    def B(_i, _j):
+        return R.gen(f"B^{_i}_{_j}")
+
+    R = AugAlgMod2.new_alg()
+    R.add_gens(gens)
+    for d in range(2, n_max + 1):
+        for i in range(n_max + 1 - d):
+            j = i + d
+            rel = sum((B(i, k) * B(k, j) for k in range(i + 1, j)), R.zero())
+            R.add_rel(rel)
+    for m in sorted(R._rels, reverse=True):
+        if "0" in R.str_mon(m):
+            # print(f"${R(m)}={R(R._rels[m])}$\\\\")
+            print(f"${R(m)}$\\\\")
+
+    return R, B
+
+
 def test():
-    R = alg_may(3)
+    alg_may(3)
 
 
 if __name__ == "__main__":
     from timeit import timeit
-    t = timeit("test()", "from __main__ import test", number=10)
-    print("time =", t)
+    time = timeit("test()", "from __main__ import test", number=10)
+    print("time =", time)
 
 # 140, 248, 283, 415, 436, 612, 600, 588
