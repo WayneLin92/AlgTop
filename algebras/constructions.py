@@ -88,6 +88,7 @@ class AugAlgMod2(BA.AlgebraMod2):
             if r:
                 m = max(r)
                 print("    leading:", cls(m), "deg:", deg)
+                print("    rest:", cls(r))
                 redundant_leading_terms = []
                 for m1, v1 in cls._rels.items():
                     if any(map(min, m, m1)):  # gcd > 0
@@ -613,8 +614,6 @@ def test():
 
 
 if __name__ == "__main__":
-    from timeit import timeit
-    time = timeit("test()", "from __main__ import test", number=10)
-    print("time =", time)
+    R = alg_B(7)
 
 # 140, 248, 283, 415, 436, 612, 600, 588

@@ -26,7 +26,7 @@ class Deg(tuple):
         """Element-wise addition."""
         return Deg(map(operator.sub, self, other))
 
-    def __mul__(self, other: int):
+    def __mul__(self, other: int) -> "Deg":
         """Broadcast multiplication."""
         return Deg(map(operator.mul, self, itertools.repeat(other)))
 

@@ -275,5 +275,18 @@ class MyDyerLashofTestCase(unittest.TestCase):
         self.assertEqual(prod.data, result)
 
 
+class BenchmarkTestCase(unittest.TestCase):
+    def test_alg_B(self):
+        from algebras.constructions import alg_B
+        R = alg_B(8)
+        self.assertTrue(True)
+
+    def test_AlgB(self):
+        from work.sphere.HMaySS import AlgB
+        AlgB.set_index_max(8)
+        AlgB.print_rels()
+        self.assertTrue(True)
+
+
 if __name__ == '__main__':
     unittest.main()
