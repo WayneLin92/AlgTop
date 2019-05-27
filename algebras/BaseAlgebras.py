@@ -6,6 +6,7 @@ from algebras import mymath, myerror
 # todo: avoid creating new user-defined objects inside a class
 # todo: try __slots__
 # todo: consider unit degree
+# Todo: add class for monomials
 
 
 class Algebra(ABC):

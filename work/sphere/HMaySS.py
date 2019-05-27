@@ -1,3 +1,4 @@
+import itertools
 import heapq
 from algebras import BaseAlgebras as BA, mymath
 
@@ -54,7 +55,9 @@ class AlgB(BA.BasePolyMod2):
 
     @staticmethod
     def key_mon(mon):
-        return [(k, -r) for k, r in mon]
+        n_cross = sum(g1[1] * g2[1] for g1, g2 in itertools.combinations(mon, 2)
+                      if g1[0][0] < g2[0][0] < g1[0][1] < g2[0][1])
+        return -n_cross, [(k, -r) for k, r in mon]
 
     @classmethod
     def leading(cls, data):
@@ -156,6 +159,10 @@ class AlgB(BA.BasePolyMod2):
                           for m1 in cls._rels[m]}
                     break
             else:
+                if mon in result:  # ##############
+                    print("mon =", cls(mon))
+                    print("s =", cls(s))
+                    assert False
                 result.add(mon)
         return result
 

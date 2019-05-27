@@ -278,12 +278,12 @@ class MyDyerLashofTestCase(unittest.TestCase):
 class BenchmarkTestCase(unittest.TestCase):
     def test_alg_B(self):
         from algebras.constructions import alg_B
-        R = alg_B(8)
+        R = alg_B(7)
         self.assertTrue(True)
 
     def test_AlgB(self):
         from work.sphere.HMaySS import AlgB
-        AlgB.set_index_max(8)
+        AlgB.set_index_max(7)
         AlgB.print_rels()
         self.assertTrue(True)
 

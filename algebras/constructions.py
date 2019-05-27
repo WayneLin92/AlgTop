@@ -94,7 +94,7 @@ class AugAlgMod2(BA.AlgebraMod2):
                     if any(map(min, m, m1)):  # gcd > 0
                         if mymath.le_tuple(m, m1):
                             redundant_leading_terms.append(m1)
-                            heapq.heappush(hq, (cls.deg_mon(m1), v1 | {m1}))
+                            # heapq.heappush(hq, (cls.deg_mon(m1), v1 | {m1}))
                         else:
                             lcm = mymath.max_tuple(m, m1)
                             dif = mymath.sub_tuple(lcm, m)
@@ -130,7 +130,8 @@ class AugAlgMod2(BA.AlgebraMod2):
             mask_mon = {i for i, e in enumerate(mon) if e}
             for m, mask_m in zip(cls._rels, leading_masks):
                 if mask_m <= mask_mon and mymath.le_tuple(m, mon):
-                    q, r = mymath.div_mod_tuple(mon, m)
+                    q, r = mymath.div_mod_tuple(mon, m)  # TODO: correct this
+                    print(q, r)  #
                     s ^= {mymath.add_tuple(r, tuple(map(operator.mul, m1, itertools.repeat(q))))
                           for m1 in cls._rels[m]}
                     break
@@ -588,7 +589,7 @@ def alg_B(n_max):
     gens = []
     for i in range(n_max):
         for j in range(i + 1, n_max + 1):
-            gens.append((f"B^{i}_{j}", 2 ** j - 2 ** i, (j, i)))
+            gens.append((f"B^{i}_{j}", 2 ** j - 2 ** i, (i, -j)))
     gens.sort(key=lambda _x: _x[2])
 
     def B(_i, _j):
@@ -603,17 +604,17 @@ def alg_B(n_max):
             R.add_rel(rel)
     for m in sorted(R._rels, reverse=True):
         if "0" in R.str_mon(m):
-            # print(f"${R(m)}={R(R._rels[m])}$\\\\")
-            print(f"${R(m)}$\\\\")
+            print(f"${R(m)}={R(R._rels[m])}$\\\\")
+            # print(f"${R(m)}$\\\\")
 
     return R, B
 
 
 def test():
-    alg_may(3)
+    alg_may(4)
 
 
 if __name__ == "__main__":
-    R = alg_B(7)
+    alg_B(7)
 
 # 140, 248, 283, 415, 436, 612, 600, 588
