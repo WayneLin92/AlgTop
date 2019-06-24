@@ -73,7 +73,7 @@ class VectorSpaceMod2:
         """Return the leading monomials."""
         return map(operator.itemgetter(1), self.data)
 
-    def basis(self, type_alg):
+    def basis(self, type_alg=set):
         """Return a basis of the vector space."""
         vectors = map(operator.itemgetter(0), self.data)
         return vectors if type_alg is set else map(type_alg, vectors)
@@ -102,6 +102,10 @@ class VectorSpaceMod2:
         result = VectorSpaceMod2()
         result.add_vectors_set(map(other.res_set, self.basis(set)))
         return result
+
+    def __iadd__(self, other: "VectorSpaceMod2"):
+        """Expand self by another vector space."""
+        self.add_vectors_set(other.basis(set))
 
 
 class GradedVectorSpaceMod2:
@@ -189,7 +193,6 @@ class GradedVectorSpaceMod2:
 class LinearMapMod2:
     """Linear map f: V leftrightarrow W: g."""
     def __init__(self, *, key=None):
-        # self.maps is for f:V->W and self.inv_maps is for g:W->V
         self.key = key
         self._domain = []  # type: _t_data
         self._f = []  # type: List[set]
@@ -266,12 +269,11 @@ class LinearMapMod2:
         return None if w else type(vector)(result)
 
 
-class LinearMapKernelMod2:
+class LinearMapKMod2:
     """This is an optimized version of LinearMapMod2 that focus on computing the kernel.
 
     Warning: Incompatible maps will not be reported."""
     def __init__(self, *, key=None):
-        # self.maps is for f:V->W and self.inv_maps is for g:W->V
         self.key = key
         self._image = []  # type: _t_data
         self._g = []  # type: List[set]
@@ -319,11 +321,10 @@ class LinearMapKernelMod2:
 
 
 class GradedLinearMapMod2:
-    """A graded version of GradedLinearMapMod2."""
+    """A graded version of LinearMapMod2."""
     MyTuple = collections.namedtuple('MyTuple', ('domain', 'f', 'image', 'g', 'kernel'))
 
     def __init__(self, *, key=None):
-        # self.maps is for f:V->W and self.inv_maps is for g:W->V
         self.key = key
         self.data = {}  # type: Dict[Any, GradedLinearMapMod2.MyTuple]
 
@@ -391,6 +392,63 @@ class GradedLinearMapMod2:
                 result ^= fv1
         return None if v else type(vector)(result)
 
+    def g(self, vector):
+        """Return f^{-1}(vector)."""
+        deg = vector.deg()
+        if deg in self.data:
+            linmap = self.data[deg]
+        else:
+            return None
+        w = vector.data.copy()
+        result = set()
+        for wm1, gw1 in zip(linmap.image, linmap.g):
+            if wm1[1] in w:
+                w ^= wm1[0]
+                result ^= gw1
+        return None if w else type(vector)(result)
+
+
+class GradedLinearMapKMod2:
+    """A graded version of LinearMapKMod2."""
+    MyTupleK = collections.namedtuple('MyTupleK', ('image', 'g', 'kernel'))
+
+    def __init__(self, *, key=None):
+        self.key = key
+        self.data = {}  # type: Dict[Any, GradedLinearMapKMod2.MyTupleK]
+
+    # setters ----------------
+    def add_maps_set(self, maps: Iterable[Tuple[set, set]], deg):
+        """Add maps efficiently."""
+        if deg not in self.data:
+            self.data[deg] = self.MyTupleK([], [], VectorSpaceMod2(key=self.key))
+        linmap = self.data[deg]
+        for gw, w in maps:
+            for wm1, gw1 in zip(linmap.image, linmap.g):
+                if wm1[1] in w:
+                    w ^= wm1[0]
+                    gw ^= gw1
+            if not w:
+                linmap.kernel.add_v_set(gw)
+            else:
+                linmap.image.append((w, max(w, key=self.key) if self.key else max(w)))
+                linmap.g.append(gw)
+
+    def add_maps(self, maps, deg):
+        """Add maps."""
+        self.add_maps_set(((v.data.copy(), fv.data.copy()) for v, fv in maps), deg)
+
+    def add_map(self, v, fv):
+        deg = v.deg()
+        self.add_maps(((v, fv),), deg)
+
+    # getters ------------------
+    def image(self, deg):
+        return VectorSpaceMod2(data=self.data[deg].image if deg in self.data else None)
+
+    def kernel(self, deg):
+        return self.data[deg].kernel if deg in self.data else VectorSpaceMod2()
+
+    # functions -----------------
     def g(self, vector):
         """Return f^{-1}(vector)."""
         deg = vector.deg()

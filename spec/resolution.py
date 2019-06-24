@@ -30,7 +30,7 @@ class Ext:
             kernel_t = linalg.VectorSpaceMod2(r * FM.gen("a_{0,0}") for r in ideal[t])
             for s in range(1, s_max + 1):
                 print("(s, t)=({}, {})".format(s, t))
-                my_map = linalg.LinearMapKernelMod2()
+                my_map = linalg.LinearMapKMod2()
                 for index_gen in range(len(self.h[s])):
                     t_gen, gen_kernel = self.h[s][index_gen]
                     my_map.add_maps((sq * FM.gen("a_{{{}, {}}}".format(s, index_gen)), sq * gen_kernel)

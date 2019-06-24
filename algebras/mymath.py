@@ -208,7 +208,7 @@ def unique_min(iterable, *, default=None, key=None):
 
 # ---- latex --------
 def tex_index(obj) -> str:
-    """Return a string obj used to express x^obj in latex."""
+    """Return a string obj used to express x^obj or x_obj in latex."""
     result = str(obj)
     return result if len(result) == 1 else f"{{{result}}}"
 

@@ -226,7 +226,7 @@ class LinAlgTestCase(unittest.TestCase):
         self.assertTrue(True)
 
     def test_lin_map_kernel_mod2(self):
-        lin_map = LinearMapKernelMod2()
+        lin_map = LinearMapKMod2()
         lin_map.add_maps([(Sq(1), Sq(1)), (Sq(2), Sq(2)), (Sq(3), Sq(1)+Sq(2))])
         print("\nkernel:\n")
         for r in lin_map.kernel.basis(Steenrod):

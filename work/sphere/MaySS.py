@@ -126,7 +126,7 @@ class MayDGA:
         s_max = sum(sig)
         lin_maps = {}
         for s in range(s_min - 1, s_max + 2):
-            lin_maps[s] = linalg.LinearMapKernelMod2()
+            lin_maps[s] = linalg.LinearMapKMod2()
         for x in cls.basis_sig(sig):
             s = x.deg()[0]
             lin_maps[s].add_maps(((x, x.diff()),))
@@ -261,14 +261,14 @@ class MaySS(MayDGA, BC.BasePolyMod2):
 
     def inv_diff(self) -> bool:
         s, t, u = self.deg()
-        my_map2 = linalg.LinearMapKernelMod2()
+        my_map2 = linalg.LinearMapKMod2()
         my_map2.add_maps((r, r.diff()) for r in self.basis(s - 1, t, u))
         return my_map2.g(self)
 
     @classmethod
     def homology(cls, s, t, u):
-        my_map1 = linalg.LinearMapKernelMod2()
-        my_map2 = linalg.LinearMapKernelMod2()
+        my_map1 = linalg.LinearMapKMod2()
+        my_map2 = linalg.LinearMapKMod2()
         my_map1.add_maps((r, r.diff()) for r in cls.basis(s, t, u))
         print("kernel dim:", my_map1.kernel.dim)
         s1 = s - 1 if cls is MaySS else s + 1
@@ -303,7 +303,7 @@ class DualMaySS(MayDGA, BC.AlgebraMod2):
             for t in range(s, t_max + 1):
                 for u in range(s, u_max + 1):
                     if (s, t, u) not in cls._maps:
-                        cls._maps[(s, t, u)] = linalg.LinearMapKernelMod2()
+                        cls._maps[(s, t, u)] = linalg.LinearMapKMod2()
                         cls._maps[(s, t, u)].add_maps((r, r.diff()) for r in cls.basis(s, t, u))
                         if s <= s_max:
                             cycles = cls._maps[(s, t, u)].kernel

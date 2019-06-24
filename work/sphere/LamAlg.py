@@ -71,8 +71,8 @@ class Lambda_Algebra(BC.OperationsMod2):
     @classmethod
     def homology(cls, s, t):
         assert s > 0
-        my_map1 = linalg.LinearMapKernelMod2()
-        my_map2 = linalg.LinearMapKernelMod2()
+        my_map1 = linalg.LinearMapKMod2()
+        my_map2 = linalg.LinearMapKMod2()
         my_map1.add_maps((r, r.diff()) for r in cls.basis(s, t))
         print("kernel dim:", my_map1.kernel.dim)
         my_map2.add_maps((r, r.diff()) for r in cls.basis(s - 1, t))
