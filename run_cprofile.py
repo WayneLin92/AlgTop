@@ -1,7 +1,7 @@
 import cProfile
 import pstats
 from pstats import SortKey
-from algebras.constructions import alg_bij
+from algebras.groebner import alg_bij
 
 pr = cProfile.Profile()
 pr.enable()

@@ -5,7 +5,7 @@ import collections
 import itertools
 from typing import List, Dict, Tuple, Set, Callable
 from algebras import linalg, mymath, myerror
-from algebras.constructions import AugAlgMod2
+from algebras.groebner import GbAlgMod2
 
 TYPE_IMAGE = 0
 TYPE_KERNEL = 1
@@ -23,7 +23,7 @@ class SpecSeq:
     def __init__(self, p_max: int, q_max: int, *, starting_page=2, func=None, Alg=None):
         """func is a function indicating the direction of the differential for each page."""
         mask = set(map(mymath.Deg, itertools.product(range(p_max + 1), range(q_max + 1))))
-        self.data = [self.MyTuple(mask, Alg or AugAlgMod2.new_alg(mymath.Deg((0, 0))),
+        self.data = [self.MyTuple(mask, Alg or GbAlgMod2.new_alg(mymath.Deg((0, 0))),
                                   {}, linalg.GradedLinearMapMod2())]
         self._d_max = mymath.Deg((p_max, q_max))
         self._initialized = False  # flag for using Alg.add_gen, Alg.add_map

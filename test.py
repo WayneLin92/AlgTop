@@ -242,7 +242,7 @@ class ConstructionsTestCase(unittest.TestCase):
         self.assertTrue(True)
 
     def test_AugAlgMod2(self):
-        R = AugAlgMod2.new_alg()
+        R = GbAlgMod2.new_alg()
         y = R.add_gen('y', 1)
         x = R.add_gen('x', 1)
         R.add_rel(y**10 + y**7 * x**3)
@@ -277,7 +277,7 @@ class MyDyerLashofTestCase(unittest.TestCase):
 
 class BenchmarkTestCase(unittest.TestCase):
     def test_alg_B(self):
-        from algebras.constructions import alg_B
+        from algebras.groebner import alg_B
         R = alg_B(7)
         self.assertTrue(True)
 

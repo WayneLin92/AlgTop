@@ -1,6 +1,6 @@
 """Classes that can be constructed by other classes."""
 # todo: create class AugModuleMod2
-# Todo: construct AugAlgMod2 from other algebras
+# Todo: construct GbAlgMod2 from other algebras
 # todo: use {generator} instead of set(generator)
 import copy
 import itertools
@@ -10,10 +10,10 @@ from typing import Union, Set, Tuple, List, Dict, Type
 from algebras import BaseAlgebras as BA, linalg, mymath
 
 
-class AugAlgMod2(BA.AlgebraMod2):
-    """A factory for commutative augmented graded algebras over F_2.
+class GbAlgMod2(BA.AlgebraMod2):
+    """A factory for algebras using Groebner basis.
 
-    AugAlgMod2.new_alg() creates a new commutative augmented graded algebra with
+    GbAlgMod2.new_alg() creates a new algebra with
     its own generators and relations.
     """
 
@@ -25,9 +25,9 @@ class AugAlgMod2(BA.AlgebraMod2):
     _name_index = 0
 
     @staticmethod
-    def new_alg(unit_deg=None) -> "Type[AugAlgMod2]":
-        """Return a dynamically created subclass of AugAlgMod2."""
-        cls = AugAlgMod2
+    def new_alg(unit_deg=None) -> "Type[GbAlgMod2]":
+        """Return a dynamically created subclass of GbAlgMod2."""
+        cls = GbAlgMod2
         class_name = f"AugAlgMod2_{cls._name_index}"
         cls._name_index += 1
         dct = {'_gen_names': [], '_gen_degs': [], '_unit_deg': unit_deg or 0, '_rels': {}, '_auto_simplify': True}
@@ -75,7 +75,7 @@ class AugAlgMod2(BA.AlgebraMod2):
     @classmethod
     def add_rel(cls, rel):
         """Add a relation."""
-        print("  rel:", cls(rel) if type(rel) is set else rel)
+        # print("  rel:", cls(rel) if type(rel) is set else rel)
         if not rel:
             return
         if type(rel) is not set:
@@ -87,14 +87,13 @@ class AugAlgMod2(BA.AlgebraMod2):
             r = cls.simplify_data(r)
             if r:
                 m = max(r)
-                print("    leading:", cls(m), "deg:", deg)
-                print("    rest:", cls(r))
+                # print("    leading:", cls(m), "deg:", deg)
+                # print("    rest:", cls(r))
                 redundant_leading_terms = []
                 for m1, v1 in cls._rels.items():
                     if any(map(min, m, m1)):  # gcd > 0
                         if mymath.le_tuple(m, m1):
                             redundant_leading_terms.append(m1)
-                            # heapq.heappush(hq, (cls.deg_mon(m1), v1 | {m1}))
                         else:
                             lcm = mymath.max_tuple(m, m1)
                             dif = mymath.sub_tuple(lcm, m)
@@ -131,7 +130,6 @@ class AugAlgMod2(BA.AlgebraMod2):
             for m, mask_m in zip(cls._rels, leading_masks):
                 if mask_m <= mask_mon and mymath.le_tuple(m, mon):
                     q, r = mymath.div_mod_tuple(mon, m)  # TODO: correct this
-                    print(q, r)  #
                     s ^= {mymath.add_tuple(r, tuple(map(operator.mul, m1, itertools.repeat(q))))
                           for m1 in cls._rels[m]}
                     break
@@ -159,7 +157,7 @@ class AugAlgMod2(BA.AlgebraMod2):
             y = (0,) * (n_gen + i) + (1,)
             x2 = (0,) * i + (2,)
             cls.add_rel({x2, y})
-        print("number of relations:", len(rels))
+        # print("number of relations:", len(rels))
         for m, v in sorted(rels.items(), reverse=True):
             m_del = []
             for m1 in sorted(cls._rels, reverse=True):
@@ -169,7 +167,7 @@ class AugAlgMod2(BA.AlgebraMod2):
                     for m2 in m_del:
                         del cls._rels[m2]
                     break
-            print("rel:", cls(m), '=', cls(v), len(cls._rels))
+            # print("rel:", cls(m), '=', cls(v), len(cls._rels))
             cls.add_rel(v | {m})
         m_del = []
         zero = (0,) * n_gen
@@ -220,7 +218,7 @@ class AugAlgMod2(BA.AlgebraMod2):
 
     @classmethod
     def _basis_mons_max(cls, deg_max, n_max):
-        """Return an iterator of basis with length n_max + 1 and possibly trailing zeroes."""
+        """Return an iterator of bases with length n_max + 1 and possibly trailing zeroes."""
         if n_max == -1:
             yield (), 0
             return
@@ -234,7 +232,7 @@ class AugAlgMod2(BA.AlgebraMod2):
 
     @classmethod
     def basis_mons_max(cls, deg_max):
-        """Return an iterator of basis."""
+        """Return an iterator of bases."""
         yield ()
         for n_max in range(len(cls._gen_degs)):
             for m, d in cls._basis_mons_max(deg_max, n_max - 1):
@@ -266,6 +264,64 @@ class AugAlgMod2(BA.AlgebraMod2):
     def ann(cls, x):
         """Return a basis for the ideal {y | xy=0}."""
         pass  # Todo: implement this
+
+
+class GbDga(GbAlgMod2):
+    """A factory for DGA over F_2."""
+
+    _gen_diff = None  # type: List[set]
+
+    @staticmethod
+    def new_alg(unit_deg=None) -> "Type[GbDga]":
+        """Return a dynamically created subclass of GbDga."""
+        cls = GbDga
+        class_name = f"DGA_{cls._name_index}"
+        cls._name_index += 1
+        dct = {'_gen_names': [], '_gen_degs': [], '_gen_diff': [],
+               '_unit_deg': unit_deg or 0, '_rels': {}, '_auto_simplify': True}
+        # noinspection PyTypeChecker
+        return type(class_name, (cls,), dct)
+
+    # setters ----------------------------
+    @classmethod
+    def add_gen(cls, k: str, deg, diff=None):
+        """Add a new generator and return it."""
+        cls._gen_names.append(k)
+        cls._gen_degs.append(deg)
+        if diff is None:
+            diff = set()
+        elif type(diff) is not set:
+            diff = diff.data
+        cls._gen_diff.append(diff)
+        m = (0,) * (len(cls._gen_names) - 1) + (1,)
+        return cls(m).simplify()
+
+    def diff(self):
+        """Return the coboundary of the cochain."""
+        result = set()
+        for m in self.data:
+            for i in range(len(m)):
+                e = m[i]
+                if e % 2:
+                    m1 = mymath.rstrip_tuple(m[:i] + (m[i] - 1,) + m[i+1:])
+                    m1_by_dg_i = set(mymath.add_tuple(m1, _m) for _m in self._gen_diff[i])
+                    result ^= m1_by_dg_i
+        return type(self)(result).simplify()
+
+    # getters ----------------------------
+    # noinspection PyUnresolvedReferences
+    @classmethod
+    def homology(cls, d_max):
+        my_map = linalg.GradedLinearMapMod2()
+        for r in cls.basis_max(d_max):
+            my_map.add_map(r, r.diff())
+        result = []
+        for d in range(d_max):
+            result.append([])
+            h = my_map.kernel(d) / my_map.image(d + 1)
+            for r in h.basis(cls):
+                result[-1].append(r)
+        return result
 
 
 class SubRing:
@@ -546,7 +602,7 @@ class FreeModuleMod2:
 
 
 def alg_may(n_max):
-    R = AugAlgMod2.new_alg()
+    R = GbAlgMod2.new_alg()
     gens = []
 
     def b(_i, _j):
@@ -589,14 +645,14 @@ def alg_B(n_max):
     gens = []
     for i in range(n_max):
         for j in range(i + 1, n_max + 1):
-            gens.append((f"B^{i}_{j}", 2 ** j - 2 ** i, (i, -j)))
+            gens.append((f"B^{i}_{j}", 2 ** j - 2 ** i, (i, j)))
     gens.sort(key=lambda _x: _x[2])
+
+    R = GbAlgMod2.new_alg()
+    R.add_gens(gens)
 
     def B(_i, _j):
         return R.gen(f"B^{_i}_{_j}")
-
-    R = AugAlgMod2.new_alg()
-    R.add_gens(gens)
     for d in range(2, n_max + 1):
         for i in range(n_max + 1 - d):
             j = i + d
@@ -611,10 +667,10 @@ def alg_B(n_max):
 
 
 def test():
-    alg_may(4)
+    alg_may(5)
 
 
 if __name__ == "__main__":
-    alg_B(7)
+    alg_B(5)
 
 # 140, 248, 283, 415, 436, 612, 600, 588
