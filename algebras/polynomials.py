@@ -52,7 +52,7 @@ class PolySingZ(BA.BasePolySingZ):
             result = result.mul_trun(other, d_max) + self.coeff(i)
         return result
 
-    def eval(self, x):
+    def evaluation(self, x):
         """ compute f(x) """
         deg = self.deg()
         result = self.coeff(deg)

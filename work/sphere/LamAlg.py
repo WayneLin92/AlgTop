@@ -3,7 +3,7 @@ from algebras.mymath import binom_mod2
 import algebras.linalg as linalg
 
 
-class Lambda_Algebra(BC.OperationsMod2):
+class LambdaAlg(BC.OperationsMod2):
     """ This is for the Lambda algebra of lambda^I at prime 2 """
     # -- OperationsMod2 --------------
     @staticmethod
@@ -36,13 +36,13 @@ class Lambda_Algebra(BC.OperationsMod2):
                    if binom_mod2(mon[i+1] - 2 * (mon[i] + 1 + k), k) == 1)
 
     @classmethod
-    def gen(cls, *n: int) -> "Lambda_Algebra":
+    def gen(cls, *n: int) -> "LambdaAlg":
         return cls(n).simplify()
 
     # methods ----------------------
     @staticmethod
     def basis_mons(length, deg, i_min=0):
-        this_cls = Lambda_Algebra
+        this_cls = LambdaAlg
         if length == 0:
             if deg == 0:
                 yield ()
@@ -57,7 +57,7 @@ class Lambda_Algebra(BC.OperationsMod2):
 
     @classmethod
     def basis(cls, length, deg):
-        return (cls(m) for m in Lambda_Algebra.basis_mons(length, deg))
+        return (cls(m) for m in LambdaAlg.basis_mons(length, deg))
 
     def diff(self):
         data = set()
@@ -66,7 +66,7 @@ class Lambda_Algebra(BC.OperationsMod2):
                 data ^= {m[:i] + (m[i] - j, j - 1) + m[i+1:]
                          for j in range(1, m[i] // 2 + 1)
                          if binom_mod2(m[i] - 2 * j, j)}
-        return Lambda_Algebra(data).simplify()
+        return LambdaAlg(data).simplify()
 
     @classmethod
     def homology(cls, s, t):
@@ -78,6 +78,6 @@ class Lambda_Algebra(BC.OperationsMod2):
         my_map2.add_maps((r, r.diff()) for r in cls.basis(s - 1, t))
         print("image: dim", my_map2.image.dim)
         print("quotient:")
-        for r in (my_map1.kernel / my_map2.image).basis(Lambda_Algebra):
+        for r in (my_map1.kernel / my_map2.image).basis(LambdaAlg):
             print(r)
 

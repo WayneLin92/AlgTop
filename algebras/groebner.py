@@ -265,6 +265,19 @@ class GbAlgMod2(BA.AlgebraMod2):
         """Return a basis for the ideal {y | xy=0}."""
         pass  # Todo: implement this
 
+    def evaluation(self, image_gens):
+        assert len(image_gens) > 0
+        R = type(image_gens[0])
+        zero = R.zero() if issubclass(R, BA.Algebra) else 0
+        unit = R.unit() if issubclass(R, BA.Algebra) else 1
+        result = zero
+        for m in self.data:
+            fm = unit
+            for fg, e in zip(image_gens, m):
+                fm *= (fg ** e)
+            result += fm
+        return result
+
 
 class GbDga(GbAlgMod2):
     """A factory for DGA over F_2."""
@@ -309,19 +322,43 @@ class GbDga(GbAlgMod2):
         return type(self)(result).simplify()
 
     # getters ----------------------------
+    @classmethod
+    def present(cls, show_all=False):
+        super().present(show_all)
+        print("Differentials:\\\\")
+        for g, dg in zip(cls._gen_names, cls._gen_diff):
+            print(f"d({g})={cls(dg)}")
+
     # noinspection PyUnresolvedReferences
     @classmethod
-    def homology(cls, d_max):
-        my_map = linalg.GradedLinearMapMod2()
+    def homology(cls, d_max) -> Type[GbAlgMod2]:
+        map_diff = linalg.GradedLinearMapKMod2()
         for r in cls.basis_max(d_max):
-            my_map.add_map(r, r.diff())
-        result = []
-        for d in range(d_max):
-            result.append([])
-            h = my_map.kernel(d) / my_map.image(d + 1)
-            for r in h.basis(cls):
-                result[-1].append(r)
-        return result
+            map_diff.add_map(r, r.diff())
+        Z = [map_diff.kernel(d) for d in range(d_max + 1)]
+        B = [map_diff.image(d) for d in range(d_max + 1)]
+        H = [Z[d] / B[d] for d in range(d_max + 1)]
+
+        R = GbAlgMod2.new_alg()
+        map_alg = linalg.GradedLinearMapKMod2()
+        image_gens = []
+        index = 1
+        for d in range(1, d_max + 1):
+            for x in (H[d] / map_alg.image(d)).basis(cls):
+                R.add_gen(f"x_{mymath.tex_index(index)}", d)
+                index += 1
+                image_gens.append(x)
+                for d1 in range(1, d_max + 1):
+                    map_alg.kernel(d1).__init__()
+                for m in R.basis_mons_max(d_max):
+                    if len(m) == len(R._gen_degs):
+                        r = R(m)
+                        fr = B[r.deg()].res(r.evaluation(image_gens))
+                        map_alg.add_map(r, fr)
+                for d1 in range(d + 1, d_max + 1):
+                    for rel in map_alg.kernel(d1).basis(R):
+                        R.add_rel(rel)
+        return R
 
 
 class SubRing:

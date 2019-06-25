@@ -78,6 +78,11 @@ class VectorSpaceMod2:
         vectors = map(operator.itemgetter(0), self.data)
         return vectors if type_alg is set else map(type_alg, vectors)
 
+    def present(self, type_alg=set):
+        print("Vector Space:")
+        for r in self.basis(type_alg):
+            print(r)
+
     @property
     def dim(self) -> int:
         """Return the dimension of the vector space."""

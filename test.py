@@ -162,7 +162,7 @@ class PolyTestCase(unittest.TestCase):
         self.assertEqual(str(h), "x")
         self.assertEqual(str(i), "x")
         self.assertEqual(f.pow(5, 7), x**5 + 5 * x**6+10 * x**7)
-        self.assertEqual(f.eval(2), 6)
+        self.assertEqual(f.evaluation(2), 6)
 
 
 class ResolutionTestCase(unittest.TestCase):
@@ -237,11 +237,8 @@ class LinAlgTestCase(unittest.TestCase):
         self.assertTrue(True)
 
 
-class ConstructionsTestCase(unittest.TestCase):
-    def test_subring(self):
-        self.assertTrue(True)
-
-    def test_AugAlgMod2(self):
+class GroebnerTestCase(unittest.TestCase):
+    def test_GbAlgMod2(self):
         R = GbAlgMod2.new_alg()
         y = R.add_gen('y', 1)
         x = R.add_gen('x', 1)
