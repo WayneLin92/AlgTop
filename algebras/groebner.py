@@ -34,6 +34,16 @@ class GbAlgMod2(BA.AlgebraMod2):
         # noinspection PyTypeChecker
         return type(class_name, (cls,), dct)
 
+    @classmethod
+    def copy(cls) -> "Type[GbAlgMod2]":
+        """Return a copy of current algebra."""
+        class_name = f"AugAlgMod2_{GbAlgMod2._name_index}"
+        GbAlgMod2._name_index += 1
+        dct = {'_gen_names': cls._gen_names.copy(), '_gen_degs': cls._gen_degs.copy(),
+               '_unit_deg': cls._unit_deg, '_rels': copy.deepcopy(cls._rels), '_auto_simplify': cls._auto_simplify}
+        # noinspection PyTypeChecker
+        return type(class_name, (GbAlgMod2,), dct)
+
     # ----- AlgebraMod2 -------------
     @classmethod
     def mul_mons(cls, mon1: tuple, mon2: tuple):
@@ -277,12 +287,22 @@ class GbDga(GbAlgMod2):
     def new_alg(unit_deg=None) -> "Type[GbDga]":
         """Return a dynamically created subclass of GbDga."""
         cls = GbDga
-        class_name = f"DGA_{cls._name_index}"
+        class_name = f"GbDGA_{cls._name_index}"
         cls._name_index += 1
         dct = {'_gen_names': [], '_gen_degs': [], '_gen_diff': [],
                '_unit_deg': unit_deg or 0, '_rels': {}, '_auto_simplify': True}
         # noinspection PyTypeChecker
         return type(class_name, (cls,), dct)
+
+    @classmethod
+    def copy(cls) -> "Type[GbAlgMod2]":
+        """Return a copy of current algebra."""
+        class_name = f"GbDGA_{GbDga._name_index}"
+        GbDga._name_index += 1
+        dct = {'_gen_names': cls._gen_names.copy(), '_gen_degs': cls._gen_degs.copy(),
+               '_unit_deg': cls._unit_deg, '_rels': copy.deepcopy(cls._rels), '_auto_simplify': cls._auto_simplify}
+        # noinspection PyTypeChecker
+        return type(class_name, (GbDga,), dct)
 
     # setters ----------------------------
     @classmethod
