@@ -300,7 +300,8 @@ class GbDga(GbAlgMod2):
         class_name = f"GbDGA_{GbDga._name_index}"
         GbDga._name_index += 1
         dct = {'_gen_names': cls._gen_names.copy(), '_gen_degs': cls._gen_degs.copy(),
-               '_unit_deg': cls._unit_deg, '_rels': copy.deepcopy(cls._rels), '_auto_simplify': cls._auto_simplify}
+               '_gen_diff': cls._gen_diff, '_unit_deg': cls._unit_deg,
+               '_rels': copy.deepcopy(cls._rels), '_auto_simplify': cls._auto_simplify}
         # noinspection PyTypeChecker
         return type(class_name, (GbDga,), dct)
 
