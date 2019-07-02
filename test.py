@@ -247,7 +247,7 @@ class GroebnerTestCase(unittest.TestCase):
         for m in R._rels:
             print(R(m), "=", R(R._rels[m]))
         R.reduce()
-        R.present()
+        R.tex_print()
         answer = {(2,): {(1, 1)}}
         self.assertEqual(answer, R._rels)
 
@@ -276,12 +276,6 @@ class BenchmarkTestCase(unittest.TestCase):
     def test_alg_B(self):
         from algebras.groebner import alg_B
         R = alg_B(7)
-        self.assertTrue(True)
-
-    def test_AlgB(self):
-        from work.sphere.HMaySS import AlgB
-        AlgB.set_index_max(7)
-        AlgB.print_rels()
         self.assertTrue(True)
 
 

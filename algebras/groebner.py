@@ -217,38 +217,27 @@ class GbAlgMod2(BA.AlgebraMod2):
         return cls(m).simplify()
 
     @classmethod
-    def _basis_mons_max(cls, deg_max, n_max):
-        """Return an iterator of bases with length n_max + 1 and possibly trailing zeroes."""
-        if n_max == -1:
-            yield (), 0
-            return
-        for m, d in cls._basis_mons_max(deg_max, n_max - 1):
-            for e in range((deg_max - d if d else deg_max) // cls._gen_degs[n_max] + 1):
-                m1 = m + (e,)
-                if any(map(mymath.le_tuple, cls._rels, itertools.repeat(m1))):
-                    break
-                else:
-                    yield m1, d + cls._gen_degs[n_max] * e
-
-    @classmethod
     def basis_mons_max(cls, deg_max):
-        """Return an iterator of bases."""
-        yield ()
-        for n_max in range(len(cls._gen_degs)):
-            for m, d in cls._basis_mons_max(deg_max, n_max - 1):
-                for e in range(1, (deg_max - d if d else deg_max) // cls._gen_degs[n_max] + 1):
-                    m1 = m + (e,)
+        """Return an list of bases."""
+        result = [((), 0)]
+        for k in range(len(cls._gen_degs)):
+            length = len(result)
+            for i in range(length):
+                m, d = result[i]
+                for e in range(1, (deg_max - d) // cls._gen_degs[k] + 1):
+                    m1 = m + (0,) * (k - len(m)) + (e,)
                     if any(map(mymath.le_tuple, cls._rels, itertools.repeat(m1))):
                         break
                     else:
-                        yield m1
+                        result.append((m1, d + e * cls._gen_degs[k]))
+        return result
 
     @classmethod
     def basis_max(cls, deg_max):
-        return map(cls, cls.basis_mons_max(deg_max))
+        return (cls(m) for m, d in cls.basis_mons_max(deg_max))
 
     @classmethod
-    def present(cls, show_all=False):
+    def tex_print(cls, show_all=False):
         s = ", ".join(cls._gen_names)
         print(f"Generators: ${s}$.\\\\")
         print("Relations:\\\\")
@@ -314,8 +303,7 @@ class GbDga(GbAlgMod2):
         result = set()
         for m in self.data:
             for i in range(len(m)):
-                e = m[i]
-                if e % 2:
+                if m[i] % 2:
                     m1 = mymath.rstrip_tuple(m[:i] + (m[i] - 1,) + m[i+1:])
                     m1_by_dg_i = set(mymath.add_tuple(m1, _m) for _m in self._gen_diff[i])
                     result ^= m1_by_dg_i
@@ -323,42 +311,51 @@ class GbDga(GbAlgMod2):
 
     # getters ----------------------------
     @classmethod
-    def present(cls, show_all=False):
-        super().present(show_all)
+    def tex_print(cls, show_all=False):
+        super().tex_print(show_all)
         print("Differentials:\\\\")
         for g, dg in zip(cls._gen_names, cls._gen_diff):
             print(f"d({g})={cls(dg)}")
 
-    # noinspection PyUnresolvedReferences
     @classmethod
-    def homology(cls, d_max) -> Type[GbAlgMod2]:
+    def homology(cls, deg_max) -> Tuple[Type[GbAlgMod2], list]:
         map_diff = linalg.GradedLinearMapKMod2()
-        for r in cls.basis_max(d_max):
+        for r in cls.basis_max(deg_max):
             map_diff.add_map(r, r.diff())
-        Z = [map_diff.kernel(d) for d in range(d_max + 1)]
-        B = [map_diff.image(d) for d in range(d_max + 1)]
-        H = [Z[d] / B[d] for d in range(d_max + 1)]
+        Z = [map_diff.kernel(d) for d in range(deg_max + 1)]
+        B = [map_diff.image(d) for d in range(deg_max + 1)]
+        H = [Z[d] / B[d] for d in range(deg_max + 1)]
 
         R = GbAlgMod2.new_alg()
+        R_basis_mons = [((), 0)]
         map_alg = linalg.GradedLinearMapKMod2()
         image_gens = []
         index = 1
-        for d in range(1, d_max + 1):
+        for d in range(1, deg_max + 1):
             for x in (H[d] / map_alg.image(d)).basis(cls):
                 R.add_gen(f"x_{mymath.tex_index(index)}", d)
                 index += 1
                 image_gens.append(x)
-                for d1 in range(1, d_max + 1):
-                    map_alg.kernel(d1).__init__()
-                for m in R.basis_mons_max(d_max):
-                    if len(m) == len(R._gen_degs):
-                        r = R(m)
-                        fr = B[r.deg()].res(r.evaluation(image_gens))
-                        map_alg.add_map(r, fr)
-                for d1 in range(d + 1, d_max + 1):
-                    for rel in map_alg.kernel(d1).basis(R):
-                        R.add_rel(rel)
-        return R
+
+                length = len(R_basis_mons)
+                for i in range(length):
+                    m1, d1 = R_basis_mons[i]
+                    for e in range(1, (deg_max - d1) // d + 1):
+                        m2 = m1 + (0,) * (len(R._gen_degs) - len(m1) - 1) + (e,)
+                        d2 = d1 + e * d
+                        R_basis_mons.append((m2, d2))
+                        r2 = R(m2)
+                        fr2 = B[d2].res(r2.evaluation(image_gens))
+                        map_alg.add_map(r2, fr2)
+                        if map_alg.kernel(d2):
+                            for rel in map_alg.kernel(d2).basis(R):
+                                R.add_rel(rel)
+                            map_alg.kernel(d2).clear()
+        return R, image_gens
+
+    @classmethod
+    def tor(cls, hom_deg_max, internal_deg_max) -> Type["GbDga"]:
+        pass
 
 
 class SubRing:
@@ -674,7 +671,7 @@ def alg_may(n_max):
         R.add_rel(rel)
         # print(s)
     R.reduce_frob()
-    R.present()
+    R.tex_print()
     return R
 
 
@@ -710,4 +707,4 @@ def test():
 if __name__ == "__main__":
     alg_B(5)
 
-# 140, 248, 283, 415, 436, 612, 600, 588
+# 140, 248, 283, 415, 436, 612, 600, 588, 701

@@ -28,6 +28,10 @@ class VectorSpaceMod2:
         """Return a deep copy."""
         return VectorSpaceMod2(data=copy.deepcopy(self.data))
 
+    def clear(self):
+        """Remove all vectors."""
+        self.data = []
+
     # setters ----------------
     def add_v_set(self, v):
         """Add a single vector efficiently."""
@@ -111,6 +115,10 @@ class VectorSpaceMod2:
     def __iadd__(self, other: "VectorSpaceMod2"):
         """Expand self by another vector space."""
         self.add_vectors_set(other.basis(set))
+
+    def __bool__(self):
+        """Return if the vector space is nontrivial."""
+        return bool(self.data)
 
 
 class GradedVectorSpaceMod2:
