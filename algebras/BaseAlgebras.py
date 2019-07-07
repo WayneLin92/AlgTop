@@ -316,7 +316,7 @@ class BasePolyMulti(Algebra, ABC):
             if exp == 1:
                 result += cls.str_gen(gen)
             elif exp:
-                result += f"{cls.str_gen(gen)}^{mymath.tex_index(exp)}"
+                result += f"{cls.str_gen(gen)}^{mymath.texscript(exp)}"
         if result == "":
             result = "1"
         return result

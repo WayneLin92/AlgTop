@@ -247,9 +247,9 @@ class GbAlgMod2(BA.AlgebraMod2):
         return (cls(m) for m, d in cls.basis_mons_max(deg_max))
 
     @classmethod
-    def tex_print(cls, show_all=False):
-        s = ", ".join(cls._gen_names)
-        print(f"Generators: ${s}$.\\\\")
+    def print_tex(cls, show_all=False):
+        print(f"Generators: ${', '.join(cls._gen_names)}$.\\\\")
+        print(f"Degrees: ${', '.join(map(str, cls._gen_degs))}$")
         print("Relations:\\\\")
         if show_all:
             for m in cls._rels:
@@ -295,7 +295,7 @@ class GbDga(GbAlgMod2):
         return type(class_name, (cls,), dct)
 
     @classmethod
-    def copy(cls) -> "Type[GbAlgMod2]":
+    def copy(cls) -> "Type[GbDga]":
         """Return a copy of current algebra."""
         class_name = f"GbDGA_{GbDga._name_index}"
         GbDga._name_index += 1
@@ -332,14 +332,16 @@ class GbDga(GbAlgMod2):
 
     # getters ----------------------------
     @classmethod
-    def tex_print(cls, show_all=False):
-        super().tex_print(show_all)
+    def print_tex(cls, show_all=False):
+        """Print the cls in latex."""
+        super().print_tex(show_all)
         print("Differentials:\\\\")
         for g, dg in zip(cls._gen_names, cls._gen_diff):
             print(f"d({g})={cls(dg)}")
 
     @classmethod
     def homology(cls, deg_max) -> Tuple[Type[GbAlgMod2], list]:
+        """Compute HA. Return (HA, list of representing cycles)."""
         map_diff = linalg.GradedLinearMapKMod2()
         for r in cls.basis_max(deg_max):
             map_diff.add_map(r, r.diff())
@@ -354,7 +356,7 @@ class GbDga(GbAlgMod2):
         index = 1
         for d in range(1, deg_max + 1):
             for x in (H[d] / map_alg.image(d)).basis(cls):
-                R.add_gen(f"x_{mymath.tex_index(index)}", d)
+                R.add_gen(f"x_{mymath.texscript(index)}", d)
                 index += 1
                 image_gens.append(x)
 
@@ -375,8 +377,32 @@ class GbDga(GbAlgMod2):
         return R, image_gens
 
     @classmethod
-    def tor(cls, hom_deg_max, internal_deg_max) -> Type["GbDga"]:
-        pass
+    def resolution(cls, deg_max) -> Type["GbDga"]:
+        """Compute Tor_A(k, k)."""
+        R = cls.copy()
+        R_basis_mons = R.basis_mons_max(deg_max)
+        map_diff = linalg.GradedLinearMapKMod2()
+        for m, d in R_basis_mons:
+            r = R(m)
+            map_diff.add_map(r, r.diff())
+        index = 1
+        for d in range(1, deg_max + 1):
+            h = map_diff.kernel(d) / map_diff.image(d)
+            for x in h.basis(R):
+                y = R.add_gen(f"y_{mymath.texscript(index)}", d, x)
+                R.add_rel(y * y)
+                index += 1
+
+                length = len(R_basis_mons)
+                for i in range(length):
+                    m1, d1 = R_basis_mons[i]
+                    if d1 + d <= deg_max:
+                        m2 = m1 + (0,) * (len(R._gen_degs) - len(m1) - 1) + (1,)
+                        d2 = d1 + d
+                        R_basis_mons.append((m2, d2))
+                        r2 = R(m2)
+                        map_diff.add_map(r2, r2.diff())
+        return R
 
 
 class SubRing:
@@ -692,7 +718,7 @@ def alg_may(n_max):
         R.add_rel(rel)
         # print(s)
     R.reduce_frob()
-    R.tex_print()
+    R.print_tex()
     return R
 
 

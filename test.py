@@ -247,7 +247,7 @@ class GroebnerTestCase(unittest.TestCase):
         for m in R._rels:
             print(R(m), "=", R(R._rels[m]))
         R.reduce()
-        R.tex_print()
+        R.print_tex()
         answer = {(2,): {(1, 1)}}
         self.assertEqual(answer, R._rels)
 

@@ -160,7 +160,7 @@ class MaySS(MayDGA, BC.BasePolyMod2):
 
     @staticmethod
     def str_gen(k):
-        return "K^{}_{}".format(*map(mymath.tex_index, (k[0], k[0] + k[1])))
+        return "K^{}_{}".format(*map(mymath.texscript, (k[0], k[0] + k[1])))
 
     @classmethod
     def str_mon(cls, mon):
@@ -169,7 +169,7 @@ class MaySS(MayDGA, BC.BasePolyMod2):
             if exp == 1:
                 result += cls.str_gen(gen)
             else:
-                result += f"({cls.str_gen(gen)})^{mymath.tex_index(exp)}"
+                result += f"({cls.str_gen(gen)})^{mymath.texscript(exp)}"
         if result == "":
             result = "1"
         return result
@@ -343,7 +343,7 @@ class DualMaySS(MayDGA, BC.AlgebraMod2):
     @staticmethod
     def str_item(item: tuple) -> str:
         ij, r = item
-        return "\\gamma_{}(\\bar{{P}}^{}_{})".format(*map(mymath.tex_index, (r, *ij)))
+        return "\\gamma_{}(\\bar{{P}}^{}_{})".format(*map(mymath.texscript, (r, *ij)))
 
     @classmethod
     def str_mon(cls, mon: tuple):
