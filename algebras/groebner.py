@@ -76,8 +76,14 @@ class GbAlgMod2(BA.AlgebraMod2):
         return cls(m).simplify()
 
     @classmethod
+    def rename(cls, old_name, new_name):
+        """Rename the generator."""
+        i = cls._gen_names.index(old_name)
+        cls._gen_names[i] = new_name
+
+    @classmethod
     def add_gens(cls, names_degs):
-        """Add generators."""
+        """Add generators. names_degs is a list of tuples (name, deg)."""
         for nd in names_degs:
             cls._gen_names.append(nd[0])
             cls._gen_degs.append(nd[1])
@@ -199,6 +205,13 @@ class GbAlgMod2(BA.AlgebraMod2):
 
     # getters --------------------------
     @classmethod
+    def gen(cls, k: str):
+        """Return a generator."""
+        i = cls._gen_names.index(k)
+        m = (0,) * i + (1,)
+        return cls(m).simplify()
+
+    @classmethod
     def is_admissible(cls, mon):
         """Determine if mon is in the basis."""
         return not any(mymath.le_tuple(m, mon) for m in cls._rels)
@@ -218,13 +231,6 @@ class GbAlgMod2(BA.AlgebraMod2):
             return rel_gens
         finally:
             cls._rels = rels
-
-    @classmethod
-    def gen(cls, k: str):
-        """Return a generator."""
-        i = cls._gen_names.index(k)
-        m = (0,) * i + (1,)
-        return cls(m).simplify()
 
     @classmethod
     def basis_mons_max(cls, deg_max):
@@ -247,19 +253,6 @@ class GbAlgMod2(BA.AlgebraMod2):
         return (cls(m) for m, d in cls.basis_mons_max(deg_max))
 
     @classmethod
-    def print_tex(cls, show_all=False):
-        print(f"Generators: ${', '.join(cls._gen_names)}$.\\\\")
-        print(f"Degrees: ${', '.join(map(str, cls._gen_degs))}$")
-        print("Relations:\\\\")
-        if show_all:
-            for m in cls._rels:
-                print(cls(m), "=", cls(cls._rels[m]))
-        else:
-            for data in cls.get_rel_gens():
-                lead = max(data)
-                print(f"${cls(lead)} = {cls(data - {lead})}$\\\\")
-
-    @classmethod
     def ann(cls, x):
         """Return a basis for the ideal {y | xy=0}."""
         pass  # Todo: implement this
@@ -275,6 +268,43 @@ class GbAlgMod2(BA.AlgebraMod2):
             for fg, e in zip(image_gens, m):
                 fm *= (fg ** e)
             result += fm
+        return result
+
+    @classmethod
+    def print_tex(cls, show_all=False):
+        print(f"Generators: ${', '.join(cls._gen_names)}$.\\\\")
+        print(f"Degrees: ${', '.join(map(str, cls._gen_degs))}$")
+        print("Relations:\\\\")
+        if show_all:
+            for m in cls._rels:
+                print(cls(m), "=", cls(cls._rels[m]))
+        else:
+            for data in cls.get_rel_gens():
+                lead = max(data)
+                print(f"${cls(lead)} = {cls(data - {lead})}$\\\\")
+
+    @classmethod
+    def _repr_html_(cls):
+        tr1 = "<th>Generators</th>"
+        for name in cls._gen_names:
+            tr1 += f"<td>{name}</td>"
+        tr1 = f"<tr>{tr1}</tr>"
+
+        tr2 = "<th>Degrees</th>"
+        for deg in cls._gen_degs:
+            tr2 += f"<td>{deg}</td>"
+        tr2 = f"<tr>{tr2}</tr>"
+
+        tr3 = "<th>Relations</th>"
+        td = ""
+        for data in cls.get_rel_gens():
+            lead = max(data)
+            td += f"${cls(lead)} = {cls(data - {lead})}$<br>"
+        td = f'<td colspan="{len(cls._gen_names)}">{td}</td>'
+        tr3 += td
+        tr3 = f"<tr>{tr3}</tr>"
+
+        result = "<table>" + tr1 + tr2 + tr3 + "</table>"
         return result
 
 
@@ -331,14 +361,6 @@ class GbDga(GbAlgMod2):
         return type(self)(result).simplify()
 
     # getters ----------------------------
-    @classmethod
-    def print_tex(cls, show_all=False):
-        """Print the cls in latex."""
-        super().print_tex(show_all)
-        print("Differentials:\\\\")
-        for g, dg in zip(cls._gen_names, cls._gen_diff):
-            print(f"d({g})={cls(dg)}")
-
     @classmethod
     def homology(cls, deg_max) -> Tuple[Type[GbAlgMod2], list]:
         """Compute HA. Return (HA, list of representing cycles)."""
@@ -403,6 +425,48 @@ class GbDga(GbAlgMod2):
                         r2 = R(m2)
                         map_diff.add_map(r2, r2.diff())
         return R
+
+    @classmethod
+    def print_tex(cls, show_all=False):
+        """Print the cls in latex."""
+        super().print_tex(show_all)
+        print("Differentials:\\\\")
+        for g, dg in zip(cls._gen_names, cls._gen_diff):
+            print(f"$d({g})={cls(dg)}$\\\\")
+
+    @classmethod
+    def _repr_html_(cls):
+        gen_num = len(cls._gen_names)
+        td_style = 'style="text-align:left;"'
+        tr1 = '<th>Generators</th>'
+        for name in cls._gen_names:
+            tr1 += f'<td {td_style}>${name}$</td>'
+        tr1 = f'<tr>{tr1}</tr>\n'
+
+        tr2 = '<th>Generators</th>'
+        for deg in cls._gen_degs:
+            tr2 += f'<td {td_style}>{deg}</td>'
+        tr2 = f'<tr>{tr2}</tr>\n'
+
+        tr3 = "<th>Relations</th>"
+        td = ''
+        for data in cls.get_rel_gens():
+            lead = max(data)
+            td += f'${cls(lead)} = {cls(data - {lead})}$<br>'
+        td = f'<td colspan="{gen_num}" {td_style}>{td}</td>'
+        tr3 += td
+        tr3 = f'<tr>{tr3}</tr>\n'
+
+        tr4 = '<th>Differentials</th>'
+        td = ''
+        for g, dg in zip(cls._gen_names, cls._gen_diff):
+            td += f'$d({g})={cls(dg)}$<br>'
+        td = f'<td colspan="{gen_num}" style="text-align:left;width:{gen_num*35-12}px;">{td}</td>'
+        tr4 += td
+        tr4 = f'<tr>{tr4}</tr>\n'
+
+        result = '<table>\n' + tr1 + tr2 + tr3 + tr4 + '</table>'
+        return result
 
 
 class SubRing:
