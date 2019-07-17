@@ -30,6 +30,9 @@ class Algebra(ABC):
     def __bool__(self) -> bool:
         return bool(self.data)
 
+    def _repr_latex_(self):
+        return f"${self}$"
+
     def copy(self): return type(self)(self.data.copy())
 
     def square(self):
@@ -315,7 +318,7 @@ class BasePolyMulti(Algebra, ABC):
         for gen, exp in mon:
             if exp == 1:
                 result += cls.str_gen(gen)
-            elif exp:
+            else:
                 result += f"{cls.str_gen(gen)}^{mymath.texscript(exp)}"
         if result == "":
             result = "1"
@@ -346,8 +349,8 @@ class BasePolyMulti(Algebra, ABC):
         pass
 
 
-class BaseExteriorMulti(Algebra, ABC):
-    """ class for multi-var polynomials """
+class BaseExterior(Algebra, ABC):
+    """Base class for multi-variable exterior algebra."""
     # -- Algebra --------------
     @staticmethod
     def mul_mons(mon1: frozenset, mon2: frozenset) -> frozenset:
@@ -703,19 +706,19 @@ class AlgebraT2Mod2(AlgebraMod2, ABC):
     type_c1: AlgebraMod2 = None
 
     # -- AlgebraMod2 --------------
-    def mul_mons(self, mon1: tuple, mon2: tuple):  # TODO: return type
+    def mul_mons(self, mon1: tuple, mon2: tuple):  # todo: return type
         prod0 = self.type_c0.mul_mons(mon1[0], mon2[0])
         prod1 = self.type_c1.mul_mons(mon1[1], mon2[1])
-        if type(prod0) is tuple:  # assume type(prod1) is type(prod2)
+        if type(prod0) is tuple or type(prod0) is frozenset:  # assume both are monomials
             return prod0, prod1
         else:
             return {(m0, m1) for m0 in prod0 for m1 in prod1}
 
-    def deg_mon(self, mon: tuple) -> Tuple[int, int]:
+    def deg_mon(self, mon: tuple):
         """ return the degree of mon """
         deg0 = self.type_c0.deg_mon(mon[0])
         deg1 = self.type_c1.deg_mon(mon[1])
-        return deg0, deg1
+        return deg0 + deg1
 
     def str_mon(self, mon: tuple):
         str0 = self.type_c0.str_mon(mon[0])
@@ -737,7 +740,7 @@ class BasePolyMod2(BasePolyMulti, AlgebraMod2, ABC):
     pass
 
 
-class BaseExteriorMod2(BaseExteriorMulti, AlgebraMod2, ABC):
+class BaseExteriorMod2(BaseExterior, AlgebraMod2, ABC):
     def __init__(self, data: Union[set, frozenset]):
         if type(data) is set:
             self.data = data
