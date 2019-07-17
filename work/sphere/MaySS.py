@@ -278,9 +278,6 @@ class MaySS(MayDGA, BC.BasePolyMod2):
         for r in (my_map1.kernel / my_map2.image).basis(cls):
             print(r)
 
-    def print_tex_graph(self):
-        print_tex_graph(self.data, sep="\\hspace{5pt}+\\hspace{5pt}")
-
 
 class DualMaySS(MayDGA, BC.AlgebraMod2):
     """ This is the dual of the May spectral sequence """
@@ -491,38 +488,6 @@ def key_lex(mon):
 
 def key_lex_reverse(mon):
     return sorted(map(lambda g: (g[0][0] + g[0][1], -g[0][0]), mon), reverse=True)
-
-
-def tex_graph_mon(mon):
-    sig = DualMaySS.sig_mon(mon)
-    left, right = sig.span()
-    sep = 6
-    result = f"\\xymatrix@M=0pt@C={sep}pt{{\n"
-    arrows = [[] for _ in range(right-left)]
-    for k, r in mon:
-        # noinspection PyTypeChecker
-        arrows[k[0] - left].append((k[1], r))
-    for i in range(right - left):
-        result += "\\bullet"
-        for j, right in arrows[i]:
-            result += f" \\ar@/^{sep*j}pt/@{{-}}[{'r'*j}]"
-            if right > 1:
-                result += f"|-{right}"
-        result += " & "
-    result += "\\bullet\n}"
-    return result
-
-
-def print_tex_graph(iterable, *, row=5, sep=',\\hspace{5pt}'):
-    i = 0
-    for i, m in enumerate(iterable):
-        if i % row == 0:
-            print("$$")
-        print(f"{tex_graph_mon(m)}{sep}")
-        if i % row == row - 1:
-            print("$$\n")
-    if i % row != row - 1:
-        print("$$\n")
 
 
 def Phi(S, T=None):

@@ -10,6 +10,7 @@ import operator
 import collections
 from typing import TypeVar, Tuple, List, Set, Dict, Iterable, Any
 from algebras import myerror
+from algebras.mymath import get_tex
 
 _t_mon = TypeVar('_t_mon')
 _t_v = Set[_t_mon]
@@ -476,5 +477,36 @@ class GradedLinearMapKMod2:
                 w ^= wm1[0]
                 result ^= gw1
         return None if w else type(vector)(result)
+
+
+class Matrix:
+    """A class for Matrices."""
+    def __init__(self, array2d: List[list], shape=None):
+        if shape is None:
+            assert len(array2d) > 0
+            m = len(array2d[0])
+            for row in array2d:
+                assert len(row) == m
+            self.shape = (len(array2d), m)
+        else:
+            self.shape = shape
+        self.data = array2d
+
+    def __mul__(self, other):
+        m, n = self.shape
+        n1, ell = other.shape
+        a, b = self.data, other.data
+        assert n == n1
+        data = [[sum((a[i][k] * b[k][j] for k in range(1, n)), a[i][0] * b[0][j])
+                 for j in range(ell)] for i in range(n)]
+        return Matrix(data, (m, ell))
+
+    def _repr_latex_(self):
+        result = "\\begin{bmatrix}\n"
+        for row in self.data:
+            result += " & ".join(map(get_tex, row)) + "\\\\\n"
+        result += "\\end{bmatrix}\n"
+        return result
+
 
 # 226, 302, 311, 412, 406

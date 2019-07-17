@@ -225,4 +225,10 @@ def print_tex_iter(iterable):
     for obj in iterable:
         print(f"${obj}$\\\\")
 
+
+def get_tex(alg):
+    # noinspection PyProtectedMember
+    result = alg._repr_latex_()
+    return result[1:len(result)-1]
+
 # 73, 87, 177

@@ -284,7 +284,8 @@ class GbAlgMod2(BA.AlgebraMod2):
                 print(f"${cls(lead)} = {cls(data - {lead})}$\\\\")
 
     @classmethod
-    def _repr_html_(cls):
+    def get_html(cls):
+        from IPython.display import HTML
         tr1 = "<th>Generators</th>"
         for name in cls._gen_names:
             tr1 += f"<td>{name}</td>"
@@ -305,7 +306,10 @@ class GbAlgMod2(BA.AlgebraMod2):
         tr3 = f"<tr>{tr3}</tr>"
 
         result = "<table>" + tr1 + tr2 + tr3 + "</table>"
-        return result
+        return HTML(result)
+
+    def _repr_latex_(self):
+        return f'${str(self)}$'
 
 
 class GbDga(GbAlgMod2):
@@ -435,7 +439,8 @@ class GbDga(GbAlgMod2):
             print(f"$d({g})={cls(dg)}$\\\\")
 
     @classmethod
-    def _repr_html_(cls):
+    def get_html(cls):
+        from IPython.display import HTML
         gen_num = len(cls._gen_names)
         td_style = 'style="text-align:left;"'
         tr1 = '<th>Generators</th>'
@@ -466,7 +471,7 @@ class GbDga(GbAlgMod2):
         tr4 = f'<tr>{tr4}</tr>\n'
 
         result = '<table>\n' + tr1 + tr2 + tr3 + tr4 + '</table>'
-        return result
+        return HTML(result)
 
 
 class SubRing:
