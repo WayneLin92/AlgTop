@@ -154,6 +154,10 @@ class MayE1(MayDGA, BC.BasePolyMod2):
         i, j = k
         return mymath.Deg((1, (1 << j) - (1 << i), j - i))
 
+    @classmethod
+    def deg_mon(cls, mon: frozenset) -> mymath.Deg:
+        return sum((cls.deg_gen(gen) * exp for gen, exp in mon), mymath.Deg((0, 0, 0)))
+
     @staticmethod
     def str_gen(k):
         return f"R_{{{k[0]}{k[1]}}}"
@@ -260,9 +264,24 @@ class TorMayE1(BC.BaseExteriorMod2):
         i, j = k
         return mymath.Deg((1, (1 << j) - (1 << i), j - i))
 
+    @classmethod
+    def deg_mon(cls, mon: frozenset) -> mymath.Deg:
+        return sum(map(cls.deg_gen, mon), mymath.Deg((0, 0, 0)))
+
     @staticmethod
     def str_gen(k) -> str:
         return f"\\hat R_{{{k[0]}{k[1]}}}"
+
+    @staticmethod
+    def basis_mons(n_max):
+        """Return monomials (R_{i_1j_1})^k...(R i_mj_m)^e with given length, deg, may_filtr."""
+        generators = []
+        for i in range(n_max):
+            for j in range(i + 1, n_max + 1):
+                generators.append((i, j))
+        for r in range(len(generators)+1):
+            for m in itertools.combinations(generators, r):
+                yield frozenset(m)
 
 
 class MayE1Res(BC.AlgebraT2Mod2):
@@ -286,14 +305,6 @@ class MayE1Res(BC.AlgebraT2Mod2):
     def _sorted_mons(self) -> list:
         return sorted(self.data, key=lambda m: (
             self.deg_mon(m), sorted(m[0]), m[1]), reverse=True)
-
-
-def key_lex(mon):
-    return sorted(map(lambda g: (-g[0][0] - g[0][1], g[0][0]), mon))
-
-
-def key_lex_reverse(mon):
-    return sorted(map(lambda g: (g[0][0] + g[0][1], -g[0][0]), mon), reverse=True)
 
 
 def test():

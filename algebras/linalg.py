@@ -508,5 +508,10 @@ class Matrix:
         result += "\\end{bmatrix}\n"
         return result
 
+    def transpose(self):
+        n, m = self.shape
+        data = [[self.data[i][j] for i in range(n)] for j in range(m)]
+        return Matrix(data, (m, n))
 
-# 226, 302, 311, 412, 406
+
+# 226, 302, 311, 412, 406, 517
