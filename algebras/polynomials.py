@@ -1,4 +1,4 @@
-from algebras import BaseAlgebras as BA, myerror
+from algebras import BaseAlgebras as BA
 
 
 # TODO commutativity at odd prime
@@ -31,7 +31,7 @@ class PolySingZ(BA.BasePolySingZ):
     def inv_function(self, d_max):
         """ inverse in the sense of composition """
         if 1 not in self.data or self.data[1] != 1 or 0 in self.data:
-            raise myerror.MyValueError("require the leading term to be x")
+            raise ValueError("leading term not x")
         data = {}
         y_powers = []
         prod = self.unit()

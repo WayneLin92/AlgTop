@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Tuple, Set, Dict, Hashable, Any, Optional, Union
-from algebras import mymath, myerror
+from algebras import mymath
 # todo: check the class methods
 # todo: type is
 # todo: avoid creating new user-defined objects inside a class
@@ -42,7 +42,7 @@ class Algebra(ABC):
         """ return a list of rings """
         list_homo = self.split_homo(d_max)
         if not list_homo or list_homo[0] != self.unit():
-            raise myerror.MyValueError("require the leading term to be one")
+            raise ValueError("not monic")
         result = [self.unit()]
         for d in range(1, d_max + 1):
             term_d = -sum((result[i] * list_homo[d - i] for i in range(0, d)), self.zero())
@@ -65,7 +65,7 @@ class Algebra(ABC):
     @abstractmethod
     def __init__(self, data):
         self.data = data  # type: Any
-        raise myerror.MyClassError
+        raise NotImplementedError
 
     @abstractmethod
     def __str__(self) -> str: pass
@@ -222,7 +222,7 @@ class AlgebraDict(Algebra, ABC):
                             data[prod] = c1 * c2
             return type(self)(data)
         else:
-            raise NotImplementedError
+            return NotImplemented
 
     def __rmul__(self, other):
         return self * other
@@ -239,7 +239,7 @@ class AlgebraDict(Algebra, ABC):
         elif type(other) is type(self):
             return self * other
         else:
-            raise NotImplementedError
+            return NotImplemented
 
     @classmethod
     def unit(cls):  # assuming data is tuple
@@ -487,7 +487,7 @@ class AlgebraZ(AlgebraDict, ABC):
         elif type(data) is dict:
             self.data = dict(mon_coeff for mon_coeff in data.items() if mon_coeff[1])  # type: Dict[tuple, int]
         else:
-            raise TypeError("{} can not initialize {}".format(data, type(self).__name__))
+            raise TypeError("{} can not initialize {}.".format(data, type(self).__name__))
 
 
 class BasePolyZ(BasePolyMulti, AlgebraZ, ABC):
@@ -500,17 +500,13 @@ class BasePolySingZ(AlgebraDict, ABC):
         if type(data) is dict:
             self.data = dict((mon, coeff) for mon, coeff in data.items() if coeff)  # type: Dict[int, int]
         else:
-            raise TypeError("{} can not initialize {}".format(data, type(self).__name__))
+            raise TypeError("{} can not initialize {}.".format(data, type(self).__name__))
 
     def deg(self):
         if len(self.data) > 0:
             return max(self.data)
         else:
             return None
-
-    @staticmethod
-    def deg_mon(mon: int) -> int:
-        raise myerror.MyClassError("This function is deprecated for the this class")
 
     @classmethod
     def unit(cls):
@@ -525,11 +521,13 @@ class BasePolySingZ(AlgebraDict, ABC):
 
     def inverse(self, d_max):
         if 0 not in self.data or self.data[0] != 1:
-            raise myerror.MyValueError("require the leading term to be one")
+            raise ValueError("not monic")
         data = {0: 1}
         for d in range(1, d_max + 1):
             data[d] = -sum(data[i] * self.coeff(d - i) for i in range(0, d))
         return type(self)(data)
+
+    deg_mon = None
 
     # -- Algebra -----------------------
     @staticmethod
@@ -540,7 +538,7 @@ class BasePolySingZ(AlgebraDict, ABC):
     @classmethod
     def gen(cls, exp: int = 1):
         if exp < 0:
-            raise myerror.MyValueError("The exponent should be positive. Got {}".format(exp))
+            raise ValueError("negative exponent")
         return cls({exp: 1})
 
     def coeff(self, n):
@@ -567,7 +565,7 @@ class AlgebraModP(AlgebraDict, ABC):
             self.data = dict((mon, coeff % self.PRIME)
                              for mon, coeff in data.items() if coeff % self.PRIME)  # type: Dict[tuple, int]
         else:
-            raise TypeError("{} can not initialize {}".format(data, type(self).__name__))
+            raise TypeError("{} can not initialize {}.".format(data, type(self).__name__))
 
     def __iadd__(self, other):
         if type(other) is int:
@@ -633,7 +631,7 @@ class AlgebraMod2(Algebra, ABC):
         elif type(data) in (tuple, frozenset):  # monomial
             self.data = {data}  # type: Set[Union[tuple, frozenset]]
         else:
-            raise myerror.MyTypeError("{} can not initialize {}".format(data, type(self).__name__))
+            raise TypeError("{} can not initialize {}.".format(data, type(self).__name__))
 
     # -- Algebra -----------
     def __str__(self):
@@ -747,7 +745,7 @@ class BaseExteriorMod2(BaseExterior, AlgebraMod2, ABC):
         elif type(data) is frozenset:  # monomial
             self.data = {data}  # type: Set[frozenset]
         else:
-            raise myerror.MyTypeError("{} can not initialize {}".format(data, type(self).__name__))
+            raise TypeError("{} can not initialize {}.".format(data, type(self).__name__))
 
     def _sorted_mons(self) -> list:
         return sorted(self.data, key=lambda m: (self.deg_mon(m), tuple(m)), reverse=True)
@@ -828,7 +826,7 @@ class HopfAlgWithDualMod2(HopfAlgebra, AlgebraMod2, ABC):
 
     def pair(self, other):
         if self.type_dual() is not type(other):
-            raise TypeError("{} and {} can not be paired".format(self, other))
+            raise TypeError("{} and {} can not be paired.".format(self, other))
         result = sum(self.pair_mon(mon1, mon2) for mon1 in self.data for mon2 in other.data)
         return result % 2
 

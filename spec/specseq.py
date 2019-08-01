@@ -4,7 +4,7 @@
 import collections
 import itertools
 from typing import List, Dict, Tuple, Set, Callable
-from algebras import linalg, mymath, myerror
+from algebras import linalg, mymath
 from algebras.groebner import GbAlgMod2
 
 TYPE_IMAGE = 0
@@ -72,7 +72,7 @@ class SpecSeq:
         mask = self.data[-1].mask
         if deg1 is None:
             if deg2 is not None:
-                raise myerror.MyValueError("Incompatible differential.")
+                raise ValueError("incompatible differential")
             return
         if deg2 is None:
             deg2 = deg1 + self.deg_diff

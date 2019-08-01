@@ -9,7 +9,6 @@ import copy
 import operator
 import collections
 from typing import TypeVar, Tuple, List, Set, Dict, Iterable, Any
-from algebras import myerror
 from algebras.mymath import get_tex
 
 _t_mon = TypeVar('_t_mon')
@@ -224,7 +223,7 @@ class LinearMapMod2:
                     fv ^= fv1
             if not v:
                 if fv:
-                    raise myerror.MyValueError("Incompatible linear map.")
+                    raise ValueError("incompatible linear map")
             else:
                 self._domain.append((v, max(v, key=self.key) if self.key else max(v)))
                 self._f.append(fv)
@@ -355,7 +354,7 @@ class GradedLinearMapMod2:
                     fv ^= fv1
             if not v:
                 if fv:
-                    raise myerror.MyValueError("Incompatible linear map.")
+                    raise ValueError("incompatible linear map")
             else:
                 linmap.domain.append((v, max(v, key=self.key) if self.key else max(v)))
                 linmap.f.append(fv)

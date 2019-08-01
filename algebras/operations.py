@@ -1,14 +1,14 @@
 """ Provides the classes for the Dyer-Lashof operations
     and the Steenrod operations and its dual
 """
-from . import BaseAlgebras as BC
+from . import BaseAlgebras as BA
 from .mymath import choose_mod2
 import math
 from typing import Union, List
 
 
 # Classes -----------------------------------------------
-class DyerLashof(BC.OperationsMod2):
+class DyerLashof(BA.OperationsMod2):
     """ This is for the Dyer_Lashof algebra of Q^I at prime 2 on the space level """
     # -- OperationsMod2 --------------
     def __mul__(self, other):
@@ -18,7 +18,7 @@ class DyerLashof(BC.OperationsMod2):
             return super().__mul__(other)
 
     @staticmethod
-    def str_mon(mon):
+    def str_mon(mon: tuple):
         str_result = ""
         for i in mon:
             if i >= 10:
@@ -87,7 +87,7 @@ class DyerLashof(BC.OperationsMod2):
             return m[0] - sum(m[1:])
 
 
-class DyerLashofX(BC.BasePolyMod2):
+class DyerLashofX(BA.BasePolyMod2):
     """
     This is for Dyer_lashof operations acting on a fix element
     Data is a set of tuples
@@ -122,7 +122,7 @@ class DyerLashofX(BC.BasePolyMod2):
         return result
 
     @classmethod
-    def gen(cls, key: tuple=()):
+    def gen(cls, key: tuple = ()):
         return cls(((key, 1),))
 
     # methods ----------------
@@ -216,7 +216,7 @@ class DyerLashofX(BC.BasePolyMod2):
         return tuple(m1[::-1]), e
 
 
-class Steenrod(BC.HopfAlgWithDualMod2, BC.OperationsMod2):
+class Steenrod(BA.HopfAlgWithDualMod2, BA.OperationsMod2):
     """ This is for the Steenrod algebra of Sq^I at prime 2 on the space level """
     _chi_sq = []  # type: List["Steenrod"]
 
@@ -228,7 +228,7 @@ class Steenrod(BC.HopfAlgWithDualMod2, BC.OperationsMod2):
             return super().__mul__(other)
 
     @staticmethod
-    def str_mon(mon):
+    def str_mon(mon: tuple):
         str_result = ""
         for i in mon:
             if i >= 10:
@@ -349,17 +349,17 @@ class Steenrod(BC.HopfAlgWithDualMod2, BC.OperationsMod2):
 
     @staticmethod
     def conj_gen(n):
-        this_cls = Steenrod
+        cls = Steenrod
         """ Return chi Sq^n """
-        if len(this_cls._chi_sq) > n:
-            return this_cls._chi_sq[n]
+        if len(cls._chi_sq) > n:
+            return cls._chi_sq[n]
         else:
-            if len(this_cls._chi_sq) == 0:
-                this_cls._chi_sq.append(this_cls.unit())
-            for i in range(len(this_cls._chi_sq), n + 1):
-                sq_i = sum((this_cls.gen(j) * this_cls._chi_sq[i - j] for j in range(1, i + 1)), this_cls.zero())
-                this_cls._chi_sq.append(sq_i)
-            return this_cls._chi_sq[n]
+            if len(cls._chi_sq) == 0:
+                cls._chi_sq.append(cls.unit())
+            for i in range(len(cls._chi_sq), n + 1):
+                sq_i = sum((cls.gen(j) * cls._chi_sq[i - j] for j in range(1, i + 1)), cls.zero())
+                cls._chi_sq.append(sq_i)
+            return cls._chi_sq[n]
 
     @staticmethod
     def basis_mons(deg, i_min=1):
@@ -376,7 +376,7 @@ class Steenrod(BC.HopfAlgWithDualMod2, BC.OperationsMod2):
         return (cls(m) for m in Steenrod.basis_mons(deg))
 
 
-class SteenrodT2(BC.AlgebraT2Mod2):  # todo: T2 for odd primes
+class SteenrodT2(BA.AlgebraT2Mod2):  # todo: T2 for odd primes
     """ Tensor product of two Steenrod algebras """
     type_c0 = Steenrod
     type_c1 = Steenrod
@@ -390,7 +390,7 @@ class SteenrodT2(BC.AlgebraT2Mod2):  # todo: T2 for odd primes
                     for m1, m2 in self.data), self.zero())
 
 
-class DualSteenrod(BC.HopfAlgWithDualMod2, BC.BasePolyMod2):
+class DualSteenrod(BA.HopfAlgWithDualMod2, BA.BasePolyMod2):
     """ This is for the dual Steenrod algebra of xi_n~ """
     # -- BasePolyMod2 -------------
     @classmethod
@@ -474,7 +474,7 @@ class DualSteenrod(BC.HopfAlgWithDualMod2, BC.BasePolyMod2):
     @staticmethod
     def _mon_gen(n, e=1):
         if n < 0:
-            raise BC.MyValueError("n(={}) should be nonnegative".format(n))
+            raise IndexError("n(={}) should be nonnegative".format(n))
         return ((n, e),) if n > 0 else ()
 
     @staticmethod
@@ -500,13 +500,13 @@ class DualSteenrod(BC.HopfAlgWithDualMod2, BC.BasePolyMod2):
         return (cls(m) for m in DualSteenrod.basis_mons(deg))
 
 
-class DualSteenrodT2(BC.AlgebraT2Mod2):
+class DualSteenrodT2(BA.AlgebraT2Mod2):
     """ Tensor product of two DualSteenrod """
     type_c0 = DualSteenrod
     type_c1 = DualSteenrod
 
 
-class AR(BC.AlgebraT2Mod2):
+class AR(BA.AlgebraT2Mod2):
     """
     The AR algebra
     self.data is a set of (Q^I, Sq^I)
@@ -529,7 +529,7 @@ class AR(BC.AlgebraT2Mod2):
         elif type(other) is DyerLashof:
             return self * AR.tensor(other, Steenrod(()))
         else:
-            return BC.AlgebraMod2.__mul__(self, other)
+            return BA.AlgebraMod2.__mul__(self, other)
 
     # -- AlgebraT2Mod2 -----------
     def mul_mons(self, mon1, mon2):
