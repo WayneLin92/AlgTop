@@ -9,7 +9,6 @@ import copy
 import operator
 import collections
 from typing import TypeVar, Tuple, List, Set, Dict, Iterable, Any
-from algebras.mymath import get_tex
 
 _t_mon = TypeVar('_t_mon')
 _t_v = Set[_t_mon]
@@ -503,7 +502,7 @@ class Matrix:
     def _repr_latex_(self):
         result = "\\begin{bmatrix}\n"
         for row in self.data:
-            result += " & ".join(map(get_tex, row)) + "\\\\\n"
+            result += " & ".join(map(str, row)) + "\\\\\n"
         result += "\\end{bmatrix}\n"
         return result
 

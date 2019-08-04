@@ -355,6 +355,7 @@ class Steenrod(BA.HopfAlgWithDualMod2, BA.OperationsMod2):
             return cls._chi_sq[n]
         else:
             if len(cls._chi_sq) == 0:
+                # noinspection PyTypeChecker
                 cls._chi_sq.append(cls.unit())
             for i in range(len(cls._chi_sq), n + 1):
                 sq_i = sum((cls.gen(j) * cls._chi_sq[i - j] for j in range(1, i + 1)), cls.zero())
@@ -465,6 +466,11 @@ class DualSteenrod(BA.HopfAlgWithDualMod2, BA.BasePolyMod2):
         return DualSteenrodT2
 
     # methods ---------------------
+    @staticmethod
+    def weight_mon(mon: tuple):
+        """Return the weight of the the monomial."""
+        return sum(g * bin(e).count('1') for g, e in mon)
+
     def actQ(self, s):
         pass
 
@@ -474,7 +480,7 @@ class DualSteenrod(BA.HopfAlgWithDualMod2, BA.BasePolyMod2):
     @staticmethod
     def _mon_gen(n, e=1):
         if n < 0:
-            raise IndexError("n(={}) should be nonnegative".format(n))
+            raise ValueError(f"n(={n}) should be nonnegative")
         return ((n, e),) if n > 0 else ()
 
     @staticmethod

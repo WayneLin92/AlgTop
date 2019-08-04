@@ -1,9 +1,9 @@
-from . import BaseAlgebras as BC
-from .mymath import binom_mod2, cartan_indexing
+from . import BaseAlgebras as BA
+from .mymath import binom_mod2, cartanindices
 
 
 # Classes -----------------------------------------------------
-class HBOZ(BC.BasePolyMod2):
+class HBOZ(BA.BasePolyMod2):
     """
     Homology of BO\\times Z.
     Should not be inherited.
@@ -52,7 +52,7 @@ class HBOZ(BC.BasePolyMod2):
         result = self.zero()
         for m in self.data:
             n = len(m)
-            for t in cartan_indexing(n, s):
+            for t in cartanindices(n, s):
                 product = self.unit()
                 for i in range(n):
                     product *= self.sQ_gen_pow(m[i][0], m[i][1], t[i])

@@ -115,17 +115,17 @@ def add_dict(d1: tuple, d2: tuple):
 
 # binomial coefficients
 def choose_mod2(m: int, n: int) -> bool:
-    """Compute m choose n modulo 2."""
+    """Compute $\\binom{m}{n}\\text{ mod } 2$."""
     return binom_mod2(m-n, n)
 
 
 def binom_mod2(m: int, n: int) -> bool:
-    """Compute the binomial (m, n)."""
-    return not m & n
+    """Compute the binomial $(m, n)\\text{ mod } 2$."""
+    return not m & n if m >= 0 and n >= 0 else 0
 
 
 def multinom_mod2(*args: int) -> bool:
-    """Compute the multinomial (arg1, arg2, ...)"""
+    """Compute the multinomial $(arg1, arg2, ...)\\text{ mod } 2$."""
     for i in args:
         if i < 0:
             return False
@@ -133,6 +133,19 @@ def multinom_mod2(*args: int) -> bool:
     num_s = bin(s).count('1')
     num_sum = sum(bin(i).count('1') for i in args)
     return num_s == num_sum
+
+
+def choose(m: int, n: int) -> int:
+    """Compute $\\binom{m}{n}$."""
+    n = min(n, m-n)
+    if n == 0:
+        return 1
+    return functools.reduce(operator.mul, range(m, m - n, -1)) // functools.reduce(operator.mul, range(1, n + 1))
+
+
+def binom(m: int, n: int) -> int:
+    """Compute the binomial $(m,n)$."""
+    return choose(m + n, n)
 
 
 # others
@@ -169,15 +182,27 @@ def two_expansion(n: int):
         k += 1
 
 
-def cartan_indexing(length: int, deg: int):
-    """Return an iterator of tuples for the iterated Cartan formula."""
-    if length == 0:
+def cartanindices(k: int, n: int):
+    """Return an iterator of $(i_j\\ge 0)$ such that $i_1+\\cdots+i_k=n$."""
+    if k == 0:
         return
-    elif length == 1:
-        yield deg,
+    elif k == 1:
+        yield n,
         return
-    for i in range(deg + 1):
-        for t in cartan_indexing(length - 1, deg - i):
+    for i in range(n + 1):
+        for t in cartanindices(k - 1, n - i):
+            yield (i,) + t
+
+
+def orderedpartition(k: int, n: int):
+    """Return an iterator of $(i_j>0)$ such that $i_1+\\cdots+i_k=n$."""
+    if k == 0 or n < k:
+        return
+    elif k == 1:
+        yield n,
+        return
+    for i in range(1, n + 1):
+        for t in orderedpartition(k - 1, n - i):
             yield (i,) + t
 
 
@@ -219,16 +244,5 @@ def tex_exponent(e: int) -> str:
         return ""
     else:
         return f"^{e}" if len(str(e)) == 1 else f"^{{{e}}}"
-
-
-def print_tex_iter(iterable):
-    for obj in iterable:
-        print(f"${obj}$\\\\")
-
-
-def get_tex(alg):
-    # noinspection PyProtectedMember
-    result = alg._repr_latex_()
-    return result[1:len(result)-1]
 
 # 73, 87, 177
