@@ -1,5 +1,6 @@
 """
-The homology of QS^0
+To be maintained.
+The homology of $QS^0$.
 """
 from .mymath import choose_mod2
 from . import operations as op
@@ -40,26 +41,26 @@ class HQS(op.DyerLashofX):
         """ return [n] """
         return cls((((), n),))
 
-    @staticmethod
-    def str_mon(mon):
-        str_result = ""
+    @classmethod
+    def str_mon(cls, mon):
+        result = ""
         for k, v in mon:
             if v > 1:
                 if k != ():
                     if v >= 10:
-                        str_result += "({}[1])^{{{}}}".format(op.DyerLashof(k), v)
+                        result += "({}[1])^{{{}}}".format(op.DyerLashof(k), v)
                     else:
-                        str_result += "({}[1])^{}".format(op.DyerLashof(k), v)
+                        result += "({}[1])^{}".format(op.DyerLashof(k), v)
                 else:
-                    str_result += "[{}]".format(v)
+                    result += "[{}]".format(v)
             elif v == 1:
                 if k != ():
-                    str_result += "{}[1]".format(op.DyerLashof(k))
+                    result += "{}[1]".format(op.DyerLashof(k))
                 else:
-                    str_result += "[1]"
-        if str_result == "":
-            str_result = "[0]"
-        return str_result
+                    result += "[1]"
+        if result == "":
+            result = "[0]"
+        return result
 
     def actSq(self, r):
         count()

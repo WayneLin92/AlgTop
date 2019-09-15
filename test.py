@@ -1,6 +1,4 @@
 import unittest
-from spec.specseq import SpecSeq
-from spec.resolution import Ext
 from notations import *
 
 
@@ -94,8 +92,12 @@ class BUTestCase(unittest.TestCase):
 
 
 class SpecSeqTestCase(unittest.TestCase):
+    def setUp(self):
+        from spec.specseq import SpecSeq
+        self.SpecSeq = SpecSeq
+
     def test_serre(self):
-        spec = SpecSeq(10, 10)
+        spec = self.SpecSeq(10, 10)
         x = spec.add_gen("x", (1, 0))
         y = spec.add_gen("y", (1, 0))
         w = spec.add_gen("w", (0, 1))
@@ -105,7 +107,7 @@ class SpecSeqTestCase(unittest.TestCase):
         self.assertTrue(True)
 
     def test_adams(self):
-        spec = SpecSeq(13, 13)
+        spec = self.SpecSeq(13, 13)
         spec.add_gen("h_{10}", (1, 1))
         spec.add_gen("h_{11}", (1, 2))
         spec.add_gen("h_{12}", (1, 4))
@@ -166,13 +168,17 @@ class PolyTestCase(unittest.TestCase):
 
 
 class ResolutionTestCase(unittest.TestCase):
+    def setUp(self):
+        from spec.resolution import Ext
+        self.Ext = Ext
+
     def test_ext(self):
-        ext = Ext(11, 30)
+        ext = self.Ext(11, 30)
         ext.compute_minimal(Steenrod)
         self.assertTrue(True)
 
     def test_ext1(self):
-        ext = Ext(15, 47)
+        ext = self.Ext(15, 47)
         ext.compute_minimal(Steenrod)
         import algebras.BaseAlgebras as BC
         BC.Monitor.present()
@@ -183,7 +189,7 @@ class ResolutionTestCase(unittest.TestCase):
         # x = MyPoly.gen
         ring = SubRing(30)
         ring.generate_non_comm([Sq(1), Sq(2)])
-        ext = Ext(15, 30)
+        ext = self.Ext(15, 30)
         ext.compute_minimal(ring)
         spec = ext.get_spec(20, 15)
         spec.draw()
@@ -272,10 +278,21 @@ class MyDyerLashofTestCase(unittest.TestCase):
         self.assertEqual(prod.data, result)
 
 
+class MymathTestCase(unittest.TestCase):
+    def setUp(self):
+        import algebras.mymath
+        self.mod = algebras.mymath
+
+    def test_orderedpartition(self):
+        ls = list(self.mod.orderedpartition(4, 30))
+        answer = 3654
+        self.assertEqual(answer, len(ls))
+
+
 class BenchmarkTestCase(unittest.TestCase):
     def test_alg_B(self):
         from algebras.groebner import alg_B
-        R = alg_B(7)
+        _ = alg_B(7)
         self.assertTrue(True)
 
 

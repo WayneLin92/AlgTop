@@ -1,10 +1,10 @@
 """ Provides the classes for the Dyer-Lashof operations
     and the Steenrod operations and its dual
 """
-from . import BaseAlgebras as BA
-from .mymath import choose_mod2
 import math
 from typing import Union, List
+from algebras import BaseAlgebras as BA
+from algebras.mymath import choose_mod2, tex_pow
 
 
 # Classes -----------------------------------------------
@@ -19,15 +19,10 @@ class DyerLashof(BA.OperationsMod2):
 
     @staticmethod
     def str_mon(mon: tuple):
-        str_result = ""
-        for i in mon:
-            if i >= 10:
-                str_result += "Q^{{{0}}}".format(i)
-            else:
-                str_result += "Q^{0}".format(i)
-        if mon == ():
-            str_result = "1"
-        return str_result
+        result = "".join(tex_pow('Q', i) for i in mon)
+        if result == "":
+            result = "1"
+        return result
 
     @staticmethod
     def is_null(mon, degree=None):
@@ -106,20 +101,6 @@ class DyerLashofX(BA.BasePolyMod2):
             return "{}x".format(DyerLashof(key))
         else:
             return "x"
-
-    @classmethod
-    def str_mon(cls, mon):
-        result = ""
-        for gen, exp in mon:
-            if exp >= 10 or exp < 0:
-                result += "({})^{{{}}}".format(cls.str_gen(gen), exp)
-            elif exp > 1:
-                result += "({})^{}".format(cls.str_gen(gen), exp)
-            elif exp == 1:
-                result += cls.str_gen(gen)
-        if result == "":
-            result = "1"
-        return result
 
     @classmethod
     def gen(cls, key: tuple = ()):
@@ -229,15 +210,10 @@ class Steenrod(BA.HopfAlgWithDualMod2, BA.OperationsMod2):
 
     @staticmethod
     def str_mon(mon: tuple):
-        str_result = ""
-        for i in mon:
-            if i >= 10:
-                str_result += "Sq^{{{0}}}".format(i)
-            else:
-                str_result += "Sq^{0}".format(i)
-        if mon == ():
-            str_result = "1"
-        return str_result
+        result = "".join(tex_pow('Sq', i) for i in mon)
+        if result == "":
+            result = "1"
+        return result
 
     @staticmethod
     def is_null(mon, degree=None):
@@ -469,7 +445,7 @@ class DualSteenrod(BA.HopfAlgWithDualMod2, BA.BasePolyMod2):
     @staticmethod
     def weight_mon(mon: tuple):
         """Return the weight of the the monomial."""
-        return sum(g * bin(e).count('1') for g, e in mon)
+        return sum((2 * g - 1) * bin(e).count('1') for g, e in mon)
 
     def actQ(self, s):
         pass

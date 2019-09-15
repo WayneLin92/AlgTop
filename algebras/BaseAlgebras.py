@@ -314,12 +314,7 @@ class BasePolyMulti(Algebra, ABC):
 
     @classmethod
     def str_mon(cls, mon: tuple):
-        result = ""
-        for gen, exp in mon:
-            if exp == 1:
-                result += cls.str_gen(gen)
-            else:
-                result += f"{cls.str_gen(gen)}^{mymath.texscript(exp)}"
+        result = "".join(mymath.tex_pow(cls.str_gen(gen), exp) for gen, exp in mon)
         if result == "":
             result = "1"
         return result
@@ -670,11 +665,11 @@ class AlgebraMod2(Algebra, ABC):
             return NotImplemented
 
     @classmethod
-    def unit(cls):
+    def unit(cls) -> Any:
         return cls(())
 
     @classmethod
-    def zero(cls):
+    def zero(cls) -> Any:
         return cls(set())
 
     def homo(self, d):

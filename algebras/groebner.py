@@ -1,11 +1,8 @@
-"""Classes that can be constructed by other classes."""
+"""Algebras based on Groebner basis."""
 # todo: create class AugModuleMod2
 # Todo: construct GbAlgMod2 from other algebras
-# todo: use {generator} instead of set(generator)
-import copy
-import itertools
-import operator
-import heapq
+# Todo: use {generator} instead of set(generator)
+import copy, itertools, operator, heapq
 from typing import Union, Set, Tuple, List, Dict, Type
 from algebras import BaseAlgebras as BA, linalg, mymath
 
@@ -13,7 +10,7 @@ from algebras import BaseAlgebras as BA, linalg, mymath
 class GbAlgMod2(BA.AlgebraMod2):
     """A factory for algebras using Groebner basis.
 
-    GbAlgMod2.new_alg() creates a new algebra with
+    `GbAlgMod2.new_alg()` creates a new algebra with
     its own generators and relations.
     """
 
@@ -28,7 +25,7 @@ class GbAlgMod2(BA.AlgebraMod2):
     def new_alg(unit_deg=None) -> "Type[GbAlgMod2]":
         """Return a dynamically created subclass of GbAlgMod2."""
         cls = GbAlgMod2
-        class_name = f"AugAlgMod2_{cls._name_index}"
+        class_name = f"GbAlgMod2_{cls._name_index}"
         cls._name_index += 1
         dct = {'_gen_names': [], '_gen_degs': [], '_unit_deg': unit_deg or 0, '_rels': {}, '_auto_simplify': True}
         # noinspection PyTypeChecker
@@ -37,7 +34,7 @@ class GbAlgMod2(BA.AlgebraMod2):
     @classmethod
     def copy(cls) -> "Type[GbAlgMod2]":
         """Return a copy of current algebra."""
-        class_name = f"AugAlgMod2_{GbAlgMod2._name_index}"
+        class_name = f"GbAlgMod2_{GbAlgMod2._name_index}"
         GbAlgMod2._name_index += 1
         dct = {'_gen_names': cls._gen_names.copy(), '_gen_degs': cls._gen_degs.copy(),
                '_unit_deg': cls._unit_deg, '_rels': copy.deepcopy(cls._rels), '_auto_simplify': cls._auto_simplify}
@@ -53,7 +50,7 @@ class GbAlgMod2(BA.AlgebraMod2):
     @classmethod
     def str_mon(cls, mon: tuple):
         if mon:
-            return "".join(f"{s}{mymath.tex_exponent(e)}" for e, s in zip(mon, cls._gen_names) if e)
+            return "".join(mymath.tex_pow(b, e) for b, e in zip(cls._gen_names, mon) if e)
         else:
             return "1"
 
@@ -382,7 +379,7 @@ class GbDga(GbAlgMod2):
         index = 1
         for d in range(1, deg_max + 1):
             for x in (H[d] / map_alg.image(d)).basis(cls):
-                R.add_gen(f"x_{mymath.texscript(index)}", d)
+                R.add_gen(mymath.tex_sub('x', index), d)
                 index += 1
                 image_gens.append(x)
 
@@ -415,7 +412,7 @@ class GbDga(GbAlgMod2):
         for d in range(1, deg_max + 1):
             h = map_diff.kernel(d) / map_diff.image(d)
             for x in h.basis(R):
-                y = R.add_gen(f"y_{mymath.texscript(index)}", d, x)
+                y = R.add_gen(mymath.tex_sub('y', index), d, x)
                 R.add_rel(y * y)
                 index += 1
 

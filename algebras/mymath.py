@@ -145,7 +145,7 @@ def choose(m: int, n: int) -> int:
 
 def binom(m: int, n: int) -> int:
     """Compute the binomial $(m,n)$."""
-    return choose(m + n, n)
+    return choose(m + n, n) if n >= 0 and m >= 0 else 0
 
 
 # others
@@ -232,17 +232,21 @@ def unique_min(iterable, *, default=None, key=None):
 
 
 # ---- latex --------
-def texscript(obj) -> str:
-    """Return a string obj used to express x^obj or x_obj in latex."""
-    result = str(obj)
-    return result if len(result) == 1 else f"{{{result}}}"
-
-
-def tex_exponent(e: int) -> str:
-    """Return a string ^e used in latex."""
-    if e == 1:
-        return ""
+def tex_pow(base, exp: int) -> str:
+    """Return base^exp in latex."""
+    if type(base) != str:
+        base = str(base)
+    if exp == 1:
+        return base
     else:
-        return f"^{e}" if len(str(e)) == 1 else f"^{{{e}}}"
+        if "^" in base:
+            base = "(" + base + ")"
+        return f"{base}^{exp}" if len(str(exp)) == 1 else f"{base}^{{{exp}}}"
+
+
+def tex_sub(obj, subscript) -> str:
+    """Return obj_subscript in latex."""
+    return f"{obj}_{subscript}" if len(str(subscript)) == 1 else f"{obj}_{{{subscript}}}"
+
 
 # 73, 87, 177
