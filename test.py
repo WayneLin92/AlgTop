@@ -244,7 +244,35 @@ class LinAlgTestCase(unittest.TestCase):
 
 
 class GroebnerTestCase(unittest.TestCase):
+    def setUp(self):
+        from algebras.groebner import GbAlgMod2
+        self.GbAlgMod2 = GbAlgMod2
+
+    def alg_B(self, n_max):
+        gens = []
+        for i in range(n_max):
+            for j in range(i + 1, n_max + 1):
+                gens.append((f"B_{{{i},{j}}}", 2 ** j - 2 ** i, (i, j)))
+        gens.sort(key=lambda _x: _x[2])
+
+        R = self.GbAlgMod2.new_alg()
+        R.add_gens(gens)
+
+        def B(_i, _j):
+            return R.gen(f"B_{{{_i},{_j}}}")
+
+        for d in range(2, n_max + 1):
+            for i in range(n_max + 1 - d):
+                j = i + d
+                rel = sum((B(i, k) * B(k, j) for k in range(i + 1, j)), R.zero())
+                R.add_rel(rel)
+        return R, B
+
     def test_GbAlgMod2(self):
+        R, B = self.alg_B(7)
+        self.assertEqual(78, len(R._rels))
+
+    def test_GbAlgMod2_reduce(self):
         R = GbAlgMod2.new_alg()
         y = R.add_gen('y', 1)
         x = R.add_gen('x', 1)
@@ -281,10 +309,10 @@ class MyDyerLashofTestCase(unittest.TestCase):
 class MymathTestCase(unittest.TestCase):
     def setUp(self):
         import algebras.mymath
-        self.mod = algebras.mymath
+        self.mymath = algebras.mymath
 
     def test_orderedpartition(self):
-        ls = list(self.mod.orderedpartition(4, 30))
+        ls = list(self.mymath.orderedpartition(4, 30))
         answer = 3654
         self.assertEqual(answer, len(ls))
 
