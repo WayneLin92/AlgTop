@@ -102,16 +102,15 @@ class GbAlgMod2(BA.AlgebraMod2):
                 for m1, v1 in cls._rels.items():
                     if any(map(min, m, m1)):  # gcd > 0
                         if mymath.le_tuple(m, m1):
-                            redundant_leading_terms.append(m1)  # TODO: fix the error
-                        else:
-                            lcm = mymath.max_tuple(m, m1)
-                            dif = mymath.sub_tuple(lcm, m)
-                            dif1 = mymath.sub_tuple(lcm, m1)
-                            new_rel = {mymath.add_tuple(_m, dif) for _m in r}
-                            v1dif1 = {mymath.add_tuple(_m, dif1) for _m in v1}
-                            new_rel -= {lcm}
-                            new_rel ^= v1dif1
-                            heapq.heappush(hq, (cls.deg_mon(lcm), new_rel))
+                            redundant_leading_terms.append(m1)
+                        lcm = mymath.max_tuple(m, m1)
+                        dif = mymath.sub_tuple(lcm, m)
+                        dif1 = mymath.sub_tuple(lcm, m1)
+                        new_rel = {mymath.add_tuple(_m, dif) for _m in r}
+                        v1dif1 = {mymath.add_tuple(_m, dif1) for _m in v1}
+                        new_rel -= {lcm}
+                        new_rel ^= v1dif1
+                        heapq.heappush(hq, (cls.deg_mon(lcm), new_rel))
                 for m_redundant in redundant_leading_terms:
                     del cls._rels[m_redundant]
                 cls._rels[m] = r - {m}
