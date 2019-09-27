@@ -17,16 +17,18 @@ class GbAlgMod2(BA.AlgebraMod2):
     _gen_degs = None  # type: list
     _unit_deg = None
     _rels = None  # type: Dict[tuple, set]
+    _key = None  # key function: mon -> value
     auto_simplify = None  # type: bool
     _name_index = 0
 
     @staticmethod
-    def new_alg(unit_deg=None) -> "Type[GbAlgMod2]":
+    def new_alg(*, unit_deg=None, key=None) -> "Type[GbAlgMod2]":
         """Return a dynamically created subclass of GbAlgMod2."""
         cls = GbAlgMod2
         class_name = f"GbAlgMod2_{cls._name_index}"
         cls._name_index += 1
-        dct = {'_gen_names': [], '_gen_degs': [], '_unit_deg': unit_deg or 0, '_rels': {}, 'auto_simplify': True}
+        dct = {'_gen_names': [], '_gen_degs': [], '_unit_deg': unit_deg or 0,
+               '_rels': {}, '_key': key, 'auto_simplify': True}
         # noinspection PyTypeChecker
         return type(class_name, (cls,), dct)
 
@@ -97,7 +99,7 @@ class GbAlgMod2(BA.AlgebraMod2):
             deg, r = heapq.heappop(hq)
             r = cls.simplify_data(r)
             if r:
-                m = max(r)
+                m = max(r, key=cls._key) if cls._key else max(r)
                 redundant_leading_terms = []
                 for m1, v1 in cls._rels.items():
                     if any(map(min, m, m1)):  # gcd > 0
@@ -124,11 +126,13 @@ class GbAlgMod2(BA.AlgebraMod2):
     @classmethod
     def simplify_data(cls, data: set):
         """Simplify `data` by relations."""
+        state_backup = cls.auto_simplify
+        cls.auto_simplify = False
         s = data.copy()
         result = set()
         leading_masks = tuple({i for i, e in enumerate(m) if e} for m in cls._rels)
         while s:
-            mon = max(s)
+            mon = max(s, key=cls._key) if cls._key else max(s)
             s.remove(mon)
             mask_mon = {i for i, e in enumerate(mon) if e}
             for m, mask_m in zip(cls._rels, leading_masks):
@@ -139,6 +143,7 @@ class GbAlgMod2(BA.AlgebraMod2):
                     break
             else:
                 result.add(mon)
+        cls.auto_simplify = state_backup
         return result
 
     def simplify(self):
@@ -194,6 +199,10 @@ class GbAlgMod2(BA.AlgebraMod2):
 
     # getters --------------------------
     @classmethod
+    def get_lead(cls, data):
+        return max(data, key=cls._key) if cls._key else max(data)
+
+    @classmethod
     def gen(cls, k: str):
         """Return a generator."""
         i = cls._gen_names.index(k)
@@ -208,13 +217,12 @@ class GbAlgMod2(BA.AlgebraMod2):
         try:
             for mon in sorted(rels, key=cls.deg_mon):
                 rel_data = rels[mon] | {mon}
-                rel_data = cls.simplify_data(rel_data)
-                if rel_data:
+                if cls.is_reducible(mon):
                     rel_gens.append(rel_data)
                     cls.add_rel(rel_data)
-            return rel_gens
         finally:
             cls._rels = rels
+        return rel_gens
 
     @classmethod
     def basis_mons_max(cls, deg_max):
@@ -243,8 +251,23 @@ class GbAlgMod2(BA.AlgebraMod2):
 
     @classmethod
     def ann(cls, x):
-        """Return a basis for the ideal {y | xy=0}."""
-        pass  # Todo: implement this
+        """Return the groebner basis for the ideal {y | xy=0}."""
+        rels_backup = cls._rels.copy()
+        key_backup = cls._key
+        d = x.deg()
+        try:
+            X = cls.add_gen('X_{ann}', d)
+            num_gen = len(X._gen_names)
+            cls._key = lambda _m: (-_m[-1] if len(_m) == num_gen else 0, _m)
+            cls.add_rel(X + x)
+            # rels = {m[:-1]: {_m[:-1] for _m in cls._rels[m]} for m in cls._rels if len(m) == num_gen and X.data != {m}}
+            rels = {m: cls._rels[m] for m in cls._rels if len(m) == num_gen}
+        finally:
+            # cls._gen_names.pop()
+            # cls._gen_degs.pop()
+            # cls._rels = rels_backup
+            cls._key = key_backup
+        return rels
 
     def evaluation(self, image_gens):
         assert len(image_gens) > 0
@@ -270,7 +293,7 @@ class GbAlgMod2(BA.AlgebraMod2):
                 print(f"${cls(m)} = {cls(cls._rels[m])}$\\\\")
         else:
             for data in cls.get_generating_rels():
-                lead = max(data)
+                lead = cls.get_lead(data)
                 print(f"${cls(lead)} = {cls(data - {lead})}$\\\\")
 
     @classmethod
@@ -284,7 +307,7 @@ class GbAlgMod2(BA.AlgebraMod2):
 
         tr2 = "<th>Degrees</th>"
         for deg in cls._gen_degs:
-            tr2 += f"<td>{deg}</td>"
+            tr2 += f"<td>${deg}$</td>"
         tr2 = f"<tr>{tr2}</tr>"
 
         if show_gb:
@@ -297,7 +320,7 @@ class GbAlgMod2(BA.AlgebraMod2):
             tr3 = "<th>Relations</th>"
             td = "\\begin{aligned}"
             for data in cls.get_generating_rels():
-                lead = max(data)
+                lead = cls.get_lead(data)
                 td += f"{cls(lead)} &= {cls(data - {lead})}\\\\"
             td += "\\end{aligned}"
         td = f'<td>{td}</td>'
@@ -307,6 +330,15 @@ class GbAlgMod2(BA.AlgebraMod2):
         result = "<table>" + tr1 + tr2 + "</table>" + "<table>" + tr3 + "</table>"
         return HTML(result)
 
+    @classmethod
+    def display_ideal(cls, rels):
+        from IPython.display import HTML
+        result = "\\begin{aligned}"
+        for m in rels:
+            result += f"{cls(m)} &= {cls(rels[m])}\\\\"
+        result += "\\end{aligned}"
+        return HTML(result)
+
 
 class GbDga(GbAlgMod2):
     """A factory for DGA over F_2."""
@@ -314,13 +346,13 @@ class GbDga(GbAlgMod2):
     _gen_diff = None  # type: List[set]
 
     @staticmethod
-    def new_alg(unit_deg=None) -> "Type[GbDga]":
+    def new_alg(*, unit_deg=None, key=None) -> "Type[GbDga]":
         """Return a dynamically created subclass of GbDga."""
         cls = GbDga
         class_name = f"GbDGA_{cls._name_index}"
         cls._name_index += 1
-        dct = {'_gen_names': [], '_gen_degs': [], '_gen_diff': [],
-               '_unit_deg': unit_deg or 0, '_rels': {}, 'auto_simplify': True}
+        dct = {'_gen_names': [], '_gen_degs': [], '_gen_diff': [], '_unit_deg': unit_deg or 0,
+               '_rels': {}, '_key': key, 'auto_simplify': True}
         # noinspection PyTypeChecker
         return type(class_name, (cls,), dct)
 
@@ -401,7 +433,7 @@ class GbDga(GbAlgMod2):
     @classmethod
     def resolution(cls, deg_max) -> Type["GbDga"]:
         """Compute Tor_A(k, k)."""
-        R = cls.copy()
+        R = cls.copy_alg()
         R_basis_mons = R.basis_mons_max(deg_max)
         map_diff = linalg.GradedLinearMapKMod2()
         for m, d in R_basis_mons:
@@ -437,7 +469,6 @@ class GbDga(GbAlgMod2):
     @classmethod
     def display_alg(cls, show_gb=False):
         from IPython.display import HTML
-        gen_num = len(cls._gen_names)
         td_style = 'style="text-align:left;"'
         tr1 = '<th>Generators</th>'
         for name in cls._gen_names:
@@ -446,7 +477,7 @@ class GbDga(GbAlgMod2):
 
         tr2 = '<th>Generators</th>'
         for deg in cls._gen_degs:
-            tr2 += f'<td {td_style}>{deg}</td>'
+            tr2 += f'<td {td_style}>${deg}$</td>'
         tr2 = f'<tr>{tr2}</tr>\n'
 
         if show_gb:
@@ -459,7 +490,7 @@ class GbDga(GbAlgMod2):
             tr3 = "<th>Relations</th>"
             td = "\\begin{aligned}"
             for data in cls.get_generating_rels():
-                lead = max(data)
+                lead = cls.get_lead(data)
                 td += f"{cls(lead)} &= {cls(data - {lead})}\\\\"
             td += "\\end{aligned}"
         td = f'<td>{td}</td>'

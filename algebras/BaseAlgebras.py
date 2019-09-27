@@ -21,7 +21,8 @@ class Algebra(ABC):
             if n & 1:
                 pro *= power
             n >>= 1
-            power = power.square()
+            if n:
+                power = power.square()
         return pro
 
     def __repr__(self) -> str:

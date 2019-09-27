@@ -243,6 +243,42 @@ class LinAlgTestCase(unittest.TestCase):
         self.assertTrue(True)
 
 
+class MyDyerLashofTestCase(unittest.TestCase):
+    def test_sq_benchmark(self):
+        sQ = MyDyerLashof.gen
+        prod = sQ(16) * sQ(34) * sQ(65) * sQ(66)
+        print(prod.simplify())
+        self.assertTrue(True)
+
+    def test_simplify_sQ_benchmark(self):
+        result = simplify_sQ((16, 34, 65, 66))
+        print(result)
+        self.assertTrue(True)
+
+    def test(self):
+        sQ = MyDyerLashof.gen
+        prod = sQ(16) * sQ(34) * sQ(65) * sQ(66)
+        prod.simplify()
+        result = simplify_sQ((16, 34, 65, 66))
+        self.assertEqual(prod.data, result)
+
+
+class MymathTestCase(unittest.TestCase):
+    def setUp(self):
+        import algebras.mymath
+        self.mymath = algebras.mymath
+
+    def test_orderedpartition(self):
+        ls = list(self.mymath.orderedpartition(4, 30))
+        answer = 3654
+        self.assertEqual(answer, len(ls))
+
+
+class BenchmarkTestCase(unittest.TestCase):
+    def test_alg_B(self):
+        pass
+
+
 class GroebnerTestCase(unittest.TestCase):
     def setUp(self):
         from algebras.groebner import GbAlgMod2
@@ -284,44 +320,6 @@ class GroebnerTestCase(unittest.TestCase):
         R.print_tex()
         answer = {(2,): {(1, 1)}}
         self.assertEqual(answer, R._rels)
-
-
-class MyDyerLashofTestCase(unittest.TestCase):
-    def test_sq_benchmark(self):
-        sQ = MyDyerLashof.gen
-        prod = sQ(16) * sQ(34) * sQ(65) * sQ(66)
-        print(prod.simplify())
-        self.assertTrue(True)
-
-    def test_simplify_sQ_benchmark(self):
-        result = simplify_sQ((16, 34, 65, 66))
-        print(result)
-        self.assertTrue(True)
-
-    def test(self):
-        sQ = MyDyerLashof.gen
-        prod = sQ(16) * sQ(34) * sQ(65) * sQ(66)
-        prod.simplify()
-        result = simplify_sQ((16, 34, 65, 66))
-        self.assertEqual(prod.data, result)
-
-
-class MymathTestCase(unittest.TestCase):
-    def setUp(self):
-        import algebras.mymath
-        self.mymath = algebras.mymath
-
-    def test_orderedpartition(self):
-        ls = list(self.mymath.orderedpartition(4, 30))
-        answer = 3654
-        self.assertEqual(answer, len(ls))
-
-
-class BenchmarkTestCase(unittest.TestCase):
-    def test_alg_B(self):
-        from algebras.groebner import alg_B
-        _ = alg_B(7)
-        self.assertTrue(True)
 
 
 if __name__ == '__main__':
