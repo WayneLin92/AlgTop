@@ -260,14 +260,20 @@ class GbAlgMod2(BA.AlgebraMod2):
             num_gen = len(X._gen_names)
             cls._key = lambda _m: (-_m[-1] if len(_m) == num_gen else 0, _m)
             cls.add_rel(X + x)
-            # rels = {m[:-1]: {_m[:-1] for _m in cls._rels[m]} for m in cls._rels if len(m) == num_gen and X.data != {m}}
-            rels = {m: cls._rels[m] for m in cls._rels if len(m) == num_gen}
+            rels = cls._rels
         finally:
-            # cls._gen_names.pop()
-            # cls._gen_degs.pop()
-            # cls._rels = rels_backup
+            cls._gen_names.pop()
+            cls._gen_degs.pop()
+            cls._rels = rels_backup
             cls._key = key_backup
-        return rels
+        result = []
+        for m in rels:
+            if len(m) == num_gen:
+                result_i = cls.zero()
+                for m1 in itertools.chain((m,), rels[m]):
+                    result_i += cls(mymath.rstrip_tuple(m1[:-1])) * (x ** (m1[-1] - 1))
+                result.append(result_i.data)
+        return result
 
     def evaluation(self, image_gens):
         assert len(image_gens) > 0
@@ -331,11 +337,11 @@ class GbAlgMod2(BA.AlgebraMod2):
         return HTML(result)
 
     @classmethod
-    def display_ideal(cls, rels):
+    def display_ideal(cls, gb: List[set]):
         from IPython.display import HTML
         result = "\\begin{aligned}"
-        for m in rels:
-            result += f"{cls(m)} &= {cls(rels[m])}\\\\"
+        for data in gb:
+            result += f"&{cls(data)}\\\\"
         result += "\\end{aligned}"
         return HTML(result)
 
