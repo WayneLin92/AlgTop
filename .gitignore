@@ -3,9 +3,11 @@
 *.ini
 *.lnk
 *.jpg
+*.pickle
 .idea/
 .ipynb_checkpoints/
 __pycache__/
+output/
 
 log/log_cProfile_alg_bij.txt
 log_cProfile_alg_bij.txt

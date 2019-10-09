@@ -1,7 +1,7 @@
 """Algebras based on Groebner basis."""
 # todo: create class AugModuleMod2
 # Todo: construct subalgebra
-import copy, itertools, operator, heapq
+import copy, itertools, operator, heapq, pickle
 from typing import Union, Set, Tuple, List, Dict, Type
 from algebras import BaseAlgebras as BA, linalg, mymath
 
@@ -42,6 +42,25 @@ class GbAlgMod2(BA.AlgebraMod2):
         # noinspection PyTypeChecker
         return type(class_name, (GbAlgMod2,), dct)
 
+    @classmethod
+    def save(cls, filename):
+        """Save to a pickle file."""
+        with open(filename, 'wb') as file:
+            pickle.dump([cls._gen_names, cls._gen_degs, cls._unit_deg, cls._rels, cls._key], file)
+
+    @staticmethod
+    def load_alg(filename):
+        """Create an algebra from a pickle file."""
+        with open(filename, 'rb') as file:
+            init_list = pickle.load(file)
+            cls = GbAlgMod2
+            class_name = f"GbAlgMod2_{cls._name_index}"
+            cls._name_index += 1
+            dct = {'_gen_names': init_list[0], '_gen_degs': init_list[1], '_unit_deg': init_list[2],
+                   '_rels': init_list[3], '_key': init_list[4], 'auto_simplify': True}
+            # noinspection PyTypeChecker
+            return type(class_name, (cls,), dct)
+
     # ----- AlgebraMod2 -------------
     @classmethod
     def mul_mons(cls, mon1: tuple, mon2: tuple):
@@ -74,6 +93,19 @@ class GbAlgMod2(BA.AlgebraMod2):
         return cls(m).simplify()
 
     @classmethod
+    def remove_gen(cls, k: str):
+        """If `k`=0 in the algebra with relations simplified, call this function to remove this generator."""
+        i = cls._gen_names.index(k)
+        m_k = (0,) * i + (1,)
+        del cls._rels[m_k]
+
+        def f(_m):
+            return _m[:i] + _m[i+1:]
+        cls._rels = {f(_m): {f(m1) for m1 in _v} for _m, _v in cls._rels.items()}
+        cls._gen_names = f(cls._gen_names)
+        cls._gen_degs = f(cls._gen_degs)
+
+    @classmethod
     def rename(cls, old_name, new_name):
         """Rename a generator."""
         i = cls._gen_names.index(old_name)
@@ -92,8 +124,12 @@ class GbAlgMod2(BA.AlgebraMod2):
         if not rel:
             return
         if type(rel) is not set:
+            if not rel.is_homo():
+                raise ValueError(f'relation {rel} not homogeneous!')
             hq = [(rel.deg(), rel.data)]
         else:
+            if not cls(rel).is_homo():
+                raise ValueError(f'relation {cls(rel)} not homogeneous!')
             hq = [(cls(rel).deg(), rel)]
         while hq:
             deg, r = heapq.heappop(hq)
@@ -207,21 +243,36 @@ class GbAlgMod2(BA.AlgebraMod2):
         """Return a generator."""
         i = cls._gen_names.index(k)
         m = (0,) * i + (1,)
-        return cls(m).simplify()
+        return cls(m).simplify() if cls.auto_simplify else cls(m)
 
     @classmethod
-    def get_generating_rels(cls):
-        """Return a minimal generating set of relations."""
-        rels, cls._rels = cls._rels, {}
+    def get_generators(cls, ideal=None):
+        """Return a minimal generating set of `cls._rels` or `ideal`."""
         rel_gens = []
-        try:
-            for mon in sorted(rels, key=cls.deg_mon):
-                rel_data = rels[mon] | {mon}
-                if cls.is_reducible(mon):
-                    rel_gens.append(rel_data)
-                    cls.add_rel(rel_data)
-        finally:
-            cls._rels = rels
+        if ideal is None:
+            rels_backup = cls._rels
+            cls._rels = {}
+            try:
+                for mon in sorted(rels_backup, key=cls.deg_mon):
+                    rel_data = rels_backup[mon] | {mon}
+                    if not cls.is_reducible(mon):
+                        rel_gens.append(rel_data)
+                        cls.add_rel(rel_data)
+            finally:
+                cls._rels = rels_backup
+        else:
+            rels_backup = cls._rels.copy()
+            try:
+                def deg_data(data):
+                    for m in data:
+                        return cls(m).deg()
+                for rel_data in sorted(ideal, key=deg_data):
+                    rel_data = cls.simplify_data(rel_data)
+                    if rel_data:
+                        rel_gens.append(rel_data)
+                        cls.add_rel(rel_data)
+            finally:
+                cls._rels = rels_backup
         return rel_gens
 
     @classmethod
@@ -246,8 +297,8 @@ class GbAlgMod2(BA.AlgebraMod2):
 
     @classmethod
     def is_reducible(cls, mon):
-        """Determine if mon is in the basis."""
-        return not any(mymath.le_tuple(m, mon) for m in cls._rels)
+        """Determine if mon is reducible by `cls._rels`."""
+        return any(mymath.le_tuple(m, mon) for m in cls._rels)
 
     @classmethod
     def ann(cls, x):
@@ -258,7 +309,10 @@ class GbAlgMod2(BA.AlgebraMod2):
         try:
             X = cls.add_gen('X_{ann}', d)
             num_gen = len(X._gen_names)
-            cls._key = lambda _m: (-_m[-1] if len(_m) == num_gen else 0, _m)
+            if key_backup is None:
+                cls._key = lambda _m: (-_m[-1] if len(_m) == num_gen else 0, _m)
+            else:
+                cls._key = lambda _m: (-_m[-1] if len(_m) == num_gen else 0, key_backup(_m))
             cls.add_rel(X + x)
             rels = cls._rels
         finally:
@@ -298,7 +352,7 @@ class GbAlgMod2(BA.AlgebraMod2):
             for m in cls._rels:
                 print(f"${cls(m)} = {cls(cls._rels[m])}$\\\\")
         else:
-            for data in cls.get_generating_rels():
+            for data in cls.get_generators():
                 lead = cls.get_lead(data)
                 print(f"${cls(lead)} = {cls(data - {lead})}$\\\\")
 
@@ -325,7 +379,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         else:
             tr3 = "<th>Relations</th>"
             td = "\\begin{aligned}"
-            for data in cls.get_generating_rels():
+            for data in cls.get_generators():
                 lead = cls.get_lead(data)
                 td += f"{cls(lead)} &= {cls(data - {lead})}\\\\"
             td += "\\end{aligned}"
@@ -495,7 +549,7 @@ class GbDga(GbAlgMod2):
         else:
             tr3 = "<th>Relations</th>"
             td = "\\begin{aligned}"
-            for data in cls.get_generating_rels():
+            for data in cls.get_generators():
                 lead = cls.get_lead(data)
                 td += f"{cls(lead)} &= {cls(data - {lead})}\\\\"
             td += "\\end{aligned}"
@@ -617,7 +671,6 @@ class QuoRing:
 
     @classmethod
     def basis(cls, deg):
-
         return (cls(m) for m in cls.basis_mons(deg))
 
 

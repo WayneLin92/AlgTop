@@ -673,6 +673,14 @@ class AlgebraMod2(Algebra, ABC):
     def zero(cls) -> Any:
         return cls(set())
 
+    def square(self):
+        """Warning: non-commutative algebra should overwrite this."""
+        data = set()
+        for m in self.data:
+            prod = self.mul_mons(m, m)
+            data ^= prod if type(prod) is set else {prod}
+        return type(self)(data)
+
     def homo(self, d):
         data = set(m for m in self.data if self.deg_mon(m) == d)
         return type(self)(data)
@@ -684,15 +692,14 @@ class AlgebraMod2(Algebra, ABC):
                 list_homo[self.deg_mon(m)].data.add(m)
         return list_homo
 
-    def square(self):
-        """Warning: non-commutative algebra should overwrite this."""
-        data = set()
+    def is_homo(self):
+        prev_deg = None
         for m in self.data:
-            prod = self.mul_mons(m, m)
-            data ^= prod if type(prod) is set else {prod}
-        return type(self)(data)
-
-    # todo: basis
+            if prev_deg is None:
+                prev_deg = self.deg_mon(m)
+            elif self.deg_mon(m) != prev_deg:
+                return False
+        return True
 
 
 class AlgebraT2Mod2(AlgebraMod2, ABC):
