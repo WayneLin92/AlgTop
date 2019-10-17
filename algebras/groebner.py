@@ -79,23 +79,30 @@ class GbAlgMod2(BA.AlgebraMod2):
         return sum(map(operator.mul, mon, cls._gen_degs), cls._unit_deg)
 
     def deg(self):
-        """`self` should always be homogeneous."""
+        """Require `self` to be homogeneous."""
         for m in self.data:
             return self.deg_mon(m)
 
     # setters ----------------------------
     @classmethod
-    def add_gen(cls, k: str, deg):
+    def add_gen(cls, name: str, deg):
         """Add a new generator and return it."""
-        cls._gen_names.append(k)
+        cls._gen_names.append(name)
         cls._gen_degs.append(deg)
         m = (0,) * (len(cls._gen_names) - 1) + (1,)
         return cls(m).simplify()
 
     @classmethod
-    def remove_gen(cls, k: str):
+    def add_gens(cls, names_degs):
+        """Add generators. names_degs is a list of tuples (name, deg)."""
+        for nd in names_degs:
+            cls._gen_names.append(nd[0])
+            cls._gen_degs.append(nd[1])
+
+    @classmethod
+    def remove_gen(cls, name: str):
         """If `k`=0 in the algebra with relations simplified, call this function to remove this generator."""
-        i = cls._gen_names.index(k)
+        i = cls._gen_names.index(name)
         m_k = (0,) * i + (1,)
         del cls._rels[m_k]
 
@@ -106,17 +113,30 @@ class GbAlgMod2(BA.AlgebraMod2):
         cls._gen_degs = f(cls._gen_degs)
 
     @classmethod
-    def rename(cls, old_name, new_name):
+    def rename_gen(cls, old_name, new_name):
         """Rename a generator."""
         i = cls._gen_names.index(old_name)
         cls._gen_names[i] = new_name
 
     @classmethod
-    def add_gens(cls, names_degs):
-        """Add generators. names_degs is a list of tuples (name, deg)."""
-        for nd in names_degs:
-            cls._gen_names.append(nd[0])
-            cls._gen_degs.append(nd[1])
+    def reorder_gens(cls, index_map, key=None):
+        """Reorganize the relations by a new ordering of generators and a new key function.
+        The new i'th generator is the old `index_map[i]`'th generator."""
+        num_gens = len(cls._gen_names)
+        assert num_gens == len(index_map)
+
+        def f(m):
+            n = len(m)
+            m1 = tuple(m[index_map[i]] if index_map[i] < n else 0 for i in range(num_gens))
+            return mymath.rstrip_tuple(m1)
+        rel_generators = cls.get_rel_gens()
+        cls._key = key
+        rel_generators = [{f(m) for m in rel} for rel in rel_generators]
+        cls._gen_names = [cls._gen_names[index_map[i]] for i in range(num_gens)]
+        cls._gen_degs = [cls._gen_degs[index_map[i]] for i in range(num_gens)]
+        cls._rels = {}
+        for rel in rel_generators:
+            cls.add_rel(rel)
 
     @classmethod
     def add_rel(cls, rel):
@@ -246,7 +266,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         return cls(m).simplify() if cls.auto_simplify else cls(m)
 
     @classmethod
-    def get_generators(cls, ideal=None):
+    def get_rel_gens(cls, ideal=None):
         """Return a minimal generating set of `cls._rels` or `ideal`."""
         rel_gens = []
         if ideal is None:
@@ -352,14 +372,14 @@ class GbAlgMod2(BA.AlgebraMod2):
             for m in cls._rels:
                 print(f"${cls(m)} = {cls(cls._rels[m])}$\\\\")
         else:
-            for data in cls.get_generators():
+            for data in cls.get_rel_gens():
                 lead = cls.get_lead(data)
                 print(f"${cls(lead)} = {cls(data - {lead})}$\\\\")
 
     @classmethod
     def display_alg(cls, show_gb=False):
         """For Jupyter notebook."""
-        from IPython.display import HTML
+        from IPython.display import Markdown
         tr1 = "<th>Generators</th>"
         for name in cls._gen_names:
             tr1 += f"<td>${name}$</td>"
@@ -379,7 +399,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         else:
             tr3 = "<th>Relations</th>"
             td = "\\begin{aligned}"
-            for data in cls.get_generators():
+            for data in cls.get_rel_gens():
                 lead = cls.get_lead(data)
                 td += f"{cls(lead)} &= {cls(data - {lead})}\\\\"
             td += "\\end{aligned}"
@@ -388,16 +408,16 @@ class GbAlgMod2(BA.AlgebraMod2):
         tr3 = f"<tr>{tr3}</tr>"
 
         result = "<table>" + tr1 + tr2 + "</table>" + "<table>" + tr3 + "</table>"
-        return HTML(result)
+        return Markdown(result)
 
     @classmethod
     def display_ideal(cls, gb: List[set]):
-        from IPython.display import HTML
+        from IPython.display import Markdown
         result = "\\begin{aligned}"
         for data in gb:
             result += f"&{cls(data)}\\\\"
         result += "\\end{aligned}"
-        return HTML(result)
+        return Markdown(result)
 
 
 class GbDga(GbAlgMod2):
@@ -528,7 +548,7 @@ class GbDga(GbAlgMod2):
 
     @classmethod
     def display_alg(cls, show_gb=False):
-        from IPython.display import HTML
+        from IPython.display import Markdown
         td_style = 'style="text-align:left;"'
         tr1 = '<th>Generators</th>'
         for name in cls._gen_names:
@@ -549,7 +569,7 @@ class GbDga(GbAlgMod2):
         else:
             tr3 = "<th>Relations</th>"
             td = "\\begin{aligned}"
-            for data in cls.get_generators():
+            for data in cls.get_rel_gens():
                 lead = cls.get_lead(data)
                 td += f"{cls(lead)} &= {cls(data - {lead})}\\\\"
             td += "\\end{aligned}"
@@ -568,7 +588,7 @@ class GbDga(GbAlgMod2):
 
         result = '<table>\n' + tr1 + tr2 + '</table>' +\
                  '<table>' + tr3 + tr4 + '</table>'
-        return HTML(result)
+        return Markdown(result)
 
 
 class SubRing:

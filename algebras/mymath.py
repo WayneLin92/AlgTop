@@ -4,6 +4,7 @@ import functools
 import itertools
 from typing import Tuple
 # TODO: use zip_longest
+# TODO: reduce the use of tuple() when possible (use list comprehensions to improve the performance)
 
 
 class Deg(tuple):
@@ -56,16 +57,18 @@ def le_tuple(t1, t2):
     return len(t1) <= len(t2) and all(map(operator.le, t1, t2))
 
 
-def rstrip_tuple(t):
-    """Remove trailing zeroes."""
-    right = len(t)
+def rstrip_tuple(t: tuple):
+    """Return `t` with trailing zeroes removed."""
+    if not t or t[-1]:
+        return t
+    right = len(t) - 1
     while right > 0 and t[right - 1] == 0:
         right -= 1
-    return t if right == len(t) else t[:right]
+    return t[:right]
 
 
 def sub_tuple(t1, t2):
-    """Assert le_tuple(t2, t1) and return t1 - t2 element-wise"""
+    """Require le_tuple(t2, t1). Return t1 - t2 element-wise"""
     result = tuple(itertools.chain(map(operator.sub, t1, t2), t1[len(t2):]))
     return rstrip_tuple(result)
 
@@ -90,12 +93,12 @@ def max_tuple(t1, t2):
 
 
 def div_tuple(t1, t2) -> int:
-    """Assert le_tuple(t2, t1) and return t1 // t2."""
+    """Require le_tuple(t2, t1). Return t1 // t2."""
     return min(itertools.starmap(operator.floordiv, filter(operator.itemgetter(1), zip(t1, t2))))
 
 
 def div_mod_tuple(t1, t2) -> Tuple[int, tuple]:
-    """Assert le_tuple(t2, t1) and return div_mod(t1, t2)."""
+    """Require le_tuple(t2, t1). Return div_mod(t1, t2)."""
     q = min(itertools.starmap(operator.floordiv, filter(operator.itemgetter(1), zip(t1, t2))))
     r = tuple(itertools.chain(map(operator.sub, t1, map(operator.mul, t2, itertools.repeat(q))), t1[len(t2):]))
     return q, rstrip_tuple(r)
