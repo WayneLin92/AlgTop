@@ -2,8 +2,8 @@
 # todo: create class AugModuleMod2
 # Todo: construct subalgebra
 import copy, itertools, operator, heapq, pickle
-from typing import Union, Set, Tuple, List, Dict, Type
-from algebras import BaseAlgebras as BA, linalg, mymath
+from typing import Tuple, List, Dict, Set,  Type
+from . import BaseAlgebras as BA, linalg, mymath
 
 
 class GbAlgMod2(BA.AlgebraMod2):
@@ -17,6 +17,7 @@ class GbAlgMod2(BA.AlgebraMod2):
     _gen_degs = None  # type: list
     _unit_deg = None
     _rels = None  # type: Dict[tuple, set]
+    _rel_gen_leads = None  # type: Set[tuple]
     _key = None  # key function: mon -> value
     auto_simplify = None  # type: bool
     _name_index = 0
@@ -28,7 +29,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         class_name = f"GbAlgMod2_{cls._name_index}"
         cls._name_index += 1
         dct = {'_gen_names': [], '_gen_degs': [], '_unit_deg': unit_deg or 0,
-               '_rels': {}, '_key': key, 'auto_simplify': True}
+               '_rels': {}, '_rel_gen_leads': set(), '_key': key, 'auto_simplify': True}
         # noinspection PyTypeChecker
         return type(class_name, (cls,), dct)
 
@@ -38,7 +39,8 @@ class GbAlgMod2(BA.AlgebraMod2):
         class_name = f"GbAlgMod2_{GbAlgMod2._name_index}"
         GbAlgMod2._name_index += 1
         dct = {'_gen_names': cls._gen_names.copy(), '_gen_degs': cls._gen_degs.copy(),
-               '_unit_deg': cls._unit_deg, '_rels': copy.deepcopy(cls._rels), 'auto_simplify': cls.auto_simplify}
+               '_unit_deg': cls._unit_deg, '_rels': copy.deepcopy(cls._rels),
+               '_rel_gen_leads': cls._rel_gen_leads.copy(), 'auto_simplify': cls.auto_simplify}
         # noinspection PyTypeChecker
         return type(class_name, (GbAlgMod2,), dct)
 
@@ -46,7 +48,8 @@ class GbAlgMod2(BA.AlgebraMod2):
     def save(cls, filename):
         """Save to a pickle file."""
         with open(filename, 'wb') as file:
-            pickle.dump([cls._gen_names, cls._gen_degs, cls._unit_deg, cls._rels, cls._key], file)
+            pickle.dump([cls._gen_names, cls._gen_degs, cls._unit_deg,
+                         cls._rels, cls._rel_gen_leads, cls._key], file)
 
     @staticmethod
     def load_alg(filename):
@@ -57,7 +60,7 @@ class GbAlgMod2(BA.AlgebraMod2):
             class_name = f"GbAlgMod2_{cls._name_index}"
             cls._name_index += 1
             dct = {'_gen_names': init_list[0], '_gen_degs': init_list[1], '_unit_deg': init_list[2],
-                   '_rels': init_list[3], '_key': init_list[4], 'auto_simplify': True}
+                   '_rels': init_list[3], '_rel_gen_leads': init_list[4], '_key': init_list[5], 'auto_simplify': True}
             # noinspection PyTypeChecker
             return type(class_name, (cls,), dct)
 
@@ -135,24 +138,21 @@ class GbAlgMod2(BA.AlgebraMod2):
         cls._gen_names = [cls._gen_names[index_map[i]] for i in range(num_gens)]
         cls._gen_degs = [cls._gen_degs[index_map[i]] for i in range(num_gens)]
         cls._rels = {}
+        cls._rel_gen_leads = set()
         for rel in rel_generators:
-            cls.add_rel(rel)
+            cls.add_rel_data(rel)
 
     @classmethod
-    def add_rel(cls, rel):
+    def add_rel_data(cls, rel: set):
         """Add a relation."""
+        rel = cls.simplify_data(rel)
         if not rel:
             return
-        if type(rel) is not set:
-            if not rel.is_homo():
-                raise ValueError(f'relation {rel} not homogeneous!')
-            hq = [(rel.deg(), rel.data)]
-        else:
-            if not cls(rel).is_homo():
-                raise ValueError(f'relation {cls(rel)} not homogeneous!')
-            hq = [(cls(rel).deg(), rel)]
+        m = max(rel, key=cls._key) if cls._key else max(rel)
+        cls._rel_gen_leads.add(m)
+        hq = [(cls.deg_mon(m), rel)]
         while hq:
-            deg, r = heapq.heappop(hq)
+            _, r = heapq.heappop(hq)
             r = cls.simplify_data(r)
             if r:
                 m = max(r, key=cls._key) if cls._key else max(r)
@@ -171,7 +171,16 @@ class GbAlgMod2(BA.AlgebraMod2):
                         heapq.heappush(hq, (cls.deg_mon(lcm), new_rel))
                 for m_redundant in redundant_leading_terms:
                     del cls._rels[m_redundant]
+                    if m_redundant in cls._rel_gen_leads:
+                        cls._rel_gen_leads.remove(m_redundant)
                 cls._rels[m] = r - {m}
+
+    @classmethod
+    def add_rel(cls, rel: "GbAlgMod2"):
+        """Add a relation."""
+        if not rel.is_homo():
+            raise ValueError(f'relation {rel} not homogeneous!')
+        cls.add_rel_data(rel.data)
 
     @classmethod
     def simplify_rels(cls):
@@ -181,7 +190,7 @@ class GbAlgMod2(BA.AlgebraMod2):
 
     @classmethod
     def simplify_data(cls, data: set):
-        """Simplify `data` by relations."""
+        """Return simplified `data`. `data` will remain unchanged."""
         state_backup = cls.auto_simplify
         cls.auto_simplify = False
         s = data.copy()
@@ -222,7 +231,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         for i in range(n_gen):
             y = (0,) * (n_gen + i) + (1,)
             x2 = (0,) * i + (2,)
-            cls.add_rel({x2, y})
+            cls.add_rel_data({x2, y})
         # print("number of relations:", len(rels))
         for m, v in sorted(rels.items(), reverse=True):
             m_del = []
@@ -255,6 +264,11 @@ class GbAlgMod2(BA.AlgebraMod2):
 
     # getters --------------------------
     @classmethod
+    def deg_data(cls, data):
+        for m in data:
+            return cls.deg_mon(m)
+
+    @classmethod
     def get_lead(cls, data):
         return max(data, key=cls._key) if cls._key else max(data)
 
@@ -267,33 +281,27 @@ class GbAlgMod2(BA.AlgebraMod2):
 
     @classmethod
     def get_rel_gens(cls, ideal=None):
-        """Return a minimal generating set of `cls._rels` or `ideal`."""
+        """Return a minimal generating set of `cls._rels` or `ideal`, ordered by degree."""
         rel_gens = []
         if ideal is None:
-            rels_backup = cls._rels
-            cls._rels = {}
-            try:
-                for mon in sorted(rels_backup, key=cls.deg_mon):
-                    rel_data = rels_backup[mon] | {mon}
-                    if not cls.is_reducible(mon):
-                        rel_gens.append(rel_data)
-                        cls.add_rel(rel_data)
-            finally:
-                cls._rels = rels_backup
+            for m in sorted(cls._rel_gen_leads, key=cls.deg_mon):
+                rel = cls._rels[m] | {m}
+                rel_gens.append(rel)
+            return rel_gens
         else:
             rels_backup = cls._rels.copy()
             try:
                 def deg_data(data):
-                    for m in data:
-                        return cls(m).deg()
-                for rel_data in sorted(ideal, key=deg_data):
-                    rel_data = cls.simplify_data(rel_data)
-                    if rel_data:
-                        rel_gens.append(rel_data)
-                        cls.add_rel(rel_data)
+                    for _m in data:
+                        return cls(_m).deg()
+                for rel in sorted(ideal, key=deg_data):
+                    rel = cls.simplify_data(rel)
+                    if rel:
+                        rel_gens.append(rel)
+                        cls.add_rel_data(rel)
             finally:
                 cls._rels = rels_backup
-        return rel_gens
+            return rel_gens
 
     @classmethod
     def basis_mons_max(cls, deg_max):
@@ -350,6 +358,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         return result
 
     def evaluation(self, image_gens):
+        """Return f(self) where f is an algebraic map determined by `image_gens`."""
         assert len(image_gens) > 0
         R = type(image_gens[0])
         zero = R.zero() if issubclass(R, BA.Algebra) else 0
@@ -363,21 +372,23 @@ class GbAlgMod2(BA.AlgebraMod2):
         return result
 
     @classmethod
-    def print_tex(cls, show_gb=False):
+    def print_tex(cls, show_gb=True):
         """For pdflatex."""
         print(f"Generators: ${', '.join(cls._gen_names)}$.\\\\")
         print(f"Degrees: ${', '.join(map(str, cls._gen_degs))}$")
         print("Relations:\\\\")
         if show_gb:
             for m in cls._rels:
-                print(f"${cls(m)} = {cls(cls._rels[m])}$\\\\")
+                if m in cls._rel_gen_leads:
+                    print(f"$\\triangle\\hspace{{4pt}}{cls(m)} = {cls(cls._rels[m])}$\\\\")
+                else:
+                    print(f"${cls(m)} = {cls(cls._rels[m])}$\\\\")
         else:
-            for data in cls.get_rel_gens():
-                lead = cls.get_lead(data)
-                print(f"${cls(lead)} = {cls(data - {lead})}$\\\\")
+            for m in cls._rel_gen_leads:
+                print(f"${cls(m)} = {cls(cls._rels[m])}$\\\\")
 
     @classmethod
-    def display_alg(cls, show_gb=False):
+    def display_alg(cls, show_gb=True):
         """For Jupyter notebook."""
         from IPython.display import Markdown
         tr1 = "<th>Generators</th>"
@@ -392,17 +403,20 @@ class GbAlgMod2(BA.AlgebraMod2):
 
         if show_gb:
             tr3 = "<th>Groebner basis</th>"
-            td = "\\begin{aligned}"
-            for m in cls._rels:
-                td += f"{cls(m)} &= {cls(cls._rels[m])}\\\\"
-            td += "\\end{aligned}"
+            td = "\\begin{align*}"
+            for m in sorted(cls._rels, key=cls.deg_mon):
+                if m in cls._rel_gen_leads:
+                    td += "\\bullet\\hspace{4pt}"
+                else:
+                    td += "\\square\\hspace{4pt}"
+                td += f"{cls(m)} &= {cls(cls._rels[m])}\\\\\n"
+            td += "\\end{align*}"
         else:
             tr3 = "<th>Relations</th>"
-            td = "\\begin{aligned}"
-            for data in cls.get_rel_gens():
-                lead = cls.get_lead(data)
-                td += f"{cls(lead)} &= {cls(data - {lead})}\\\\"
-            td += "\\end{aligned}"
+            td = "\\begin{align*}"
+            for m in sorted(cls._rel_gen_leads, key=cls.deg_mon):
+                td += f"{cls(m)} &= {cls(cls._rels[m])}\\\\\n"
+            td += "\\end{align*}"
         td = f'<td>{td}</td>'
         tr3 += td
         tr3 = f"<tr>{tr3}</tr>"
@@ -413,10 +427,10 @@ class GbAlgMod2(BA.AlgebraMod2):
     @classmethod
     def display_ideal(cls, gb: List[set]):
         from IPython.display import Markdown
-        result = "\\begin{aligned}"
+        result = "\\begin{align*}"
         for data in gb:
-            result += f"&{cls(data)}\\\\"
-        result += "\\end{aligned}"
+            result += f"&{cls(data)}\\\\\n"
+        result += "\\end{align*}"
         return Markdown(result)
 
 
@@ -432,7 +446,7 @@ class GbDga(GbAlgMod2):
         class_name = f"GbDGA_{cls._name_index}"
         cls._name_index += 1
         dct = {'_gen_names': [], '_gen_degs': [], '_gen_diff': [], '_unit_deg': unit_deg or 0,
-               '_rels': {}, '_key': key, 'auto_simplify': True}
+               '_rels': {}, '_rel_gen_leads': set(), '_key': key, 'auto_simplify': True}
         # noinspection PyTypeChecker
         return type(class_name, (cls,), dct)
 
@@ -562,26 +576,29 @@ class GbDga(GbAlgMod2):
 
         if show_gb:
             tr3 = "<th>Groebner basis</th>"
-            td = "\\begin{aligned}"
-            for m in cls._rels:
-                td += f"{cls(m)} &= {cls(cls._rels[m])}\\\\"
-            td += "\\end{aligned}"
+            td = "\\begin{align*}"
+            for m in sorted(cls._rels, key=cls.deg_mon):
+                if m in cls._rel_gen_leads:
+                    td += "\\bullet\\hspace{4pt}"
+                else:
+                    td += "\\square\\hspace{4pt}"
+                td += f"{cls(m)} &= {cls(cls._rels[m])}\\\\\n"
+            td += "\\end{align*}"
         else:
             tr3 = "<th>Relations</th>"
-            td = "\\begin{aligned}"
-            for data in cls.get_rel_gens():
-                lead = cls.get_lead(data)
-                td += f"{cls(lead)} &= {cls(data - {lead})}\\\\"
-            td += "\\end{aligned}"
+            td = "\\begin{align*}"
+            for m in sorted(cls._rel_gen_leads, key=cls.deg_mon):
+                td += f"{cls(m)} &= {cls(cls._rels[m])}\\\\\n"
+            td += "\\end{align*}"
         td = f'<td>{td}</td>'
         tr3 += td
         tr3 = f"<tr>{tr3}</tr>"
 
         tr4 = '<th>Differentials</th>'
-        td = '\\begin{aligned}'
+        td = '\\begin{align*}'
         for g, dg in zip(cls._gen_names, cls._gen_diff):
-            td += f'd({g}) &= {cls(dg)}\\\\'
-        td += '\\end{aligned}'
+            td += f'd({g}) &= {cls(dg)}\\\\\n'
+        td += '\\end{align*}'
         td = f'<td>{td}</td>'
         tr4 += td
         tr4 = f'<tr>{tr4}</tr>\n'
@@ -589,282 +606,6 @@ class GbDga(GbAlgMod2):
         result = '<table>\n' + tr1 + tr2 + '</table>' +\
                  '<table>' + tr3 + tr4 + '</table>'
         return Markdown(result)
-
-
-class SubRing:
-    def __init__(self, d_max):
-        self.d_max = d_max
-        self.data = [[] for _ in range(d_max + 1)]
-
-    def generate_non_comm(self, gens):
-        if len(gens) == 0:
-            raise ValueError("Need at least one generator")
-        else:
-            type_gen = type(gens[0])
-            self.data[0].append([type_gen.unit(), type_gen.unit().get_mon()])
-            for gen in gens:
-                self.add_gen_non_comm(gen)
-
-    def generate_comm(self, gens):
-        if len(gens) == 0:
-            raise ValueError("Need at least one generator")
-        else:
-            type_gen = type(gens[0])
-            self.data[0].append([type_gen.unit(), type_gen.unit().get_mon()])
-            for gen in gens:
-                self.add_gen_comm(gen)
-
-    def __str__(self):
-        result = ""
-        for d in range(self.d_max + 1):
-            result += str(d) + ":\n"
-            for base, _ in self.data[d]:
-                result += str(base) + "\n"
-        return result
-
-    def add_gen_non_comm(self, gen):
-        deg = gen.deg()
-        if deg == 0:
-            raise ValueError("the generator should have positive degree")
-        for d in range(0, self.d_max - deg + 1):
-            for base, _ in self.data[d]:
-                new_base = base * gen
-                for p, m in self.data[d + deg]:
-                    if m in new_base.data:
-                        new_base -= p
-                if new_base:
-                    self.data[d + deg].append([new_base, new_base.get_mon()])
-
-                new_base = gen * base  # non-commutative
-                for p, m in self.data[d + deg]:
-                    if m in new_base.data:
-                        new_base -= p
-                if new_base:
-                    self.data[d + deg].append([new_base, new_base.get_mon()])
-
-    def add_gen_comm(self, gen):
-        deg = gen.deg()
-        if deg == 0:
-            raise ValueError("the generator should have positive degree")
-        for d in range(0, self.d_max - deg + 1):
-            for base, _ in self.data[d]:
-                new_base = base * gen
-                for p, m in self.data[d + deg]:
-                    if m in new_base.data:
-                        new_base -= p
-                if new_base:
-                    self.data[d + deg].append([new_base, new_base.get_mon()])
-
-    def basis(self, deg):
-        return (gen for gen, _ in self.data[deg])
-
-
-# noinspection PyUnresolvedReferences,PyArgumentList
-class QuoRing:
-    """ This class must be inherited with another ring """
-    d_max = None
-    ideal = None  # type: linalg.GradedVectorSpaceMod2
-
-    def __mul__(self, other):
-        prod = super().__mul__(other)
-        res = self.ideal.res(prod)
-        return res
-
-    @classmethod
-    def init(cls, d_max):
-        cls.d_max = d_max
-        cls.ideal = linalg.GradedVectorSpaceMod2(d_max)
-
-    @classmethod
-    def add_relations(cls, rels, get_mon=None):
-        for rel in rels:
-            if rel:
-                deg = rel.deg()
-                for d in range(cls.d_max - deg + 1):
-                    cls.ideal.add_vectors((super(QuoRing, a).__mul__(rel) for a in super().basis(d)), deg + d, get_mon)
-
-    @classmethod
-    def basis_mons(cls, deg):
-        for m in super().basis_mons(deg):
-            if m not in cls.ideal.get_mons(deg):
-                yield m
-
-    @classmethod
-    def basis(cls, deg):
-        return (cls(m) for m in cls.basis_mons(deg))
-
-
-class FreeModule:
-    type_ring = None
-
-    def __init__(self, data: dict):
-        if type(data) is dict:
-            self.data = dict((mon, coeff) for mon, coeff in data.items() if coeff)
-        else:
-            raise TypeError
-
-    def __eq__(self, other):
-        return self.data == other.data
-
-    def __add__(self, other):
-        data = copy.deepcopy(self.data)
-        for key in other.data:
-            if key in data:
-                data[key] += other.data[key]
-            else:
-                data[key] = other.data[key].copy()
-        return type(self)(data)
-
-    def __iadd__(self, other):
-        data = self.data
-        for key in other.data:
-            if key in data:
-                data[key] += other.data[key]
-            else:
-                data[key] = other.data[key].copy()
-        self.data = dict((mon, coeff) for mon, coeff in self.data.items() if coeff)
-        return self
-
-    def __sub__(self, other):
-        data = copy.deepcopy(self.data)
-        for key in other.data:
-            if key in data:
-                data[key] -= other.data[key]
-            else:
-                data[key] = -other.data[key]
-        return type(self)(data)
-
-    def __isub__(self, other):
-        data = self.data
-        for key in other.data:
-            if key in data:
-                data[key] -= other.data[key]
-            else:
-                data[key] = -other.data[key]
-        self.data = dict((mon, coeff) for mon, coeff in self.data.items() if coeff)
-        return self
-
-    def __rmul__(self, other):
-        if type(other) is self.type_ring:
-            data = {}
-            for key in self.data:
-                data[key] = other * self.data[key]
-            return type(self)(data)
-        else:
-            return NotImplemented
-
-    def __str__(self):
-        result = ""
-        for key in sorted(self.data):
-            if result != "":
-                result += "+"
-            str_coeff = str(self.data[key])
-            if '+' in str_coeff:
-                result += "({}){}".format(str_coeff, key)
-            elif str_coeff == "1":
-                result += str(key)
-            else:
-                result += "{}{}".format(str_coeff, key)
-        if result == "":
-            result += "0"
-        return result
-
-    @classmethod
-    def set_ring(cls, type_ring):
-        cls.type_ring = type_ring
-
-    @classmethod
-    def gen(cls, key):
-        """ return a generator of type FM """
-        return cls({key: cls.type_ring.unit()})
-
-    def is_zero(self) -> bool:
-        return len(self.data) == 0
-
-    def get_mon(self) -> tuple:
-        key = max(self.data)
-        return key, self.data[key].get_mon()
-
-    def has_mon(self, mon: tuple) -> bool:
-        if mon[0] in self.data:
-            return mon[1] in self.data[mon[0]].data
-        else:
-            return False
-
-
-class FreeModuleMod2:
-    type_ring = None
-
-    def __init__(self, data: Union[set, Tuple[tuple, Union[str, int]]]):
-        if type(data) is set:
-            self.data = data
-        elif type(data) is tuple:  # monomial
-            self.data = {data}  # type: Set[Tuple[tuple, Union[str, int]]]
-        else:
-            raise TypeError("{} can not initialize {}".format(data, type(self).__name__))
-
-    def __eq__(self, other):
-        return self.data == other.data
-
-    def __add__(self, other):
-        return type(self)(self.data ^ other.data)
-
-    def __iadd__(self, other):
-        self.data ^= other.data
-        return self
-
-    def __sub__(self, other):
-        return type(self)(self.data ^ other.data)
-
-    def __isub__(self, other):
-        self.data ^= other.data
-        return self
-
-    def __rmul__(self, other):
-        if type(other) is self.type_ring:
-            data = set()
-            for mon in self.data:
-                prod = other * self.type_ring(mon[0])
-                data.symmetric_difference_update((m, mon[1]) for m in prod.data)
-            return type(self)(data)
-        else:
-            return NotImplemented
-
-    def __str__(self):
-        result = ""
-        for m in self.data:
-            if result != "":
-                result += "+"
-            str_coeff = str(self.type_ring(m[0]))
-            if str_coeff == "1":
-                result += str(m[1])
-            else:
-                result += "{}{}".format(str_coeff, m[1])
-        if result == "":
-            result += "0"
-        return result
-
-    @classmethod
-    def set_ring(cls, type_ring):
-        cls.type_ring = type_ring
-
-    @classmethod
-    def gen(cls, key):
-        """ return a generator of type FM """
-        return cls(((), key))
-
-    @classmethod
-    def zero(cls):
-        return cls(set())
-
-    def is_zero(self) -> bool:
-        return len(self.data) == 0
-
-    def get_mon(self) -> tuple:
-        return max(self.data)
-
-    def has_mon(self, mon: tuple) -> bool:
-        return mon in self.data
 
 
 def alg_may(n_max):
@@ -907,4 +648,4 @@ def alg_may(n_max):
     return R
 
 
-# 140, 248, 283, 415, 436, 612, 600, 588, 701, 782
+# 634

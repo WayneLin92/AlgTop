@@ -627,7 +627,7 @@ class AlgebraMod2(Algebra, ABC):
         elif type(data) in (tuple, frozenset):  # monomial
             self.data = {data}  # type: Set[Union[tuple, frozenset]]
         else:
-            raise TypeError("{} can not initialize {}.".format(data, type(self).__name__))
+            raise TypeError(f"{data} of type {type(data)} can not initialize {type(self).__name__}.")
 
     # -- Algebra -----------
     def __str__(self):
