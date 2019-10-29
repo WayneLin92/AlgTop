@@ -288,21 +288,23 @@ class GroebnerTestCase(unittest.TestCase):
         gens = []
         for i in range(n_max):
             for j in range(i + 1, n_max + 1):
-                gens.append((f"B_{{{i},{j}}}", 2 ** j - 2 ** i, (i, j)))
+                gens.append((f"R_{{{i}{j}}}", 2 ** j - 2 ** i, (i, j)))
         gens.sort(key=lambda _x: _x[2])
 
-        R = self.GbAlgMod2.new_alg()
-        R.add_gens(gens)
+        E1 = self.GbAlgMod2.new_alg()
+        E1.add_gens(gens)
 
-        def B(_i, _j):
-            return R.gen(f"B_{{{_i},{_j}}}")
+        def R(_i, _j):
+            return E1.gen(f"R_{{{_i}{_j}}}")
 
+        rels = []
         for d in range(2, n_max + 1):
             for i in range(n_max + 1 - d):
                 j = i + d
-                rel = sum((B(i, k) * B(k, j) for k in range(i + 1, j)), R.zero())
-                R.add_rel(rel)
-        return R, B
+                rel = sum((R(i, k) * R(k, j) for k in range(i + 1, j)), E1.zero())
+                rels.append(rel)
+        E1.add_rels(rels)
+        return E1, R
 
     def test_GbAlgMod2(self):
         R, B = self.alg_B(7)
