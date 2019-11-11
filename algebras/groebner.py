@@ -104,7 +104,8 @@ class GbAlgMod2(BA.AlgebraMod2):
 
     @classmethod
     def remove_gen(cls, name: str):
-        """If `name=0` in the algebra with relations simplified, call this function to remove this generator."""
+        """If the generator `name` equals zero in the algebra whose relations are simplified,
+        call this function to remove this generator."""
         i = cls._gen_names.index(name)
         m_k = (0,) * i + (1,)
         del cls._rels[m_k]
@@ -112,7 +113,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         def f(_m):
             return _m[:i] + _m[i+1:]
         cls._rels = {f(_m): {f(m1) for m1 in _v} for _m, _v in cls._rels.items()}
-        cls._rel_gen_leads = set(map(f, cls._rel_gen_leads))
+        cls._rel_gen_leads = {f(_m) for _m in cls._rel_gen_leads if sum(_m)}
         cls._gen_names = f(cls._gen_names)
         cls._gen_degs = f(cls._gen_degs)
 
@@ -140,15 +141,14 @@ class GbAlgMod2(BA.AlgebraMod2):
         cls._gen_degs = [cls._gen_degs[index_map[i]] for i in range(num_gens)]
         cls._rels = {}
         cls._rel_gen_leads = set()
-        for rel in rel_generators:
-            cls.add_rel_data(rel)
+        cls.add_rels_data(rel_generators)
 
     @classmethod
     def add_rel(cls, rel: "GbAlgMod2"):
         """Add a relation."""
         if not rel.is_homo():
             raise ValueError(f'relation {rel} not homogeneous!')
-        cls.add_rel_data(rel.data)
+        cls.add_rels_data((rel.data,))
 
     @classmethod
     def add_rels(cls, rels: Iterable["GbAlgMod2"]):
@@ -168,52 +168,6 @@ class GbAlgMod2(BA.AlgebraMod2):
         """Simplify self by relations."""
         self.data = self.simplify_data(self.data)
         return self
-
-    @classmethod
-    def reduce_frob(cls):
-        """Reduce the algebra by the square root of the ideal of relations."""
-        # todo: fix this
-        rels, cls._rels = cls._rels, {}
-        n_gen = len(cls._gen_names)
-
-        #
-        import string
-        cls._gen_names += [string.capwords(m) for m in cls._gen_names]
-        cls._gen_degs += [2 * d for d in cls._gen_degs]
-
-        for i in range(n_gen):
-            y = (0,) * (n_gen + i) + (1,)
-            x2 = (0,) * i + (2,)
-            cls.add_rel_data({x2, y})
-        # print("number of relations:", len(rels))
-        for m, v in sorted(rels.items(), reverse=True):
-            m_del = []
-            for m1 in sorted(cls._rels, reverse=True):
-                if m1 > m:
-                    m_del.append(m1)
-                else:
-                    for m2 in m_del:
-                        del cls._rels[m2]
-                    break
-            # print("rel:", cls(m), '=', cls(v), len(cls._rels))
-            cls.add_rel(v | {m})
-        m_del = []
-        zero = (0,) * n_gen
-        for m in sorted(cls._rels):
-            if len(m) <= n_gen or m[:n_gen] != zero:
-                m_del.append(m)
-
-        for m in m_del:
-            del cls._rels[m]
-        cls._rels = dict((m[n_gen:], {_m[n_gen:] for _m in v})
-                         for m, v in cls._rels.items())
-        return rels != cls._rels
-
-    @classmethod
-    def reduce(cls):
-        """Reduce all nilpotent elements."""
-        while cls.reduce_frob():
-            pass
 
     # getters --------------------------
     @classmethod
@@ -250,17 +204,16 @@ class GbAlgMod2(BA.AlgebraMod2):
             return rel_gens
         else:
             rels_backup = cls._rels.copy()
+            rel_gen_leads = cls._rel_gen_leads.copy()
             try:
-                def deg_data(data):
-                    for _m in data:
-                        return cls(_m).deg()
-                for rel in sorted(ideal, key=deg_data):
+                for rel in sorted(ideal, key=cls.deg_data):
                     rel = cls.simplify_data(rel)
                     if rel:
                         rel_gens.append(rel)
-                        cls.add_rel_data(rel)
+                        cls.add_rels_data((rel,))
             finally:
                 cls._rels = rels_backup
+                cls._rel_gen_leads = rel_gen_leads
             return rel_gens
 
     @classmethod
@@ -389,57 +342,20 @@ class GbAlgMod2(BA.AlgebraMod2):
         return result
 
     @classmethod
-    def add_rel_data(cls, rel: set):
-        """Add a relation."""
-        rel = cls.simplify_data(rel)
-        if not rel:
-            return
-        m = max(rel, key=cls._key) if cls._key else max(rel)
-        cls._rel_gen_leads.add(m)
-        hq = [(cls.deg_mon(m), rel)]
-        while hq:
-            _, r = heapq.heappop(hq)
-            r = cls.simplify_data(r)
-            if r:
-                m = max(r, key=cls._key) if cls._key else max(r)
-                redundant_leading_terms = []
-                for m1, v1 in cls._rels.items():
-                    if any(map(min, m, m1)):  # gcd > 0
-                        if mymath.le_tuple(m, m1):
-                            redundant_leading_terms.append(m1)
-                        lcm = mymath.max_tuple(m, m1)
-                        dif = mymath.sub_tuple(lcm, m)
-                        dif1 = mymath.sub_tuple(lcm, m1)
-                        new_rel = {mymath.add_tuple(_m, dif) for _m in r}
-                        v1dif1 = {mymath.add_tuple(_m, dif1) for _m in v1}
-                        new_rel -= {lcm}
-                        new_rel ^= v1dif1
-                        heapq.heappush(hq, (cls.deg_mon(lcm), new_rel))
-                for m_redundant in redundant_leading_terms:
-                    del cls._rels[m_redundant]
-                    if m_redundant in cls._rel_gen_leads:
-                        cls._rel_gen_leads.remove(m_redundant)
-                cls._rels[m] = r - {m}
-
-    @classmethod
     def add_rels_data(cls, rels: Iterable[set]):
         """Add relations."""
         hq = [(cls.deg_data(rel), rel, True) for rel in rels]
         heapq.heapify(hq)
         while hq:
-            # print(len(hq))  # ###############
             _, r, is_rel_gen = heapq.heappop(hq)
             r = cls.simplify_data(r)
             if r:
-                if is_rel_gen:
-                    m = max(r, key=cls._key) if cls._key else max(r)
-                    cls._rel_gen_leads.add(m)
                 m = max(r, key=cls._key) if cls._key else max(r)
+                if is_rel_gen:
+                    cls._rel_gen_leads.add(m)
                 redundant_leading_terms = []
                 for m1, v1 in cls._rels.items():
                     if any(map(min, m, m1)):  # gcd > 0
-                        if mymath.le_tuple(m, m1):
-                            redundant_leading_terms.append(m1)
                         lcm = mymath.max_tuple(m, m1)
                         dif = mymath.sub_tuple(lcm, m)
                         dif1 = mymath.sub_tuple(lcm, m1)
@@ -447,11 +363,16 @@ class GbAlgMod2(BA.AlgebraMod2):
                         v1dif1 = {mymath.add_tuple(_m, dif1) for _m in v1}
                         new_rel -= {lcm}
                         new_rel ^= v1dif1
-                        heapq.heappush(hq, (cls.deg_mon(lcm), new_rel, False))
+                        if mymath.le_tuple(m, m1):
+                            redundant_leading_terms.append(m1)
+                            is_lead = m1 in cls._rel_gen_leads
+                            heapq.heappush(hq, (cls.deg_mon(lcm), new_rel, is_lead))
+                            if is_lead:
+                                cls._rel_gen_leads.remove(m1)
+                        else:
+                            heapq.heappush(hq, (cls.deg_mon(lcm), new_rel, False))
                 for m_redundant in redundant_leading_terms:
                     del cls._rels[m_redundant]
-                    if m_redundant in cls._rel_gen_leads:
-                        cls._rel_gen_leads.remove(m_redundant)
                 cls._rels[m] = r - {m}
 
     @classmethod
@@ -499,16 +420,18 @@ class GbAlgMod2(BA.AlgebraMod2):
             else:
                 cls._key = lambda _m: ([-i for i in _m[num_gen:]] + [0] * (len(ele_names) - len(_m[num_gen:])),
                                        key_backup(_m))
+            rels_new = []
             for ele, name in ele_names:
                 x = cls.add_gen(name, ele.deg())
-                cls.add_rel(x + ele)
+                rels_new.append(x + ele)
+            cls.add_rels(rels_new)
             result = ""
             for m in cls._rels:
                 if len(m) > num_gen:
                     result += f"* ${cls({m} | cls._rels[m])} = 0$\n"
         finally:
-            cls._gen_names.pop()
-            cls._gen_degs.pop()
+            del cls._gen_names[-len(ele_names):]
+            del cls._gen_degs[-len(ele_names):]
             cls._rels = rels_backup
             cls._rel_gen_leads = rel_gen_leads_backup
             cls._key = key_backup
@@ -527,20 +450,24 @@ class GbAlgMod2(BA.AlgebraMod2):
             def key1(_m):
                 return _m
         A._key = key1
+        rels_new = []
         for ele, name in ele_names:
             x = A.add_gen(name, ele.deg())
-            A.add_rel(x + ele)
+            rels_new.append(x + ele)
+        A.add_rels(rels_new)
         A._gen_names = A._gen_names[num_gens:]
         A._gen_degs = A._gen_degs[num_gens:]
         A._key = key
         A._rel_gen_leads = set()
         rels, A._rels = A._rels, {}
+        rels_subalg = []
         for m in rels:
             n = 0
             while n < len(m) and m[n] == 0:
                 n += 1
             if n >= num_gens:
-                A.add_rel_data({m[num_gens:]} | {_m[num_gens:] for _m in rels[m]})
+                rels_subalg.append({m[num_gens:]} | {_m[num_gens:] for _m in rels[m]})
+        A.add_rels_data(rels_subalg)
         return A
 
 
@@ -629,8 +556,7 @@ class GbDga(GbAlgMod2):
                         fr2 = B[d2].res(r2.evaluation(image_gens))
                         map_alg.add_map(r2, fr2)
                         if map_alg.kernel(d2):
-                            for rel in map_alg.kernel(d2).basis(R):
-                                R.add_rel(rel)
+                            R.add_rels_data(map_alg.kernel(d2).basis(set))
                             map_alg.kernel(d2).clear()
         return R, image_gens
 
@@ -716,3 +642,5 @@ class GbDga(GbAlgMod2):
         result = '<table>\n' + tr1 + tr2 + '</table>' +\
                  '<table>' + tr3 + tr4 + '</table>'
         return Markdown(result)
+
+# 691, 648

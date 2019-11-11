@@ -11,8 +11,5 @@ output/
 work/
 
 log/log_cProfile_alg_bij.txt
-log_cProfile_alg_bij.txt
-relations-7.txt
-relations-8.txt
 relations-9.txt
 spec/specseq1.py

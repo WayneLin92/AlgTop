@@ -274,7 +274,7 @@ class MymathTestCase(unittest.TestCase):
         self.assertEqual(answer, len(ls))
 
 
-class BenchmarkTestCase(unittest.TestCase):
+class Benchmark(unittest.TestCase):
     def test_alg_B(self):
         pass
 
@@ -309,19 +309,6 @@ class GroebnerTestCase(unittest.TestCase):
     def test_GbAlgMod2(self):
         R, B = self.alg_B(7)
         self.assertEqual(78, len(R._rels))
-
-    def test_GbAlgMod2_reduce(self):
-        R = GbAlgMod2.new_alg()
-        y = R.add_gen('y', 1)
-        x = R.add_gen('x', 1)
-        R.add_rel(y**10 + y**7 * x**3)
-        R.add_rel(y**7 * x**4 + y**2 * x**9)
-        for m in R._rels:
-            print(R(m), "=", R(R._rels[m]))
-        R.reduce()
-        R.print_tex()
-        answer = {(2,): {(1, 1)}}
-        self.assertEqual(answer, R._rels)
 
 
 if __name__ == '__main__':

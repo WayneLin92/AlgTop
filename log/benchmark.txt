@@ -1,4 +1,4 @@
-test_ext
+### test_ext
 10/14/2018 10:37PM 1.254s
 10/15/2018 12:30AM 1.242s
 10/22/2018  1:02AM 1.951s (new FreeModule)
@@ -18,8 +18,9 @@ test_ext
     number of function calls = {'Steenrod.adem': 40061}
 01/21/2019 04:11PM 0.814s (Surface linalg)
 02/13/2019 03:06AM 0.888s (PC linalg changed)
+11/05/2019 02:03AM 0.580s (PC2019)
 
-test_ext1
+### test_ext1
 10/14/2018 10:58PM 47.511s
 10/15/2018 12:34AM 48.099s
 10/15/2018 12:42AM 47.761s
@@ -34,9 +35,9 @@ test_ext1
     number of function calls = {'Steenrod.adem': 861148}
 01/21/2019 04:11PM 9.664s (Surface linalg)
 02/13/2019 03:06AM 13.209s (PC linalg changed)
+11/05/2019 02:03AM 5.485s (PC2019)
 
-
-test_sq_benchmark
+### test_sq_benchmark
 12/22/2018 10:29PM 2.238s (using _is_good)
     number of function calls = {'MyDyerLashof.adem': 5127, '_my_adem': 3970, 'sQ2Q': 230358, 'PQ_mon': 265607, 'DyerLashof.adem': 19202}
 12/28/2018 10:27PM 14.728s (partly using simplify_sQ)
@@ -46,7 +47,9 @@ test_simplify_sQ_benchmark
 12/29/2018 11:24PM 0.189s
     number of function calls = {'sQ2Q': 6400, 'PQ_mon': 8782, 'DyerLashof.adem': 322}
 
-
-constructions.test (number = 10)
+### constructions.test (number = 10)
 03/28/2019 9:55AM 0.37s
+
+### GroebnerTestCase.test_GbAlgMod2
+11/10/2019 08:05PM 0.518s WAYNE19
 

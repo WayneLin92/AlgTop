@@ -72,11 +72,11 @@ class MayDGA:
     @staticmethod
     def sig_mon(mon: tuple):
         """Return the signature function of a monomial."""
-        len_sig = max(k[0] + k[1] for k, r in mon)
+        len_sig = max(k[1] for k, r in mon)
         f = [0] * (len_sig + 1)
         for k, r in mon:
             f[k[0]] += r
-            f[k[0] + k[1]] -= r
+            f[k[1]] -= r
         return Signature(itertools.accumulate(f[:-1]))
 
     def sig(self):
@@ -95,13 +95,13 @@ class MayDGA:
             while i + j_max < len(sig) and sig[i + j_max] > 0:
                 j_max += 1
         for j in range(j_max, 1, -1):
-            r_max = min(sig[i:i + j])
+            r_max = min(sig[i: i + j])
             for r in range(1, r_max + 1):
                 for m in MayDGA._fixed_i_sig_mon(sig - ((0,) * i + (r,) * j), i, j - 1):
-                    yield m + (((i, j), r),)
+                    yield m + (((i, i + j), r),)
         j, r = 1, sig[i]
         if r > 0:
-            yield (((i, j), r),)
+            yield (((i, i + j), r),)
 
     @staticmethod
     def basis_sig_mon(sig: Signature):
@@ -121,7 +121,7 @@ class MayDGA:
         return map(cls, cls.basis_sig_mon(sig))
 
     @classmethod
-    def homology_signature(cls, sig: Signature):
+    def homology_sig(cls, sig: Signature):
         s_min = sum(i for i in sig.diff() if i > 0)
         s_max = sum(sig)
         lin_maps = {}
