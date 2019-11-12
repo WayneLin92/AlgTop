@@ -9,7 +9,7 @@
 __pycache__/
 output/
 work/
+log/
 
-log/log_cProfile_alg_bij.txt
 relations-9.txt
 spec/specseq1.py

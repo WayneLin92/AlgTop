@@ -1,8 +1,12 @@
 import unittest
 from notations import *
+from typing import Union
 
 
 class OperationsTestCase(unittest.TestCase):
+    def setUp(self):
+        pass
+
     def test_Sq(self):
         a = Sq(4) * Sq(4) * Sq(4)
         b = Sq(8) * Sq(3) * Sq(1) + Sq(9) * Sq(2) * Sq(1) + Sq(10) * Sq(2) + Sq(11) * Sq(1)
@@ -288,14 +292,25 @@ class GroebnerTestCase(unittest.TestCase):
         gens = []
         for i in range(n_max):
             for j in range(i + 1, n_max + 1):
-                gens.append((f"R_{{{i}{j}}}", 2 ** j - 2 ** i, (i, j)))
+                gens.append((f"R_{{{i}{j}}}", 2 ** j - 2 ** i, j - i))
         gens.sort(key=lambda _x: _x[2])
 
-        E1 = self.GbAlgMod2.new_alg()
+        E1 = self.GbAlgMod2.new_alg(key=lambda _m: [-_i for _i in _m])
         E1.add_gens(gens)
 
-        def R(_i, _j):
-            return E1.gen(f"R_{{{_i}{_j}}}")
+        def R(S: Union[int, tuple], T: Union[int, tuple]):
+            if type(S) is int:
+                return E1.gen(f"R_{{{S}{T}}}")
+            assert len(S) == len(T)
+            S, T = sorted(S), sorted(T)
+            result = E1.zero()
+            for T1 in itertools.permutations(T):
+                if all(t - s > 0 for s, t in zip(S, T1)):
+                    pro = E1.unit()
+                    for x in map(R, S, T1):
+                        pro *= x
+                    result += pro
+            return result
 
         rels = []
         for d in range(2, n_max + 1):
@@ -307,8 +322,15 @@ class GroebnerTestCase(unittest.TestCase):
         return E1, R
 
     def test_GbAlgMod2(self):
-        R, B = self.alg_B(7)
-        self.assertEqual(78, len(R._rels))
+        E1, _ = self.alg_B(7)
+        self.assertEqual(65, len(E1._rels))
+
+    def test_subalgebra(self):
+        E1, R = self.alg_B(5)
+        ele_names = []
+        for i in range(5):
+            ele_names.push((R(i, i + 1), f'h_{i}'))
+        self.assertTrue(True)
 
 
 if __name__ == '__main__':
