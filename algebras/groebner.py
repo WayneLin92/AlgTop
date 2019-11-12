@@ -344,10 +344,10 @@ class GbAlgMod2(BA.AlgebraMod2):
     @classmethod
     def add_rels_data(cls, rels: Iterable[set]):
         """Add relations."""
-        hq = [(cls.deg_data(rel), rel, True) for rel in rels]
+        hq = [(cls.deg_data(rel), True, rel) for rel in rels]
         heapq.heapify(hq)
         while hq:
-            _, r, is_rel_gen = heapq.heappop(hq)
+            _, is_rel_gen, r = heapq.heappop(hq)
             r = cls.simplify_data(r)
             if r:
                 m = max(r, key=cls._key) if cls._key else max(r)
@@ -366,11 +366,11 @@ class GbAlgMod2(BA.AlgebraMod2):
                         if mymath.le_tuple(m, m1):
                             redundant_leading_terms.append(m1)
                             is_lead = m1 in cls._rel_gen_leads
-                            heapq.heappush(hq, (cls.deg_mon(lcm), new_rel, is_lead))
+                            heapq.heappush(hq, (cls.deg_mon(lcm), is_lead, new_rel))
                             if is_lead:
                                 cls._rel_gen_leads.remove(m1)
                         else:
-                            heapq.heappush(hq, (cls.deg_mon(lcm), new_rel, False))
+                            heapq.heappush(hq, (cls.deg_mon(lcm), False, new_rel))
                 for m_redundant in redundant_leading_terms:
                     del cls._rels[m_redundant]
                 cls._rels[m] = r - {m}

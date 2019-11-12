@@ -286,7 +286,9 @@ class Benchmark(unittest.TestCase):
 class GroebnerTestCase(unittest.TestCase):
     def setUp(self):
         from algebras.groebner import GbAlgMod2
+        from itertools import permutations
         self.GbAlgMod2 = GbAlgMod2
+        self.permutations = permutations
 
     def alg_B(self, n_max):
         gens = []
@@ -304,7 +306,7 @@ class GroebnerTestCase(unittest.TestCase):
             assert len(S) == len(T)
             S, T = sorted(S), sorted(T)
             result = E1.zero()
-            for T1 in itertools.permutations(T):
+            for T1 in self.permutations(T):
                 if all(t - s > 0 for s, t in zip(S, T1)):
                     pro = E1.unit()
                     for x in map(R, S, T1):
@@ -326,11 +328,23 @@ class GroebnerTestCase(unittest.TestCase):
         self.assertEqual(65, len(E1._rels))
 
     def test_subalgebra(self):
-        E1, R = self.alg_B(5)
+        n_max = 4
+        E1, R = self.alg_B(n_max)
         ele_names = []
-        for i in range(5):
-            ele_names.push((R(i, i + 1), f'h_{i}'))
-        self.assertTrue(True)
+        for i in range(n_max):
+            ele_names.append((R(i, i + 1), f'h_{i}'))
+        for i in range(n_max - 2):
+            ele_names.append((R((i, i + 1), (i + 2, i + 3)), f'h_{i}(1)'))
+        for i in range(n_max - 4):
+            ele_names.append((R((i, i + 1, i + 3), (i + 2, i + 4, i + 5)), f'h_{i}(1, 3)'))
+        for i in range(n_max - 4):
+            ele_names.append((R((i, i + 1, i + 2), (i + 3, i + 4, i + 5)), f'h_{i}(1, 2)'))
+        for d in range(2, n_max + 1):
+            for i in range(n_max + 1 - d):
+                j = i + d
+                ele_names.append((R(i, j) * R(i, j), f'b_{{{i}{j}}}'))
+        HX = E1.subalgebra(ele_names, key=E1._key)
+        self.assertEqual(15, len(HX._rels))
 
 
 if __name__ == '__main__':
