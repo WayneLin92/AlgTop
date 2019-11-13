@@ -1,6 +1,5 @@
 """Algebras based on Groebner basis."""
 # todo: create class AugModuleMod2
-# Todo: construct subalgebra
 import copy, itertools, operator, heapq, pickle
 from typing import Tuple, List, Dict, Set,  Type, Iterable
 from . import BaseAlgebras as BA, linalg, mymath
@@ -124,21 +123,21 @@ class GbAlgMod2(BA.AlgebraMod2):
         cls._gen_names[i] = new_name
 
     @classmethod
-    def reorder_gens(cls, index_map, key=None):
+    def reorder_gens(cls, index_map=None, key=None):
         """Reorganize the relations by a new ordering of generators and a new key function.
         The new i'th generator is the old `index_map[i]`'th generator."""
         num_gens = len(cls._gen_names)
-        assert num_gens == len(index_map)
-
-        def f(m):
-            n = len(m)
-            m1 = tuple(m[index_map[i]] if index_map[i] < n else 0 for i in range(num_gens))
-            return mymath.rstrip_tuple(m1)
         rel_generators = cls.get_rel_gens()
         cls._key = key
-        rel_generators = [{f(m) for m in rel} for rel in rel_generators]
-        cls._gen_names = [cls._gen_names[index_map[i]] for i in range(num_gens)]
-        cls._gen_degs = [cls._gen_degs[index_map[i]] for i in range(num_gens)]
+        if index_map:
+            def f(m):
+                n = len(m)
+                m1 = tuple(m[index_map[i]] if index_map[i] < n else 0 for i in range(num_gens))
+                return mymath.rstrip_tuple(m1)
+            assert num_gens == len(index_map)
+            rel_generators = [{f(m) for m in rel} for rel in rel_generators]
+            cls._gen_names = [cls._gen_names[index_map[i]] for i in range(num_gens)]
+            cls._gen_degs = [cls._gen_degs[index_map[i]] for i in range(num_gens)]
         cls._rels = {}
         cls._rel_gen_leads = set()
         cls.add_rels_data(rel_generators)
@@ -317,6 +316,16 @@ class GbAlgMod2(BA.AlgebraMod2):
         result += "\\end{align*}"
         return Markdown(result)
 
+    @classmethod
+    def display_ann_seq(cls, ele_names: List[Tuple["GbAlgMod2", str]]):
+        from IPython.display import Markdown
+        annilators = cls.ann_seq(ele_names)
+        result = ""
+        for a in annilators:
+            s = "+".join(f"{name}{mymath.tex_parenthesis(c)}" for name, c in a)
+            result += f"* ${s}$\n"
+        return Markdown(result)
+
     # algorithms --------------------------
     @classmethod
     def simplify_data(cls, data: set):
@@ -366,10 +375,11 @@ class GbAlgMod2(BA.AlgebraMod2):
                         if mymath.le_tuple(m, m1):
                             redundant_leading_terms.append(m1)
                             is_lead = m1 in cls._rel_gen_leads
-                            heapq.heappush(hq, (cls.deg_mon(lcm), is_lead, new_rel))
+                            if new_rel:
+                                heapq.heappush(hq, (cls.deg_mon(lcm), is_lead, new_rel))
                             if is_lead:
                                 cls._rel_gen_leads.remove(m1)
-                        else:
+                        elif new_rel:
                             heapq.heappush(hq, (cls.deg_mon(lcm), False, new_rel))
                 for m_redundant in redundant_leading_terms:
                     del cls._rels[m_redundant]
@@ -407,35 +417,38 @@ class GbAlgMod2(BA.AlgebraMod2):
         return result
 
     @classmethod
-    def ann_seq(cls, ele_names: List[Tuple["GbAlgMod2", str]]):
+    def ann_seq(cls, ele_names: List[Tuple["GbAlgMod2", str]]):  # TODO: QAnn
         """Display relations among elements: $\\sum a_ix_i=0$."""
-        from IPython.display import Markdown
-        rels_backup = cls._rels.copy()
-        rel_gen_leads_backup = cls._rel_gen_leads.copy()
-        key_backup = cls._key
-        try:
-            num_gen = len(cls._gen_names)
-            if key_backup is None:
-                cls._key = lambda _m: ([-i for i in _m[num_gen:]] + [0] * (len(ele_names) - len(_m[num_gen:])), _m)
-            else:
-                cls._key = lambda _m: ([-i for i in _m[num_gen:]] + [0] * (len(ele_names) - len(_m[num_gen:])),
-                                       key_backup(_m))
-            rels_new = []
-            for ele, name in ele_names:
-                x = cls.add_gen(name, ele.deg())
-                rels_new.append(x + ele)
-            cls.add_rels(rels_new)
-            result = ""
-            for m in cls._rels:
-                if len(m) > num_gen:
-                    result += f"* ${cls({m} | cls._rels[m])} = 0$\n"
-        finally:
-            del cls._gen_names[-len(ele_names):]
-            del cls._gen_degs[-len(ele_names):]
-            cls._rels = rels_backup
-            cls._rel_gen_leads = rel_gen_leads_backup
-            cls._key = key_backup
-        return Markdown(result)
+        A = cls.copy_alg()
+        num_gen = len(cls._gen_names)
+        num_ele = len(ele_names)
+        if cls._key:
+            A._key = lambda _m: ([-i for i in _m[num_gen:]] + [0] * num_ele, cls._key(_m))
+        else:
+            A._key = lambda _m: ([-i for i in _m[num_gen:]] + [0] * num_ele, _m)
+        rels_new = []
+        for ele, name in ele_names:
+            x = A.add_gen(name, ele.deg())
+            rels_new.append(x + ele)
+        A.add_rels(rels_new)
+        annilators = []
+        for m in A._rels:
+            if len(m) > num_gen:
+                a = []
+                for m1 in itertools.chain((m,), A._rels[m]):
+                    name = A._gen_names[len(m1) - 1]
+                    m11 = mymath.rstrip_tuple(m1[:-1] + (m1[-1] - 1,))
+                    a.append((name, m11))
+                annilators.append(a)
+        if cls._key:
+            def key(_m):
+                return _m[num_gen:], cls._key(_m)
+        else:
+            def key(_m):
+                return _m[num_gen:], _m
+        A.reorder_gens(key=key)
+        annilators = [[(name, cls(A.simplify_data({_m}))) for name, _m in a] for a in annilators]
+        return annilators
 
     @classmethod
     def subalgebra(cls, ele_names: List[Tuple["GbAlgMod2", str]], *, key=None):

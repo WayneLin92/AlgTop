@@ -252,4 +252,10 @@ def tex_sub(obj, subscript) -> str:
     return f"{obj}_{subscript}" if len(str(subscript)) == 1 else f"{obj}_{{{subscript}}}"
 
 
+def tex_parenthesis(obj):
+    """Return obj with parenthesis if there is a plus or minus sign."""
+    result = str(obj)
+    return f"({result})" if "+" in result or "-" in result else result
+
+
 # 73, 87, 177
