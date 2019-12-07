@@ -1,5 +1,6 @@
 import itertools
 import operator
+from typing import Union
 
 from algebras import BaseAlgebras as BC, linalg, mymath
 
@@ -85,40 +86,45 @@ class MayDGA:
             return self.sig_mon(m)
 
     @staticmethod
-    def _fixed_i_sig_mon(sig: Signature, i, j_max=None):
-        """Return monomials of gamma_r P^i_j for fixed i"""
-        if sig[i] == 0:
+    def _fixed_i_sig_mon(s_max: int, sig_max: Signature, i, j_max=None):
+        """Return monomials of $R_{ij}$ with fixed `i`."""
+        if not sig_max[i]:
             yield ()
             return
+        if s_max < max(sig_max):
+            return
         if j_max is None:
-            j_max = 1
-            while i + j_max < len(sig) and sig[i + j_max] > 0:
+            j_max = i + 1
+            while j_max < len(sig_max) and sig_max[j_max] > 0:
                 j_max += 1
-        for j in range(j_max, 1, -1):
-            r_max = min(sig[i: i + j])
+        for j in range(j_max, i + 1, -1):
+            r_max = min(sig_max[i: j])
             for r in range(1, r_max + 1):
-                for m in MayDGA._fixed_i_sig_mon(sig - ((0,) * i + (r,) * j), i, j - 1):
-                    yield m + (((i, i + j), r),)
-        j, r = 1, sig[i]
+                sig_max1 = sig_max - ((0,) * i + (r,) * (j - i))
+                for m in MayDGA._fixed_i_sig_mon(s_max - r, sig_max1, i, j - 1):
+                    yield m + (((i, j), r),)
+        j, r = i + 1, sig_max[i]
         if r > 0:
-            yield (((i, i + j), r),)
+            yield (((i, j), r),)
 
     @staticmethod
-    def basis_sig_mon(sig: Signature):
+    def basis_sig_mon(s: int, sig: Signature):
         if not sig:
-            yield ()
+            if not s:
+                yield ()
             return
         i = 0
         while not sig[i]:
             i += 1
-        for m in MayDGA._fixed_i_sig_mon(sig, i):
+        for m in MayDGA._fixed_i_sig_mon(s, sig, i):
             sig_m = MayDGA.sig_mon(m)
-            for m1 in MayDGA.basis_sig_mon(sig - sig_m):
+            s_m = sum(map(operator.itemgetter(1), m))
+            for m1 in MayDGA.basis_sig_mon(s - s_m, sig - sig_m):
                 yield m + m1
 
     @classmethod
-    def basis_sig(cls, sig: Signature):
-        return map(cls, cls.basis_sig_mon(sig))
+    def basis_sig(cls, s, sig: Signature):
+        return map(cls, cls.basis_sig_mon(s, sig))
 
     @classmethod
     def homology_sig(cls, sig: Signature):
@@ -160,17 +166,27 @@ class MayE1(MayDGA, BC.BasePolyMod2):
 
     @staticmethod
     def str_gen(k):
-        return f"R_{{{k[0]}{k[1]}}}"
+        i, j = str(k[0]), str(k[1])
+        if len(i) == len(j) == 1:
+            return f"R_{{{k[0]}{k[1]}}}"
+        else:
+            return f"R_{{{k[0]},{k[1]}}}"
 
     # methods -----------------
     @classmethod
-    def h(cls, i: int, S: tuple):
+    def h(cls, S: Union[int, tuple], T: tuple = None):
         """Return h_i(S)."""
-        k = len(S)
-        seq = set(range(i, i + 2 * k + 2))
-        S = {i + s for s in S} | {i}
-        T = seq - S
-        assert len(S) + len(T) == 2 * k + 2
+        if type(S) is int:
+            if T is None:
+                return cls.gen(S, S + 1)
+            elif type(T) is int:
+                return cls.gen(S, T)
+            i, S1 = S, T
+            k = len(S1)
+            seq = set(range(i, i + 2 * k + 2))
+            S = {i + s for s in S1} | {i}
+            T = seq - S
+            assert len(S) + len(T) == 2 * k + 2
         S, T = sorted(S), sorted(T)
         data = set()
         for T1 in itertools.permutations(T):
@@ -185,7 +201,7 @@ class MayE1(MayDGA, BC.BasePolyMod2):
 
     @staticmethod
     def basis_mons(deg_s, deg_t, deg_u, ij_max=None):
-        """Return monomials (R_{i_1j_1})^k...(R i_mj_m)^e with given length, deg, may_filtr."""
+        """Return monomials (R_{i_1j_1})^k...(R_{i_mj_m})^e with given s, t, u"""
         if deg_s == 0 or deg_t == 0 or deg_u == 0:
             if deg_s == deg_t == deg_u:
                 yield ()
@@ -245,9 +261,6 @@ class MayE1(MayDGA, BC.BasePolyMod2):
         print("quotient:")
         for r in (my_map1.kernel / my_map2.image).basis(cls):
             print(r)
-
-    def _repr_latex_(self):
-        return f"${self}$"
 
 
 class TorMayE1(BC.BaseExteriorMod2):

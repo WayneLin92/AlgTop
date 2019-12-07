@@ -1,5 +1,5 @@
 """Algebras based on Groebner basis."""
-# todo: create class AugModuleMod2
+# TODO: inplace option
 import copy, itertools, operator, heapq, pickle
 from typing import Tuple, List, Dict, Set,  Type, Iterable
 from . import BaseAlgebras as BA, linalg, mymath
@@ -123,7 +123,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         cls._gen_names[i] = new_name
 
     @classmethod
-    def reorder_gens(cls, index_map=None, key=None):
+    def reorder_gens(cls, index_map=None, key=None):  # TODO: create a new alg instead
         """Reorganize the relations by a new ordering of generators and a new key function.
         The new i'th generator is the old `index_map[i]`'th generator."""
         num_gens = len(cls._gen_names)
@@ -193,27 +193,62 @@ class GbAlgMod2(BA.AlgebraMod2):
         return cls(m).simplify() if cls.auto_simplify else cls(m)
 
     @classmethod
-    def get_rel_gens(cls, ideal=None):
+    def get_rel_gens(cls):
         """Return a minimal generating set of `cls._rels` or `ideal`, ordered by degree."""
         rel_gens = []
-        if ideal is None:
-            for m in sorted(cls._rel_gen_leads, key=cls.deg_mon):
-                rel = cls._rels[m] | {m}
+        for m in sorted(cls._rel_gen_leads, key=cls.deg_mon):
+            rel = cls._rels[m] | {m}
+            rel_gens.append(rel)
+        return rel_gens
+
+    @classmethod
+    def get_ideal_gens(cls, ideal: List[set]):
+        """Return the minimal generating set of `ideal`."""
+        A = cls.copy_alg()
+        rel_gens = []
+        for rel in sorted(ideal, key=A.deg_data):
+            rel = A.simplify_data(rel)
+            if rel:
                 rel_gens.append(rel)
-            return rel_gens
-        else:
-            rels_backup = cls._rels.copy()
-            rel_gen_leads = cls._rel_gen_leads.copy()
-            try:
-                for rel in sorted(ideal, key=cls.deg_data):
-                    rel = cls.simplify_data(rel)
-                    if rel:
-                        rel_gens.append(rel)
-                        cls.add_rels_data((rel,))
-            finally:
-                cls._rels = rels_backup
-                cls._rel_gen_leads = rel_gen_leads
-            return rel_gens
+                A.add_rels_data((rel,))
+        return rel_gens
+
+    @classmethod
+    def get_vector_gens(cls, ideal: List[List[Tuple["GbAlgMod2", str]]], *, inplace=False):
+        """Return the minimal generating set of `ideal`, which is a A-submodule of A^n."""
+        # TODO: create class AugModuleMod2
+        A = cls if inplace else cls.copy_alg()
+        num_gen = len(A._gen_names)
+        rels = []
+        for index, v in enumerate(ideal):
+            deg_max = max(ele.deg() for ele, _ in v)
+            rel = A.zero()
+            for ele, name in v:
+                name = f"v_{{{name}}}"
+                deg = deg_max - ele.deg() + 1
+                x = A.gen(name) if name in A._gen_names else A.add_gen(name, deg)  #
+                rel += x * ele
+            if rel:
+                rels.append((index, rel))
+        num_gen1 = len(A._gen_names)
+        rels_module = []
+        for i in range(num_gen, num_gen1):
+            for j in range(i, num_gen1):
+                if i == j:
+                    m = (0,) * i + (2,)
+                else:
+                    m = tuple(1 if k in (i, j) else 0 for k in range(len(A._gen_names)))
+                rels_module.append(A(m))
+                print("test:", A(m))
+        A.add_rels(rels_module)
+        result = []
+        for index, rel in sorted(rels, key=lambda _x: _x[1].deg()):
+            rel.simplify()
+            if rel:
+                print("test:", rel)
+                result.append(index)
+                A.add_rel(rel)
+        return [ideal[i] for i in result]
 
     @classmethod
     def basis_mons_max(cls, deg_max):
@@ -242,7 +277,7 @@ class GbAlgMod2(BA.AlgebraMod2):
 
     def evaluation(self, image_gens):
         """Return f(self) where f is an algebraic map determined by `image_gens`."""
-        assert len(image_gens) > 0
+        assert len(image_gens) == len(self._gen_names)
         R = type(image_gens[0])
         zero = R.zero() if issubclass(R, BA.Algebra) else 0
         unit = R.unit() if issubclass(R, BA.Algebra) else 1
@@ -418,7 +453,7 @@ class GbAlgMod2(BA.AlgebraMod2):
 
     @classmethod
     def ann_seq(cls, ele_names: List[Tuple["GbAlgMod2", str]]):  # TODO: QAnn
-        """Display relations among elements: $\\sum a_ix_i=0$."""
+        """Return relations among elements: $\\sum a_ie_i=0$."""
         A = cls.copy_alg()
         num_gen = len(cls._gen_names)
         num_ele = len(ele_names)
@@ -438,7 +473,7 @@ class GbAlgMod2(BA.AlgebraMod2):
                 for m1 in itertools.chain((m,), A._rels[m]):
                     name = A._gen_names[len(m1) - 1]
                     m11 = mymath.rstrip_tuple(m1[:-1] + (m1[-1] - 1,))
-                    a.append((name, m11))
+                    a.append((m11, name))
                 annilators.append(a)
         if cls._key:
             def key(_m):
@@ -447,8 +482,8 @@ class GbAlgMod2(BA.AlgebraMod2):
             def key(_m):
                 return _m[num_gen:], _m
         A.reorder_gens(key=key)
-        annilators = [[(name, cls(A.simplify_data({_m}))) for name, _m in a] for a in annilators]
-        return annilators
+        annilators = [[(cls(A.simplify_data({_m})), name) for _m, name in a] for a in annilators]
+        return cls.get_vector_gens(annilators)
 
     @classmethod
     def subalgebra(cls, ele_names: List[Tuple["GbAlgMod2", str]], *, key=None):
@@ -653,4 +688,4 @@ class GbDga(GbAlgMod2):
                  '<table>' + tr3 + tr4 + '</table>'
         return Markdown(result)
 
-# 691, 648
+# 691, 656

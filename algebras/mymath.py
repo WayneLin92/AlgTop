@@ -4,7 +4,6 @@ import functools
 import itertools
 from typing import Tuple
 # TODO: use zip_longest
-# TODO: reduce the use of tuple() when possible (use list comprehensions to improve the performance)
 
 
 class Deg(tuple):
