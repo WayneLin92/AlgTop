@@ -202,7 +202,73 @@ class GradedVectorSpaceMod2:
         return type(vector)(v)
 
 
-class LinearMapMod2:
+class LinearMapKMod2:
+    """This is an optimized version of `LinearMapMod2` which focuses on computing the kernel and image.
+
+    Warning: Incompatible maps will not be reported while they will in `LinearMapMod2`."""
+    def __init__(self, *, key=None):
+        self.key = key
+        self._image = []  # type: _t_data
+        self._g = []  # type: List[set]
+        self._kernel = VectorSpaceMod2(key=key)
+
+    # setters ----------------
+    def add_maps_set(self, maps: Iterable[Tuple[set, set]]):
+        """Add maps v->fv where v and fv are sets."""
+        for gw, w in maps:
+            for wm1, gw1 in zip(self._image, self._g):
+                if wm1[1] in w:
+                    w ^= wm1[0]
+                    gw ^= gw1
+            if not w:
+                self._kernel.add_v_set(gw)
+            else:
+                self._image.append((w, max(w, key=self.key) if self.key else max(w)))
+                self._g.append(gw)
+
+    def add_map_set(self, v, fv):
+        """Add a map v->fv where v and fv are sets."""
+        self.add_maps_set(((v, fv),))
+
+    @staticmethod
+    def getset(v):
+        t = type(v)
+        if t is set:
+            return v
+        elif t is str or t is int:
+            return {v}
+        else:
+            return v.data.copy()
+
+    def add_map(self, v, fv):
+        self.add_map_set(self.getset(v), self.getset(fv))
+
+    def add_maps(self, maps):
+        """Add maps."""
+        for v, fv in maps:
+            self.add_map(v, fv)
+
+    # getters ------------------
+    @property
+    def image(self):
+        return VectorSpaceMod2(data=self._image)
+
+    @property
+    def kernel(self):
+        return self._kernel
+
+    def g(self, vector):
+        """Return f^{-1}(vector)."""
+        w = vector.data.copy()
+        result = set()
+        for wm1, gw1 in zip(self._image, self._g):
+            if wm1[1] in w:
+                w ^= wm1[0]
+                result ^= gw1
+        return None if w else result
+
+
+class LinearMapMod2(LinearMapKMod2):
     """Linear map f: V leftrightarrow W: g."""
     def __init__(self, *, key=None):
         self.key = key
@@ -239,25 +305,10 @@ class LinearMapMod2:
                     self._image.append((w, max(w, key=self.key) if self.key else max(w)))
                     self._g.append(gw)
 
-    def add_maps(self, maps):
-        """Add maps."""
-        self.add_maps_set((v.data.copy(), fv.data.copy()) for v, fv in maps)
-
-    def add_map(self, v, fv):
-        self.add_maps(((v, fv),))
-
     # getters ------------------
     @property
     def domain(self):
         return VectorSpaceMod2(data=self._domain)
-
-    @property
-    def image(self):
-        return VectorSpaceMod2(data=self._image)
-
-    @property
-    def kernel(self):
-        return self._kernel
 
     # functions -----------------
     def f(self, vector):
@@ -269,67 +320,6 @@ class LinearMapMod2:
                 v ^= vm1[0]
                 result ^= fv1
         return None if v else type(vector)(result)
-
-    def g(self, vector):
-        """Return f^{-1}(vector)."""
-        w = vector.data.copy()
-        result = set()
-        for wm1, gw1 in zip(self._image, self._g):
-            if wm1[1] in w:
-                w ^= wm1[0]
-                result ^= gw1
-        return None if w else type(vector)(result)
-
-
-class LinearMapKMod2:
-    """This is an optimized version of LinearMapMod2 that focus on computing the kernel.
-
-    Warning: Incompatible maps will not be reported."""
-    def __init__(self, *, key=None):
-        self.key = key
-        self._image = []  # type: _t_data
-        self._g = []  # type: List[set]
-        self._kernel = VectorSpaceMod2(key=key)
-
-    # setters ----------------
-    def add_maps_set(self, maps: Iterable[Tuple[set, set]]):
-        """Add maps efficiently."""
-        for gw, w in maps:
-            for wm1, gw1 in zip(self._image, self._g):
-                if wm1[1] in w:
-                    w ^= wm1[0]
-                    gw ^= gw1
-            if not w:
-                self._kernel.add_v_set(gw)
-            else:
-                self._image.append((w, max(w, key=self.key) if self.key else max(w)))
-                self._g.append(gw)
-
-    def add_maps(self, maps):
-        """Add maps."""
-        self.add_maps_set((v.data.copy(), fv.data.copy()) for v, fv in maps)
-
-    def add_map(self, v, fv):
-        self.add_maps(((v, fv),))
-
-    # getters ------------------
-    @property
-    def image(self):
-        return VectorSpaceMod2(data=self._image)
-
-    @property
-    def kernel(self):
-        return self._kernel
-
-    def g(self, vector):
-        """Return f^{-1}(vector)."""
-        w = vector.data.copy()
-        result = set()
-        for wm1, gw1 in zip(self._image, self._g):
-            if wm1[1] in w:
-                w ^= wm1[0]
-                result ^= gw1
-        return None if w else type(vector)(result)
 
 
 class GradedLinearMapMod2:
@@ -512,4 +502,4 @@ class Matrix:
         return Matrix(data, (m, n))
 
 
-# 226, 302, 311, 412, 406, 517
+# 226, 302, 311, 412, 406, 517, 505

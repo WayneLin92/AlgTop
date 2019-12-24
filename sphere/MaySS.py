@@ -105,7 +105,7 @@ class MayDGA:
                     yield m + (((i, j), r),)
         j, r = i + 1, sig_max[i]
         if r > 0:
-            yield (((i, j), r),)
+            yield ((i, j), r),
 
     @staticmethod
     def basis_sig_mon(s: int, sig: Signature):
@@ -133,9 +133,9 @@ class MayDGA:
         lin_maps = {}
         for s in range(s_min - 1, s_max + 2):
             lin_maps[s] = linalg.LinearMapKMod2()
-        for x in cls.basis_sig(sig):
-            s = x.deg()[0]
-            lin_maps[s].add_maps(((x, x.diff()),))
+            for x in cls.basis_sig(s, sig):
+                s = x.deg()[0]
+                lin_maps[s].add_maps(((x, x.diff()),))
         homology = {}
         for s in range(s_min, s_max + 1):
             print(f"{s}:")
@@ -153,7 +153,7 @@ class MayE1(MayDGA, BC.BasePolyMod2):
     def gen(cls, *k: int):
         """Return R_{ij}."""
         i, j = k
-        return cls((((i, j), 1),))
+        return cls((((i, j), 1),)) if i < j else cls.zero()
 
     @staticmethod
     def deg_gen(k) -> mymath.Deg:
@@ -174,7 +174,7 @@ class MayE1(MayDGA, BC.BasePolyMod2):
 
     # methods -----------------
     @classmethod
-    def h(cls, S: Union[int, tuple], T: tuple = None):
+    def h(cls, S: Union[int, tuple], T: Union[int, tuple] = None):
         """Return h_i(S)."""
         if type(S) is int:
             if T is None:
@@ -217,7 +217,7 @@ class MayE1(MayDGA, BC.BasePolyMod2):
             ij_max = (i, j)
         if ij_max == (0, 1):
             if deg_s == deg_t == deg_u:
-                yield (((0, 1), deg_t),)
+                yield ((0, 1), deg_t),
             return
         i, j = ij_max
         for e in range(min(deg_s, deg_t // MayE1.deg_t_gen(ij_max), deg_u // (j - i)), -1, -1):
@@ -261,70 +261,3 @@ class MayE1(MayDGA, BC.BasePolyMod2):
         print("quotient:")
         for r in (my_map1.kernel / my_map2.image).basis(cls):
             print(r)
-
-
-class TorMayE1(BC.BaseExteriorMod2):
-    """Class for Tor_{MayE1}(F_2, F_2)."""
-    # ----- BasePolyMod2 ----------------
-    @classmethod
-    def gen(cls, *k: int):
-        """Return hat R_{ij}."""
-        i, j = k
-        return cls(frozenset({(i, j)}))
-
-    @staticmethod
-    def deg_gen(k) -> mymath.Deg:
-        i, j = k
-        return mymath.Deg((1, (1 << j) - (1 << i), j - i))
-
-    @classmethod
-    def deg_mon(cls, mon: frozenset) -> mymath.Deg:
-        return sum(map(cls.deg_gen, mon), mymath.Deg((0, 0, 0)))
-
-    @staticmethod
-    def str_gen(k) -> str:
-        return f"\\hat R_{{{k[0]}{k[1]}}}"
-
-    @staticmethod
-    def basis_mons(n_max):
-        """Return monomials (R_{i_1j_1})^k...(R i_mj_m)^e with given length, deg, may_filtr."""
-        generators = []
-        for i in range(n_max):
-            for j in range(i + 1, n_max + 1):
-                generators.append((i, j))
-        for r in range(len(generators)+1):
-            for m in itertools.combinations(generators, r):
-                yield frozenset(m)
-
-
-class MayE1Res(BC.AlgebraT2Mod2):
-    """Resolution of MayE1."""
-    type_c0 = TorMayE1
-    type_c1 = MayE1
-
-    def diff(self):
-        """Return the differential."""
-        result = self.zero()
-        for m0, m1 in self.data:
-            dm1 = self.type_c1(m1).diff()
-            result += self.tensor(self.type_c0(m0), dm1)
-            for i, j in m0:
-                dk_data = {(frozenset({(i, k)}), (((k, j), 1),)) for k in range(i + 1, j)}
-                dk_data |= {(frozenset(), (((i, j), 1),))}
-                dk = MayE1Res(dk_data)
-                result += MayE1Res((m0 - {(i, j)}, m1)) * dk
-        return result
-
-    def _sorted_mons(self) -> list:
-        return sorted(self.data, key=lambda m: (
-            self.deg_mon(m), sorted(m[0]), m[1]), reverse=True)
-
-
-def test():
-    pass
-
-
-if __name__ == "__main__":
-    pass
-
-# 389, 551, 596, 536, 542

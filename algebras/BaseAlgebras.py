@@ -31,7 +31,7 @@ class Algebra(ABC):
     def __bool__(self) -> bool:
         return bool(self.data)
 
-    def _repr_latex_(self):
+    def _repr_markdown_(self):
         return f"${self}$"
 
     def copy(self): return type(self)(self.data.copy())
