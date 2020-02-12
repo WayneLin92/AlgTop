@@ -1,7 +1,12 @@
 """Algebras based on Groebner basis."""
 # TODO: inplace option
-import copy, itertools, operator, heapq, pickle
-from typing import Tuple, List, Dict, Set,  Type, Iterable
+import copy
+import heapq
+from itertools import chain, repeat, combinations
+import operator
+import pickle
+from typing import Tuple, List, Dict, Set, Type, Iterable
+
 from . import BaseAlgebras as BA, linalg, mymath
 
 
@@ -39,7 +44,8 @@ class GbAlgMod2(BA.AlgebraMod2):
         GbAlgMod2._name_index += 1
         dct = {'_gen_names': cls._gen_names.copy(), '_gen_degs': cls._gen_degs.copy(),
                '_unit_deg': cls._unit_deg, '_rels': copy.deepcopy(cls._rels),
-               '_rel_gen_leads': cls._rel_gen_leads.copy(), 'auto_simplify': cls.auto_simplify}
+               '_rel_gen_leads': cls._rel_gen_leads.copy(),
+               '_key': cls._key, 'auto_simplify': cls.auto_simplify}
         # noinspection PyTypeChecker
         return type(class_name, (GbAlgMod2,), dct)
 
@@ -214,18 +220,16 @@ class GbAlgMod2(BA.AlgebraMod2):
         return rel_gens
 
     @classmethod
-    def get_vector_gens(cls, ideal: List[List[Tuple["GbAlgMod2", str]]], *, inplace=False):
+    def get_vector_gens(cls, ideal: List[List[Tuple["GbAlgMod2", str, int]]], *, inplace=False):
         """Return the minimal generating set of `ideal`, which is a A-submodule of A^n."""
         # TODO: create class AugModuleMod2
         A = cls if inplace else cls.copy_alg()
         num_gen = len(A._gen_names)
         rels = []
         for index, v in enumerate(ideal):
-            deg_max = max(ele.deg() for ele, _ in v)
             rel = A.zero()
-            for ele, name in v:
+            for ele, name, deg in v:
                 name = f"v_{{{name}}}"
-                deg = deg_max - ele.deg() + 1
                 x = A.gen(name) if name in A._gen_names else A.add_gen(name, deg)  #
                 rel += x * ele
             if rel:
@@ -239,13 +243,11 @@ class GbAlgMod2(BA.AlgebraMod2):
                 else:
                     m = tuple(1 if k in (i, j) else 0 for k in range(len(A._gen_names)))
                 rels_module.append(A(m))
-                print("test:", A(m))
         A.add_rels(rels_module)
         result = []
         for index, rel in sorted(rels, key=lambda _x: _x[1].deg()):
             rel.simplify()
             if rel:
-                print("test:", rel)
                 result.append(index)
                 A.add_rel(rel)
         return [ideal[i] for i in result]
@@ -260,7 +262,7 @@ class GbAlgMod2(BA.AlgebraMod2):
                 m, d = result[i]
                 for e in range(1, (deg_max - d) // cls._gen_degs[k] + 1):
                     m1 = m + (0,) * (k - len(m)) + (e,)
-                    if any(map(mymath.le_tuple, cls._rels, itertools.repeat(m1))):
+                    if any(map(mymath.le_tuple, cls._rels, repeat(m1))):
                         break
                     else:
                         result.append((m1, d + e * cls._gen_degs[k]))
@@ -381,7 +383,7 @@ class GbAlgMod2(BA.AlgebraMod2):
                     s ^= {mymath.add_tuple(r, m1) for m1 in m_to_q}
                     break
             else:
-                result.add(mon)
+                result ^= {mon}
         cls.auto_simplify = state_backup
         return result
 
@@ -446,7 +448,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         for m in rels:
             if len(m) == num_gen:
                 result_i = cls.zero()
-                for m1 in itertools.chain((m,), rels[m]):
+                for m1 in chain((m,), rels[m]):
                     result_i += cls(mymath.rstrip_tuple(m1[:-1])) * (x ** (m1[-1] - 1))
                 result.append(result_i.data)
         return result
@@ -470,11 +472,23 @@ class GbAlgMod2(BA.AlgebraMod2):
         for m in A._rels:
             if len(m) > num_gen:
                 a = []
-                for m1 in itertools.chain((m,), A._rels[m]):
+                for m1 in chain((m,), A._rels[m]):
                     name = A._gen_names[len(m1) - 1]
+                    deg = A._gen_degs[len(m1) - 1]
                     m11 = mymath.rstrip_tuple(m1[:-1] + (m1[-1] - 1,))
-                    a.append((m11, name))
+                    a.append((m11, name, deg))
                 annilators.append(a)
+        for en1, en2 in combinations(ele_names, 2):
+            ele1, name1 = en1
+            deg1 = ele1.deg()
+            ele2, name2 = en2
+            deg2 = ele2.deg()
+            a = []
+            for m1 in ele1.data:
+                a.append((m1, name2, deg2))
+            for m2 in ele2.data:
+                a.append((m2, name1, deg1))
+            annilators.append(a)
         if cls._key:
             def key(_m):
                 return _m[num_gen:], cls._key(_m)
@@ -482,7 +496,7 @@ class GbAlgMod2(BA.AlgebraMod2):
             def key(_m):
                 return _m[num_gen:], _m
         A.reorder_gens(key=key)
-        annilators = [[(cls(A.simplify_data({_m})), name) for _m, name in a] for a in annilators]
+        annilators = [[(cls(A.simplify_data({_m})), name, deg) for _m, name, deg in a] for a in annilators]
         return cls.get_vector_gens(annilators)
 
     @classmethod

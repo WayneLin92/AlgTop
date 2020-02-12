@@ -1,46 +1,66 @@
 from abc import ABC, abstractmethod
 from typing import Tuple, Set, Dict, Hashable, Any, Optional, Union
+import operator
+from itertools import product, combinations
+from functools import reduce
 from algebras import mymath
 # todo: check the class methods
 # todo: type is
-# todo: avoid creating new user-defined objects inside a class
+# Todo: avoid creating new user-defined objects inside a class
 # todo: try __slots__
 # todo: consider unit degree
-# Todo: add classes for monomials
 
 
 class Algebra(ABC):
     # methods -------------------
-    def __eq__(self, other): return self.data == other.data
-
-    def __pow__(self, n: int):
-        """Return self ** n."""
-        power = self
-        pro = self.unit()
-        while n:
-            if n & 1:
-                pro *= power
-            n >>= 1
-            if n:
-                power = power.square()
-        return pro
-
     def __repr__(self) -> str:
         return self.__str__()
 
     def __bool__(self) -> bool:
         return bool(self.data)
 
+    def __eq__(self, other):
+        return self.data == other.data
+
+    def __add__(self, other):
+        return type(self)(self.add_data(self.data, other.data))
+
+    def __sub__(self, other):
+        return type(self)(self.sub_data(self.data, other.data))
+
+    def __mul__(self, other):
+        return type(self)(self.mul_data(self.data, other.data))
+
+    def __pow__(self, n: int):
+        power = self.data
+        pro = self.unit_data()
+        while n:
+            if n & 1:
+                pro = self.mul_data(pro, power)
+            n >>= 1
+            if n:
+                power = self.square_data(power)
+        return type(self)(pro)
+
     def _repr_markdown_(self):
         return f"${self}$"
 
-    def copy(self): return type(self)(self.data.copy())
+    def copy(self):
+        return type(self)(self.data.copy())
+
+    @classmethod
+    def unit(cls):
+        return cls(cls.unit_data())
+
+    @classmethod
+    def zero(cls):
+        return cls(cls.zero_data())
 
     def square(self):
-        return self * self
+        return type(self)(self.square_data(self.data))
 
     def inverse(self, d_max) -> list:
-        """ return a list of rings """
+        """Return 1/self, listed by degrees up to `d_max`."""
         list_homo = self.split_homo(d_max)
         if not list_homo or list_homo[0] != self.unit():
             raise ValueError("not monic")
@@ -54,14 +74,6 @@ class Algebra(ABC):
         """Return the deg of the polynomial. Return None if it is zero."""
         return max(map(self.deg_mon, self.data)) if self.data else None
 
-    def get_mon(self):  # todo: safely delete
-        if self.data:
-            return max(self.data)
-        return None
-
-    def has_mon(self, mon: Hashable):  # todo: safely delete
-        return mon in self.data
-
     # abstract -----------------
     @abstractmethod
     def __init__(self, data):
@@ -71,33 +83,48 @@ class Algebra(ABC):
     @abstractmethod
     def __str__(self) -> str: pass
 
+    @staticmethod
     @abstractmethod
-    def __add__(self, other): pass
-
-    @abstractmethod
-    def __sub__(self, other): pass
-
-    @abstractmethod
-    def __mul__(self, other): pass
-
-    @classmethod
-    @abstractmethod
-    def unit(cls) -> "Algebra": pass
-
-    @classmethod
-    @abstractmethod
-    def zero(cls) -> "Algebra": pass
+    def unit_data(): pass
 
     @staticmethod
     @abstractmethod
-    def mul_mons(mon1: Hashable, mon2: Hashable):
+    def zero_data(): pass
+
+    @staticmethod
+    @abstractmethod
+    def mul_mons(mon1, mon2):
         """Return the product of two monomials."""
         pass
 
     @staticmethod
     @abstractmethod
-    def str_mon(mon: Hashable) -> str:
-        """ Return the str for the monomial """
+    def add_data(data1, data2):
+        """Return the sum as data"""
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def sub_data(data1, data2):
+        """Return the sum as data"""
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def mul_data(data1, data2):
+        """Return product as data."""
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def square_data(data):
+        """Return the square of monomials."""
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def str_mon(mon) -> str:
+        """Return the str for the monomial."""
         pass
 
     @abstractmethod
@@ -107,7 +134,7 @@ class Algebra(ABC):
 
     @abstractmethod
     def homo(self, d) -> "Algebra":
-        """Return the degree d homogeneous part"""
+        """Return the degree d homogeneous part."""
         pass
 
     @abstractmethod
@@ -138,26 +165,10 @@ class AlgebraDict(Algebra, ABC):
         return result if result else "0"
 
     def __eq__(self, other):
-        if type(other) is int:
-            return self.data == self.scalar(other).data
-        if type(other) is type(self):
-            return self.data == other.data
-        else:
-            return False
+        return {k: v for k, v in self.data.items() if v} == {k: v for k, v in other.data.items() if v}
 
     def __neg__(self):
         data = dict((m, -c) for m, c in self.data.items())
-        return type(self)(data)
-
-    def __add__(self, other):
-        if type(other) is int:
-            other = self.scalar(other)
-        data = self.data.copy()
-        for mon, coeff in other.data.items():
-            if mon in data:
-                data[mon] += coeff
-            else:
-                data[mon] = coeff
         return type(self)(data)
 
     def __iadd__(self, other):
@@ -170,20 +181,6 @@ class AlgebraDict(Algebra, ABC):
                 self.data[mon] = coeff
         self.data = dict((mon, coeff) for mon, coeff in self.data.items() if coeff)
         return self
-
-    def __radd__(self, other):
-        return self + other
-
-    def __sub__(self, other):
-        if type(other) is int:
-            other = self.scalar(other)
-        data = self.data.copy()
-        for mon, coeff in other.data.items():
-            if mon in data:
-                data[mon] -= coeff
-            else:
-                data[mon] = -coeff
-        return type(self)(data)
 
     def __isub__(self, other):
         if type(other) is int:
@@ -206,27 +203,9 @@ class AlgebraDict(Algebra, ABC):
                     data[mon] = (self.data[mon] * other)
                 return type(self)(data)
         elif type(other) is type(self):
-            data = {}
-            for m1, c1 in self.data.items():
-                for m2, c2 in other.data.items():
-                    prod = self.mul_mons(m1, m2)
-                    if type(prod) is dict:
-                        for m, c in prod:
-                            if m in data:
-                                data[m] += c * c1 * c2
-                            else:
-                                data[m] = c * c1 * c2
-                    else:
-                        if prod in data:
-                            data[prod] += c1 * c2
-                        else:
-                            data[prod] = c1 * c2
-            return type(self)(data)
+            return type(self)(self.mul_data(self.data, other.data))
         else:
             return NotImplemented
-
-    def __rmul__(self, other):
-        return self * other
 
     def __imul__(self, other):
         if type(other) is int:
@@ -243,12 +222,84 @@ class AlgebraDict(Algebra, ABC):
             return NotImplemented
 
     @classmethod
-    def unit(cls):  # assuming data is tuple
-        return cls(())
+    def unit_data(cls):
+        return {(): 1}
 
     @classmethod
-    def zero(cls):
-        return cls({})
+    def zero_data(cls):
+        return {}
+
+    @classmethod
+    def add_data(cls, data1, data2):
+        result = data1.copy()
+        for mon, coeff in data2.items():
+            if mon in result:
+                result[mon] += coeff
+            else:
+                result[mon] = coeff
+        return result
+
+    @classmethod
+    def sub_data(cls, data1, data2):
+        result = data1.copy()
+        for mon, coeff in data2.items():
+            if mon in result:
+                result[mon] -= coeff
+            else:
+                result[mon] = -coeff
+        return result
+
+    @classmethod
+    def mul_data(cls, data1, data2):
+        result = {}
+        for m1, c1 in data1.items():
+            for m2, c2 in data2.items():
+                prod = cls.mul_mons(m1, m2)
+                if type(prod) is dict:
+                    for m, c in prod:
+                        if m in result:
+                            result[m] += c * c1 * c2
+                        else:
+                            result[m] = c * c1 * c2
+                else:
+                    if prod in result:
+                        result[prod] += c1 * c2
+                    else:
+                        result[prod] = c1 * c2
+        return result
+
+    @classmethod
+    def square_data(cls, data):
+        result = {}
+        for m, c in data.items():
+            prod = cls.mul_mons(m, m)
+            if type(prod) is dict:
+                for m_prod, c_prod in prod:
+                    if m_prod in result:
+                        result[m_prod] += c_prod * c * c
+                    else:
+                        result[m_prod] = c_prod * c * c
+            else:
+                if prod in result:
+                    result[prod] += c * c
+                else:
+                    result[prod] = c * c
+        for item1, item2 in combinations(data.items(), 2):
+            m1, c1 = item1
+            m2, c2 = item2
+            prod = cls.mul_mons(m1, m2)
+            if type(prod) is dict:
+                for m_prod, c_prod in prod:
+                    if m_prod in result:
+                        result[m_prod] += c_prod * c1 * c2 * 2
+                    else:
+                        result[m_prod] = c_prod * c1 * c2 * 2
+            else:
+                if prod in result:
+                    result[prod] += c1 * c2 * 2
+                else:
+                    result[prod] = c1 * c2 * 2
+        return result
 
     # -- GradedAlgebra --------
     def homo(self, d):
@@ -272,40 +323,6 @@ class AlgebraDict(Algebra, ABC):
 
     def _sorted_mons(self) -> list:
         return sorted(self.data.items(), key=lambda item: (self.deg_mon(item[0]), item), reverse=True)
-
-    def square(self):
-        data = {}
-        for m, c in self.data.items():
-            prod = self.mul_mons(m, m)
-            if type(prod) is dict:
-                for m_prod, c_prod in prod:
-                    if m_prod in data:
-                        data[m_prod] += c_prod * c * c
-                    else:
-                        data[m_prod] = c_prod * c * c
-            else:
-                if prod in data:
-                    data[prod] += c * c
-                else:
-                    data[prod] = c * c
-        list_data = list(self.data.items())
-        for i in range(len(list_data)):
-            for j in range(i + 1, len(list_data)):
-                m1, c1 = list_data[i]
-                m2, c2 = list_data[j]
-                prod = self.mul_mons(m1, m2)
-                if type(prod) is dict:
-                    for m_prod, c_prod in prod:
-                        if m_prod in data:
-                            data[m_prod] += c_prod * c1 * c2 * 2
-                        else:
-                            data[m_prod] = c_prod * c1 * c2 * 2
-                else:
-                    if prod in data:
-                        data[prod] += c1 * c2 * 2
-                    else:
-                        data[prod] = c1 * c2 * 2
-        return type(self)(data)
 
 
 class BasePolyMulti(Algebra, ABC):
@@ -640,46 +657,40 @@ class AlgebraMod2(Algebra, ABC):
     def __neg__(self):
         return self.copy()
 
-    def __add__(self, other):
-        return type(self)(self.data ^ other.data)
-
     def __iadd__(self, other):
         self.data ^= other.data
         return self
-
-    def __sub__(self, other):
-        return type(self)(self.data ^ other.data)
 
     def __isub__(self, other):
         self.data ^= other.data
         return self
 
-    def __mul__(self, other):
-        if isinstance(other, AlgebraMod2):
-            data = set()
-            for m in self.data:
-                for n in other.data:
-                    prod = self.mul_mons(m, n)
-                    data ^= prod if type(prod) is set else {prod}
-            return type(self)(data)
-        else:
-            return NotImplemented
+    @staticmethod
+    def add_data(data1, data2):
+        return data1 ^ data2
+
+    @staticmethod
+    def sub_data(data1, data2):
+        return data1 ^ data2
 
     @classmethod
-    def unit(cls) -> Any:
-        return cls(())
+    def mul_data(cls, data1, data2):
+        return reduce(operator.xor, (pro if type(pro := cls.mul_mons(m, n)) is set else {pro}
+                                     for m, n in product(data1, data2)), set())
+
+    @staticmethod
+    def unit_data() -> set:
+        return {()}
+
+    @staticmethod
+    def zero_data() -> set:
+        return set()
 
     @classmethod
-    def zero(cls) -> Any:
-        return cls(set())
-
-    def square(self):
+    def square_data(cls, data):
         """Warning: non-commutative algebra should overwrite this."""
-        data = set()
-        for m in self.data:
-            prod = self.mul_mons(m, m)
-            data ^= prod if type(prod) is set else {prod}
-        return type(self)(data)
+        return reduce(operator.xor, (pro if type(pro := cls.mul_mons(m, m)) is set else {pro}
+                                     for m in data), set())
 
     def homo(self, d):
         data = set(m for m in self.data if self.deg_mon(m) == d)

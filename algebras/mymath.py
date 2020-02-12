@@ -1,7 +1,7 @@
 """This module provides some basic functions and types."""
 import operator
-import functools
-import itertools
+from functools import reduce
+from itertools import repeat, starmap, chain, zip_longest
 from typing import Tuple
 # TODO: use zip_longest
 
@@ -20,7 +20,7 @@ class Deg(tuple):
 
     def __radd__(self, other):
         """This is implemented for supporting sum()."""
-        return Deg(map(operator.add, self, other)) if other is not 0 else self
+        return Deg(map(operator.add, self, other)) if other != 0 else self
 
     def __sub__(self, other):
         """Element-wise addition."""
@@ -28,26 +28,14 @@ class Deg(tuple):
 
     def __mul__(self, other: int) -> "Deg":
         """Broadcast multiplication."""
-        return Deg(map(operator.mul, self, itertools.repeat(other)))
+        return Deg(map(operator.mul, self, repeat(other)))
 
     def __rmul__(self, other: int):
         """Broadcast multiplication."""
-        return Deg(map(operator.mul, self, itertools.repeat(other)))
+        return Deg(map(operator.mul, self, repeat(other)))
 
     def __floordiv__(self, other) -> int:
-        return min(itertools.starmap(operator.floordiv, filter(operator.itemgetter(1), zip(self, other))))
-
-
-class FrozenDict(dict):
-    """A subclass of dict which is hashable."""
-    __setitem__ = None
-    update = None
-    __slots__ = "_hash",
-
-    def __hash__(self):
-        if not hasattr(self, "_hash"):
-            self._hash = functools.reduce(operator.xor, map(hash, self.items()), 0)
-        return self._hash
+        return min(starmap(operator.floordiv, filter(operator.itemgetter(1), zip(self, other))))
 
 
 # tuple operations as monomials, everything nonnegative.
@@ -68,16 +56,13 @@ def rstrip_tuple(t: tuple):
 
 def sub_tuple(t1, t2):
     """Require le_tuple(t2, t1). Return t1 - t2 element-wise"""
-    result = tuple(itertools.chain(map(operator.sub, t1, t2), t1[len(t2):]))
+    result = tuple(chain(map(operator.sub, t1, t2), t1[len(t2):]))
     return rstrip_tuple(result)
 
 
 def add_tuple(t1, t2):
     """Return t1 + t2 element-wise"""
-    if len(t1) < len(t2):
-        return tuple(itertools.chain(map(operator.add, t1, t2), t2[len(t1):]))
-    else:
-        return tuple(itertools.chain(map(operator.add, t1, t2), t1[len(t2):]))
+    return tuple(starmap(operator.add, zip_longest(t1, t2, fillvalue=0)))
 
 
 def min_tuple(t1, t2):
@@ -85,21 +70,18 @@ def min_tuple(t1, t2):
 
 
 def max_tuple(t1, t2):
-    if len(t1) < len(t2):
-        return tuple(itertools.chain(map(max, t1, t2), t2[len(t1):]))
-    else:
-        return tuple(itertools.chain(map(max, t1, t2), t1[len(t2):]))
+    return tuple(starmap(max, zip_longest(t1, t2, fillvalue=0)))
 
 
 def div_tuple(t1, t2) -> int:
     """Require le_tuple(t2, t1). Return t1 // t2."""
-    return min(itertools.starmap(operator.floordiv, filter(operator.itemgetter(1), zip(t1, t2))))
+    return min(starmap(operator.floordiv, filter(operator.itemgetter(1), zip(t1, t2))))
 
 
 def div_mod_tuple(t1, t2) -> Tuple[int, tuple]:
     """Require le_tuple(t2, t1). Return div_mod(t1, t2)."""
-    q = min(itertools.starmap(operator.floordiv, filter(operator.itemgetter(1), zip(t1, t2))))
-    r = tuple(itertools.chain(map(operator.sub, t1, map(operator.mul, t2, itertools.repeat(q))), t1[len(t2):]))
+    q = min(starmap(operator.floordiv, filter(operator.itemgetter(1), zip(t1, t2))))
+    r = tuple(chain(map(operator.sub, t1, map(operator.mul, t2, repeat(q))), t1[len(t2):]))
     return q, rstrip_tuple(r)
 
 
@@ -142,7 +124,7 @@ def choose(m: int, n: int) -> int:
     n = min(n, m-n)
     if n == 0:
         return 1
-    return functools.reduce(operator.mul, range(m, m - n, -1)) // functools.reduce(operator.mul, range(1, n + 1))
+    return reduce(operator.mul, range(m, m - n, -1)) // reduce(operator.mul, range(1, n + 1))
 
 
 def binom(m: int, n: int) -> int:

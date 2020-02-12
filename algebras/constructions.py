@@ -195,7 +195,8 @@ class FreeModule:
 
     def get_mon(self) -> tuple:
         key = max(self.data)
-        return key, self.data[key].get_mon()
+        for mon in self.data[key]:
+            return key, mon
 
     def has_mon(self, mon: tuple) -> bool:
         if mon[0] in self.data:

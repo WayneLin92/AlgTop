@@ -259,7 +259,7 @@ class LinearMapKMod2:
 
     def g(self, vector):
         """Return f^{-1}(vector)."""
-        w = vector.data.copy()
+        w = vector if type(vector) is set else vector.data.copy()
         result = set()
         for wm1, gw1 in zip(self._image, self._g):
             if wm1[1] in w:
