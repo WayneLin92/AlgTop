@@ -83,6 +83,14 @@ class GbAlgMod2(BA.AlgebraMod2):
             return "1"
 
     @classmethod
+    def repr_mon(cls, clsname, mon: tuple):
+        if mon:
+            return " * ".join(f"{clsname}.gen(\"{b}\") ** {e}" if e > 1 else f"{clsname}.gen(\"{b}\")"
+                              for b, e in zip(cls._gen_names, mon) if e)
+        else:
+            return f"{clsname}.unit()"
+
+    @classmethod
     def deg_mon(cls, mon: tuple):
         return sum(map(operator.mul, mon, cls._gen_degs), cls._unit_deg)
 
@@ -90,6 +98,10 @@ class GbAlgMod2(BA.AlgebraMod2):
         """Require `self` to be homogeneous."""
         for m in self.data:
             return self.deg_mon(m)
+
+    def repr_(self, clsname):
+        result = " + ".join(map(self.repr_mon, repeat(clsname), self._sorted_mons()))
+        return result if result else f"{clsname}.zero()"
 
     # setters ----------------------------
     @classmethod
@@ -292,7 +304,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         return result
 
     @classmethod
-    def print_tex(cls, show_gb=True):
+    def print_latex_alg(cls, show_gb=True):
         """For pdflatex."""
         print(f"Generators: ${', '.join(cls._gen_names)}$.\\\\")
         print(f"Degrees: ${', '.join(map(str, cls._gen_degs))}$")
@@ -308,7 +320,7 @@ class GbAlgMod2(BA.AlgebraMod2):
                 print(f"${cls(m)} = {cls(cls._rels[m])}$\\\\")
 
     @classmethod
-    def display_alg(cls, show_gb=True):
+    def markdown_alg(cls, show_gb=True):
         """For Jupyter notebook."""
         from IPython.display import Markdown
         tr1 = "<th>Generators</th>"
@@ -333,7 +345,7 @@ class GbAlgMod2(BA.AlgebraMod2):
             td += "\\end{align*}"
         else:
             tr3 = "<th>Relations</th>"
-            td = "\\begin{align*}"
+            td = "\\begin{align*}\n"
             for m in sorted(cls._rel_gen_leads, key=cls.deg_mon):
                 td += f"{cls(m)} &= {cls(cls._rels[m])}\\\\\n"
             td += "\\end{align*}"
@@ -345,23 +357,32 @@ class GbAlgMod2(BA.AlgebraMod2):
         return Markdown(result)
 
     @classmethod
-    def display_ideal(cls, gb: Iterable[set]):
-        from IPython.display import Markdown
+    def latex_ideal(cls, gb: Iterable[set]):
+        from IPython.display import Latex
         result = "\\begin{align*}"
         for data in gb:
             result += f"&{cls(data)}\\\\\n"
         result += "\\end{align*}"
-        return Markdown(result)
+        return Latex(result)
 
-    @classmethod
-    def display_ann_seq(cls, ele_names: List[Tuple["GbAlgMod2", str]]):
-        from IPython.display import Markdown
-        annilators = cls.ann_seq(ele_names)
+    @staticmethod
+    def latex_annilators(annilators:  List[List[Tuple["GbAlgMod2", str, int]]]):
+        from IPython.display import Latex
+        result = "\\begin{align*}\n"
+        for a in annilators:
+            s = "+".join(f"{name}{mymath.tex_parenthesis(coeff)}" for coeff, name, d in a)
+            result += f"& {s}=0\\\\\n"
+        result += "\\end{align*}"
+        return Latex(result)
+
+    @staticmethod
+    def repr_annilators(clsname, annilators:  List[List[Tuple["GbAlgMod2", str, int]]]):
         result = ""
         for a in annilators:
-            s = "+".join(f"{name}{mymath.tex_parenthesis(c)}" for name, c in a)
-            result += f"* ${s}$\n"
-        return Markdown(result)
+            s = " + ".join(f"{clsname}.gen(\"{name}\") * {mymath.tex_parenthesis(coeff.repr_(clsname))}"
+                           for coeff, name, d in a)
+            result += f"{s}\n"
+        return result
 
     # algorithms --------------------------
     @classmethod
@@ -648,15 +669,15 @@ class GbDga(GbAlgMod2):
         return R
 
     @classmethod
-    def print_tex(cls, show_gb=False):
+    def print_latex_alg(cls, show_gb=False):
         """Print the cls in latex."""
-        super().print_tex(show_gb)
+        super().print_latex_alg(show_gb)
         print("Differentials:\\\\")
         for g, dg in zip(cls._gen_names, cls._gen_diff):
             print(f"$d({g})={cls(dg)}$\\\\")
 
     @classmethod
-    def display_alg(cls, show_gb=False):
+    def markdown_alg(cls, show_gb=False):
         from IPython.display import Markdown
         td_style = 'style="text-align:left;"'
         tr1 = '<th>Generators</th>'

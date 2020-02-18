@@ -83,6 +83,11 @@ class Algebra(ABC):
     @abstractmethod
     def __str__(self) -> str: pass
 
+    @abstractmethod
+    def repr_(self, clsname: str) -> str:
+        """Return the representation (functions as the actual `__repr__`)."""
+        pass
+
     @staticmethod
     @abstractmethod
     def unit_data(): pass
@@ -125,6 +130,12 @@ class Algebra(ABC):
     @abstractmethod
     def str_mon(mon) -> str:
         """Return the str for the monomial."""
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def repr_mon(clsname, mon) -> str:
+        """Return the representation for the monomial."""
         pass
 
     @abstractmethod
@@ -650,6 +661,10 @@ class AlgebraMod2(Algebra, ABC):
     def __str__(self):
         result = " + ".join(map(self.str_mon, self._sorted_mons()))
         return result if result else "0"
+
+    def repr_(self, clsname):  # TODO: fix `type(self)` issue
+        result = " + ".join(map(self.repr_mon, self._sorted_mons()))
+        return result if result else f"{clsname}.zero()"
 
     def _sorted_mons(self) -> list:
         return sorted(self.data, key=lambda m: (self.deg_mon(m), m), reverse=True)
