@@ -130,7 +130,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         def f(_m):
             return _m[:i] + _m[i+1:]
         cls._rels = {f(_m): {f(m1) for m1 in _v} for _m, _v in cls._rels.items()}
-        cls._rel_gen_leads = {f(_m) for _m in cls._rel_gen_leads if sum(_m)}
+        cls._rel_gen_leads = {fm for _m in cls._rel_gen_leads if sum(fm := f(_m))}
         cls._gen_names = f(cls._gen_names)
         cls._gen_degs = f(cls._gen_degs)
 
