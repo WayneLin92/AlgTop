@@ -346,6 +346,11 @@ class GroebnerTestCase(unittest.TestCase):
         HX = E1.subalgebra(ele_names, key=E1._key)
         self.assertEqual(15, len(HX._rels))
 
+    @classmethod
+    def tearDownClass(cls):
+        from algebras.BaseAlgebras import Monitor
+        Monitor.present()
+
 
 if __name__ == '__main__':
     unittest.main()

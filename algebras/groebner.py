@@ -21,7 +21,7 @@ class GbAlgMod2(BA.AlgebraMod2):
     _gen_degs = None  # type: list
     _unit_deg = None
     _rels = None  # type: Dict[tuple, set]
-    _rel_gen_leads = None  # type: Set[tuple]
+    _rels_gen_leads = None  # type: Set[tuple]
     _key = None  # key function: mon -> value
     auto_simplify = None  # type: bool
     _name_index = 0
@@ -33,7 +33,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         class_name = f"GbAlgMod2_{cls._name_index}"
         cls._name_index += 1
         dct = {'_gen_names': [], '_gen_degs': [], '_unit_deg': unit_deg or 0,
-               '_rels': {}, '_rel_gen_leads': set(), '_key': key, 'auto_simplify': True}
+               '_rels': {}, '_rels_gen_leads': set(), '_key': key, 'auto_simplify': True}
         # noinspection PyTypeChecker
         return type(class_name, (cls,), dct)
 
@@ -44,7 +44,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         GbAlgMod2._name_index += 1
         dct = {'_gen_names': cls._gen_names.copy(), '_gen_degs': cls._gen_degs.copy(),
                '_unit_deg': cls._unit_deg, '_rels': copy.deepcopy(cls._rels),
-               '_rel_gen_leads': cls._rel_gen_leads.copy(),
+               '_rels_gen_leads': cls._rels_gen_leads.copy(),
                '_key': cls._key, 'auto_simplify': cls.auto_simplify}
         # noinspection PyTypeChecker
         return type(class_name, (GbAlgMod2,), dct)
@@ -54,7 +54,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         """Save to a pickle file."""
         with open(filename, 'wb') as file:
             pickle.dump([cls._gen_names, cls._gen_degs, cls._unit_deg,
-                         cls._rels, cls._rel_gen_leads, cls._key], file)
+                         cls._rels, cls._rels_gen_leads, cls._key], file)
 
     @staticmethod
     def load_alg(filename):
@@ -65,7 +65,7 @@ class GbAlgMod2(BA.AlgebraMod2):
             class_name = f"GbAlgMod2_{cls._name_index}"
             cls._name_index += 1
             dct = {'_gen_names': init_list[0], '_gen_degs': init_list[1], '_unit_deg': init_list[2],
-                   '_rels': init_list[3], '_rel_gen_leads': init_list[4], '_key': init_list[5], 'auto_simplify': True}
+                   '_rels': init_list[3], '_rels_gen_leads': init_list[4], '_key': init_list[5], 'auto_simplify': True}
             # noinspection PyTypeChecker
             return type(class_name, (cls,), dct)
 
@@ -125,12 +125,13 @@ class GbAlgMod2(BA.AlgebraMod2):
         call this function to remove this generator."""
         i = cls._gen_names.index(name)
         m_k = (0,) * i + (1,)
+        assert not cls._rels[m_k]
         del cls._rels[m_k]
 
         def f(_m):
             return _m[:i] + _m[i+1:]
         cls._rels = {f(_m): {f(m1) for m1 in _v} for _m, _v in cls._rels.items()}
-        cls._rel_gen_leads = {fm for _m in cls._rel_gen_leads if sum(fm := f(_m))}
+        cls._rels_gen_leads = {fm for _m in cls._rels_gen_leads if sum(fm := f(_m))}
         cls._gen_names = f(cls._gen_names)
         cls._gen_degs = f(cls._gen_degs)
 
@@ -157,7 +158,7 @@ class GbAlgMod2(BA.AlgebraMod2):
             cls._gen_names = [cls._gen_names[index_map[i]] for i in range(num_gens)]
             cls._gen_degs = [cls._gen_degs[index_map[i]] for i in range(num_gens)]
         cls._rels = {}
-        cls._rel_gen_leads = set()
+        cls._rels_gen_leads = set()
         cls.add_rels_data(rel_generators)
 
     @classmethod
@@ -214,7 +215,7 @@ class GbAlgMod2(BA.AlgebraMod2):
     def get_rel_gens(cls):
         """Return a minimal generating set of `cls._rels` or `ideal`, ordered by degree."""
         rel_gens = []
-        for m in sorted(cls._rel_gen_leads, key=cls.deg_mon):
+        for m in sorted(cls._rels_gen_leads, key=cls.deg_mon):
             rel = cls._rels[m] | {m}
             rel_gens.append(rel)
         return rel_gens
@@ -311,12 +312,12 @@ class GbAlgMod2(BA.AlgebraMod2):
         print("Relations:\\\\")
         if show_gb:
             for m in cls._rels:
-                if m in cls._rel_gen_leads:
+                if m in cls._rels_gen_leads:
                     print(f"$\\triangle\\hspace{{4pt}}{cls(m)} = {cls(cls._rels[m])}$\\\\")
                 else:
                     print(f"${cls(m)} = {cls(cls._rels[m])}$\\\\")
         else:
-            for m in cls._rel_gen_leads:
+            for m in cls._rels_gen_leads:
                 print(f"${cls(m)} = {cls(cls._rels[m])}$\\\\")
 
     @classmethod
@@ -337,7 +338,7 @@ class GbAlgMod2(BA.AlgebraMod2):
             tr3 = "<th>Groebner basis</th>"
             td = "\\begin{align*}"
             for m in sorted(cls._rels, key=cls.deg_mon):
-                if m in cls._rel_gen_leads:
+                if m in cls._rels_gen_leads:
                     td += "\\bullet\\hspace{4pt}"
                 else:
                     td += "\\square\\hspace{4pt}"
@@ -346,7 +347,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         else:
             tr3 = "<th>Relations</th>"
             td = "\\begin{align*}\n"
-            for m in sorted(cls._rel_gen_leads, key=cls.deg_mon):
+            for m in sorted(cls._rels_gen_leads, key=cls.deg_mon):
                 td += f"{cls(m)} &= {cls(cls._rels[m])}\\\\\n"
             td += "\\end{align*}"
         td = f'<td>{td}</td>'
@@ -419,7 +420,7 @@ class GbAlgMod2(BA.AlgebraMod2):
             if r:
                 m = max(r, key=cls._key) if cls._key else max(r)
                 if is_rel_gen:
-                    cls._rel_gen_leads.add(m)
+                    cls._rels_gen_leads.add(m)
                 redundant_leading_terms = []
                 for m1, v1 in cls._rels.items():
                     if any(map(min, m, m1)):  # gcd > 0
@@ -431,12 +432,13 @@ class GbAlgMod2(BA.AlgebraMod2):
                         new_rel -= {lcm}
                         new_rel ^= v1dif1
                         if mymath.le_tuple(m, m1):
+                            BA.Monitor.count("redundant_leading_terms")
                             redundant_leading_terms.append(m1)
-                            is_lead = m1 in cls._rel_gen_leads
+                            is_lead = m1 in cls._rels_gen_leads
                             if new_rel:
                                 heapq.heappush(hq, (cls.deg_mon(lcm), is_lead, new_rel))
                             if is_lead:
-                                cls._rel_gen_leads.remove(m1)
+                                cls._rels_gen_leads.remove(m1)
                         elif new_rel:
                             heapq.heappush(hq, (cls.deg_mon(lcm), False, new_rel))
                 for m_redundant in redundant_leading_terms:
@@ -447,7 +449,7 @@ class GbAlgMod2(BA.AlgebraMod2):
     def ann(cls, x):
         """Return the groebner basis for the ideal {y | xy=0}."""
         rels_backup = cls._rels.copy()
-        rel_gen_leads_backup = cls._rel_gen_leads.copy()
+        rel_gen_leads_backup = cls._rels_gen_leads.copy()
         key_backup = cls._key
         d = x.deg()
         try:
@@ -463,7 +465,7 @@ class GbAlgMod2(BA.AlgebraMod2):
             cls._gen_names.pop()
             cls._gen_degs.pop()
             cls._rels = rels_backup
-            cls._rel_gen_leads = rel_gen_leads_backup
+            cls._rels_gen_leads = rel_gen_leads_backup
             cls._key = key_backup
         result = []
         for m in rels:
@@ -538,7 +540,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         A._gen_names = A._gen_names[num_gens:]
         A._gen_degs = A._gen_degs[num_gens:]
         A._key = key
-        A._rel_gen_leads = set()
+        A._rels_gen_leads = set()
         rels, A._rels = A._rels, {}
         rels_subalg = []
         for m in rels:
@@ -563,7 +565,7 @@ class GbDga(GbAlgMod2):
         class_name = f"GbDGA_{cls._name_index}"
         cls._name_index += 1
         dct = {'_gen_names': [], '_gen_degs': [], '_gen_diff': [], '_unit_deg': unit_deg or 0,
-               '_rels': {}, '_rel_gen_leads': set(), '_key': key, 'auto_simplify': True}
+               '_rels': {}, '_rels_gen_leads': set(), '_key': key, 'auto_simplify': True}
         # noinspection PyTypeChecker
         return type(class_name, (cls,), dct)
 
@@ -694,7 +696,7 @@ class GbDga(GbAlgMod2):
             tr3 = "<th>Groebner basis</th>"
             td = "\\begin{align*}"
             for m in sorted(cls._rels, key=cls.deg_mon):
-                if m in cls._rel_gen_leads:
+                if m in cls._rels_gen_leads:
                     td += "\\bullet\\hspace{4pt}"
                 else:
                     td += "\\square\\hspace{4pt}"
@@ -703,7 +705,7 @@ class GbDga(GbAlgMod2):
         else:
             tr3 = "<th>Relations</th>"
             td = "\\begin{align*}"
-            for m in sorted(cls._rel_gen_leads, key=cls.deg_mon):
+            for m in sorted(cls._rels_gen_leads, key=cls.deg_mon):
                 td += f"{cls(m)} &= {cls(cls._rels[m])}\\\\\n"
             td += "\\end{align*}"
         td = f'<td>{td}</td>'
