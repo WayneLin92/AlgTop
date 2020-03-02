@@ -22,6 +22,7 @@ class GbAlgMod2(BA.AlgebraMod2):
     _unit_deg = None
     _rels = None  # type: Dict[tuple, set]
     _rels_gen_leads = None  # type: Set[tuple]
+    _rels_cache = None  # type: List[Tuple[int, bool, set]]
     _key = None  # key function: mon -> value
     auto_simplify = None  # type: bool
     _name_index = 0
@@ -33,7 +34,8 @@ class GbAlgMod2(BA.AlgebraMod2):
         class_name = f"GbAlgMod2_{cls._name_index}"
         cls._name_index += 1
         dct = {'_gen_names': [], '_gen_degs': [], '_unit_deg': unit_deg or 0,
-               '_rels': {}, '_rels_gen_leads': set(), '_key': key, 'auto_simplify': True}
+               '_rels': {}, '_rels_gen_leads': set(), '_rels_cache': [],
+               '_key': key, 'auto_simplify': True}
         # noinspection PyTypeChecker
         return type(class_name, (cls,), dct)
 
@@ -45,16 +47,20 @@ class GbAlgMod2(BA.AlgebraMod2):
         dct = {'_gen_names': cls._gen_names.copy(), '_gen_degs': cls._gen_degs.copy(),
                '_unit_deg': cls._unit_deg, '_rels': copy.deepcopy(cls._rels),
                '_rels_gen_leads': cls._rels_gen_leads.copy(),
+               '_rels_cache': cls._rels_cache,
                '_key': cls._key, 'auto_simplify': cls.auto_simplify}
         # noinspection PyTypeChecker
         return type(class_name, (GbAlgMod2,), dct)
 
     @classmethod
-    def save(cls, filename):
+    def save_alg(cls, filename):
         """Save to a pickle file."""
-        with open(filename, 'wb') as file:
-            pickle.dump([cls._gen_names, cls._gen_degs, cls._unit_deg,
-                         cls._rels, cls._rels_gen_leads, cls._key], file)
+        if cls._rels_cache:
+            raise ValueError("relation cache not empty!")
+        else:
+            with open(filename, 'wb') as file:
+                pickle.dump([cls._gen_names, cls._gen_degs, cls._unit_deg,
+                             cls._rels, cls._rels_gen_leads, cls._key], file)
 
     @staticmethod
     def load_alg(filename):
@@ -65,7 +71,8 @@ class GbAlgMod2(BA.AlgebraMod2):
             class_name = f"GbAlgMod2_{cls._name_index}"
             cls._name_index += 1
             dct = {'_gen_names': init_list[0], '_gen_degs': init_list[1], '_unit_deg': init_list[2],
-                   '_rels': init_list[3], '_rels_gen_leads': init_list[4], '_key': init_list[5], 'auto_simplify': True}
+                   '_rels': init_list[3], '_rels_gen_leads': init_list[4], '_rels_cache': [],
+                   '_key': init_list[5], 'auto_simplify': True}
             # noinspection PyTypeChecker
             return type(class_name, (cls,), dct)
 
@@ -83,7 +90,7 @@ class GbAlgMod2(BA.AlgebraMod2):
             return "1"
 
     @classmethod
-    def repr_mon(cls, clsname, mon: tuple):
+    def repr_mon(cls, mon: tuple, clsname):
         if mon:
             return " * ".join(f"{clsname}.gen(\"{b}\") ** {e}" if e > 1 else f"{clsname}.gen(\"{b}\")"
                               for b, e in zip(cls._gen_names, mon) if e)
@@ -98,10 +105,6 @@ class GbAlgMod2(BA.AlgebraMod2):
         """Require `self` to be homogeneous."""
         for m in self.data:
             return self.deg_mon(m)
-
-    def repr_(self, clsname):
-        result = " + ".join(map(self.repr_mon, repeat(clsname), self._sorted_mons()))
-        return result if result else f"{clsname}.zero()"
 
     # setters ----------------------------
     @classmethod
@@ -121,8 +124,10 @@ class GbAlgMod2(BA.AlgebraMod2):
 
     @classmethod
     def remove_gen(cls, name: str):
-        """If the generator `name` equals zero in the algebra whose relations are simplified,
-        call this function to remove this generator."""
+        """Remove a generator.
+
+        If the generator `name` equals zero in the algebra whose relations are simplified,
+        call this function to remove this generator. Use only when _rels_cache is empty."""
         i = cls._gen_names.index(name)
         m_k = (0,) * i + (1,)
         assert not cls._rels[m_k]
@@ -159,22 +164,35 @@ class GbAlgMod2(BA.AlgebraMod2):
             cls._gen_degs = [cls._gen_degs[index_map[i]] for i in range(num_gens)]
         cls._rels = {}
         cls._rels_gen_leads = set()
-        cls.add_rels_data(rel_generators)
+        cls.add_rels_data(rel_generators, clear_cache=True)
+
+    @classmethod
+    def add_rel_data(cls, rel: set):
+        """Add relations."""
+        if rel:
+            deg = cls.deg_data(rel)
+            heapq.heappush(cls._rels_cache, (deg, True, rel))
+            cls.add_rels_cache(deg)
+
+    @classmethod
+    def add_rels_data(cls, rels: Iterable[set], sorted_=False, clear_cache=False):
+        """Add relations."""
+        for rel in (rels if sorted_ else sorted(rels, key=cls.deg_data)):
+            cls.add_rel_data(rel)
+        if clear_cache:
+            cls.add_rels_cache()
 
     @classmethod
     def add_rel(cls, rel: "GbAlgMod2"):
         """Add a relation."""
         if not rel.is_homo():
             raise ValueError(f'relation {rel} not homogeneous!')
-        cls.add_rels_data((rel.data,))
+        cls.add_rel_data(rel.data)
 
     @classmethod
-    def add_rels(cls, rels: Iterable["GbAlgMod2"]):
+    def add_rels(cls, rels: Iterable["GbAlgMod2"], sorted_=False, clear_cache=False):
         """Add a relation."""
-        for rel in rels:
-            if not rel.is_homo():
-                raise ValueError(f'relation {rel} not homogeneous!')
-        cls.add_rels_data(rel.data for rel in rels)
+        cls.add_rels_data((rel.data for rel in rels), sorted_, clear_cache)
 
     @classmethod
     def simplify_rels(cls):
@@ -205,6 +223,10 @@ class GbAlgMod2(BA.AlgebraMod2):
         return len(cls._gen_names)
 
     @classmethod
+    def get_cache_size(cls):
+        return len(cls._rels_cache)
+
+    @classmethod
     def gen(cls, k: str):
         """Return a generator."""
         i = cls._gen_names.index(k)
@@ -226,44 +248,13 @@ class GbAlgMod2(BA.AlgebraMod2):
         A = cls.copy_alg()
         rel_gens = []
         for rel in sorted(ideal, key=A.deg_data):
+            deg = A.deg_data(rel)
+            A.add_rels_cache(deg)
             rel = A.simplify_data(rel)
             if rel:
                 rel_gens.append(rel)
-                A.add_rels_data((rel,))
+                A.add_rel_data(rel)
         return rel_gens
-
-    @classmethod
-    def get_vector_gens(cls, ideal: List[List[Tuple["GbAlgMod2", str, int]]], *, inplace=False):
-        """Return the minimal generating set of `ideal`, which is a A-submodule of A^n."""
-        # TODO: create class AugModuleMod2
-        A = cls if inplace else cls.copy_alg()
-        num_gen = len(A._gen_names)
-        rels = []
-        for index, v in enumerate(ideal):
-            rel = A.zero()
-            for ele, name, deg in v:
-                name = f"v_{{{name}}}"
-                x = A.gen(name) if name in A._gen_names else A.add_gen(name, deg)  #
-                rel += x * ele
-            if rel:
-                rels.append((index, rel))
-        num_gen1 = len(A._gen_names)
-        rels_module = []
-        for i in range(num_gen, num_gen1):
-            for j in range(i, num_gen1):
-                if i == j:
-                    m = (0,) * i + (2,)
-                else:
-                    m = tuple(1 if k in (i, j) else 0 for k in range(len(A._gen_names)))
-                rels_module.append(A(m))
-        A.add_rels(rels_module)
-        result = []
-        for index, rel in sorted(rels, key=lambda _x: _x[1].deg()):
-            rel.simplify()
-            if rel:
-                result.append(index)
-                A.add_rel(rel)
-        return [ideal[i] for i in result]
 
     @classmethod
     def basis_mons_max(cls, deg_max):
@@ -410,15 +401,14 @@ class GbAlgMod2(BA.AlgebraMod2):
         return result
 
     @classmethod
-    def add_rels_data(cls, rels: Iterable[set]):
-        """Add relations."""
-        hq = [(cls.deg_data(rel), True, rel) for rel in rels]
-        heapq.heapify(hq)
-        while hq:
-            _, is_rel_gen, r = heapq.heappop(hq)
+    def add_rels_cache(cls, deg_max=None):
+        """Add relations from cache up to deg `deg_max`."""
+        hq = cls._rels_cache
+        while hq and (deg_max is None or hq[0][0] <= deg_max):
+            deg, is_rel_gen, r = heapq.heappop(hq)
             r = cls.simplify_data(r)
             if r:
-                m = max(r, key=cls._key) if cls._key else max(r)
+                m = cls.get_lead(r)
                 if is_rel_gen:
                     cls._rels_gen_leads.add(m)
                 redundant_leading_terms = []
@@ -432,7 +422,7 @@ class GbAlgMod2(BA.AlgebraMod2):
                         new_rel -= {lcm}
                         new_rel ^= v1dif1
                         if mymath.le_tuple(m, m1):
-                            BA.Monitor.count("redundant_leading_terms")
+                            BA.Monitor.count("redundant_leading_terms")  #
                             redundant_leading_terms.append(m1)
                             is_lead = m1 in cls._rels_gen_leads
                             if new_rel:
@@ -443,7 +433,41 @@ class GbAlgMod2(BA.AlgebraMod2):
                             heapq.heappush(hq, (cls.deg_mon(lcm), False, new_rel))
                 for m_redundant in redundant_leading_terms:
                     del cls._rels[m_redundant]
+                # print(cls.deg_mon(m), deg_max)
                 cls._rels[m] = r - {m}
+
+    @classmethod
+    def get_vector_gens(cls, ideal: List[List[Tuple["GbAlgMod2", str, int]]], *, inplace=False):
+        """Return the minimal generating set of `ideal`, which is a A-submodule of A^n."""
+        # TODO: create class AugModuleMod2
+        A = cls if inplace else cls.copy_alg()
+        num_gen = len(A._gen_names)
+        rels = []
+        for index, v in enumerate(ideal):
+            rel = A.zero()
+            for ele, name, deg in v:
+                name = f"v_{{{name}}}"
+                x = A.gen(name) if name in A._gen_names else A.add_gen(name, deg)  #
+                rel += x * ele
+            if rel:
+                rels.append((index, rel))
+        num_gen1 = len(A._gen_names)
+        rels_module = []
+        for i in range(num_gen, num_gen1):
+            for j in range(i, num_gen1):
+                if i == j:
+                    m = (0,) * i + (2,)
+                else:
+                    m = tuple(1 if k in (i, j) else 0 for k in range(len(A._gen_names)))
+                rels_module.append(A(m))
+        A.add_rels(rels_module)
+        result = []
+        for index, rel in sorted(rels, key=lambda _x: _x[1].deg()):
+            rel.simplify()
+            if rel:
+                result.append(index)
+                A.add_rel(rel)
+        return [ideal[i] for i in result]
 
     @classmethod
     def ann(cls, x):
@@ -460,6 +484,7 @@ class GbAlgMod2(BA.AlgebraMod2):
             else:
                 cls._key = lambda _m: (-_m[-1] if len(_m) == num_gen else 0, key_backup(_m))
             cls.add_rel(X + x)
+            cls.add_rels_cache()
             rels = cls._rels
         finally:
             cls._gen_names.pop()
@@ -532,24 +557,23 @@ class GbAlgMod2(BA.AlgebraMod2):
             _m1, _m2 = _m[:num_gens], _m[num_gens:]
             return cls.deg_mon(_m1), (cls._key(_m1) if cls._key else _m1), (key(_m2) if key else _m2)
         A._key = key1
-        rels_new = []
         for ele, name in ele_names:
             x = A.add_gen(name, ele.deg())
-            rels_new.append(x + ele)
-        A.add_rels(rels_new)
+            A.add_rel(x + ele)
+        A.add_rels_cache()
         A._gen_names = A._gen_names[num_gens:]
         A._gen_degs = A._gen_degs[num_gens:]
         A._key = key
         A._rels_gen_leads = set()
         rels, A._rels = A._rels, {}
-        rels_subalg = []
         for m in rels:
             n = 0
             while n < len(m) and m[n] == 0:
                 n += 1
             if n >= num_gens:
-                rels_subalg.append({m[num_gens:]} | {_m[num_gens:] for _m in rels[m]})
-        A.add_rels_data(rels_subalg)
+                rel_subalg = {m[num_gens:]} | {_m[num_gens:] for _m in rels[m]}
+                A.add_rel_data(rel_subalg)
+        A.add_rels_cache()
         return A
 
 
@@ -725,4 +749,4 @@ class GbDga(GbAlgMod2):
                  '<table>' + tr3 + tr4 + '</table>'
         return Markdown(result)
 
-# 691, 656
+# 691, 656, 737

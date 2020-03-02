@@ -1,5 +1,4 @@
 import unittest
-from notations import *
 from typing import Union
 
 
@@ -126,7 +125,12 @@ class SpecSeqTestCase(unittest.TestCase):
 
 
 class PolyTestCase(unittest.TestCase):
+    def setUp(self):
+        from algebras import polynomials
+        self.polynomials = polynomials
+
     def test_poincare_series(self):
+        poincare_series = self.polynomials.poincare_series
         a = [1, 3]
         b = [1, 2, 4, 8, 3, 6]
         f = poincare_series(a, [], 10)
@@ -134,6 +138,7 @@ class PolyTestCase(unittest.TestCase):
         self.assertEqual(f, g)
 
     def test_polymod2(self):
+        PolyAnyVarMod2 = self.polynomials.PolyAnyVarMod2
         x = PolyAnyVarMod2.gen("x")
         y = PolyAnyVarMod2.gen("y")
         p = (x - y) ** 3
@@ -141,7 +146,7 @@ class PolyTestCase(unittest.TestCase):
         self.assertTrue(True)
 
     def test_polymodp(self):
-        from algebras.polynomials import PolyAnyVarModP
+        PolyAnyVarModP = self.polynomials.PolyAnyVarModP
         PolyAnyVarModP.set_prime(3)
         x = PolyAnyVarModP.gen("x")
         y = PolyAnyVarModP.gen("y")
@@ -152,6 +157,7 @@ class PolyTestCase(unittest.TestCase):
         self.assertTrue(True)
 
     def test_polyZ(self):
+        PolyAnyVarZ = self.polynomials.PolyAnyVarZ
         x = PolyAnyVarZ.gen("x")
         y = PolyAnyVarZ.gen("y")
         p = (x - y) ** 3
@@ -160,9 +166,10 @@ class PolyTestCase(unittest.TestCase):
         self.assertTrue(True)
 
     def test_polySingZ(self):
-        x = xto(1)  # type: PolySingZ
+        PolySingZ = self.polynomials.PolySingZ
+        x = PolySingZ.gen(1)
         f = x + x ** 2
-        g = f.inv_function(10)
+        g = f.inverse_composition(10)
         h = g.composition(f, 10)
         i = f.composition(g, 10)
         self.assertEqual(str(h), "x")
@@ -320,7 +327,8 @@ class GroebnerTestCase(unittest.TestCase):
                 j = i + d
                 rel = sum((R(i, k) * R(k, j) for k in range(i + 1, j)), E1.zero())
                 rels.append(rel)
-        E1.add_rels(rels)
+        rels.sort(key=lambda x: x.deg())
+        E1.add_rels(rels, sorted_=True, clear_cache=True)
         return E1, R
 
     def test_GbAlgMod2(self):
