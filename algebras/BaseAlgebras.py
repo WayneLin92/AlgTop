@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Tuple, Set, Dict, Hashable, Any, Optional, Union
 import operator
-from itertools import product, combinations
+from itertools import product, combinations, repeat
 from functools import reduce
 from algebras import mymath
 # todo: check the class methods
@@ -83,6 +83,12 @@ class Algebra(ABC):
     @abstractmethod
     def __str__(self) -> str: pass
 
+    def __neg__(self): pass
+
+    def __iadd__(self, other): pass
+
+    def __isub__(self, other): pass
+
     @abstractmethod
     def repr_(self, clsname: str) -> str:
         """Return the representation (functions as the actual `__repr__`)."""
@@ -134,7 +140,7 @@ class Algebra(ABC):
 
     @staticmethod
     @abstractmethod
-    def repr_mon(clsname, mon) -> str:
+    def repr_mon(mon, clsname) -> str:
         """Return the representation for the monomial."""
         pass
 
@@ -174,6 +180,10 @@ class AlgebraDict(Algebra, ABC):
                 result += str(abs(c))
             result += self.str_mon(m)
         return result if result else "0"
+
+    def repr_(self, clsname):
+        result = " + ".join(f"{c} * {self.repr_mon(m, clsname)}" for c, m in self._sorted_mons())
+        return result if result else f"{clsname}.zero()"
 
     def __eq__(self, other):
         return {k: v for k, v in self.data.items() if v} == {k: v for k, v in other.data.items() if v}
@@ -232,8 +242,8 @@ class AlgebraDict(Algebra, ABC):
         else:
             return NotImplemented
 
-    @classmethod
-    def unit_data(cls):
+    @staticmethod
+    def unit_data():
         return {(): 1}
 
     @classmethod
@@ -662,8 +672,8 @@ class AlgebraMod2(Algebra, ABC):
         result = " + ".join(map(self.str_mon, self._sorted_mons()))
         return result if result else "0"
 
-    def repr_(self, clsname):  # TODO: fix `type(self)` issue
-        result = " + ".join(map(self.repr_mon, self._sorted_mons()))
+    def repr_(self, clsname):
+        result = " + ".join(map(self.repr_mon, self._sorted_mons(), repeat(clsname)))
         return result if result else f"{clsname}.zero()"
 
     def _sorted_mons(self) -> list:

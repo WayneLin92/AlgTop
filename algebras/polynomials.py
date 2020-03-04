@@ -1,3 +1,4 @@
+from itertools import combinations
 from algebras import BaseAlgebras as BA
 
 
@@ -15,42 +16,21 @@ class PolySingZ(BA.BasePolySingZ):
         else:
             return "1"
 
+    def repr_(self, clsname="PolySingZ"):
+        result = " + ".join(f"{c} * {self.repr_mon(m, clsname)}" for m, c in self._sorted_mons())
+        return result if result else f"{clsname}.zero()"
+
+    @staticmethod
+    def repr_mon(mon: int, clsname="PolySingZ"):
+        return f"{clsname}.gen({mon})"
+
+    @staticmethod
+    def unit_data():
+        return {0: 1}
+
     # methods
-    def mul_trun(self, other, d_max):
-        data = {}
-        for m1, c1 in self.data.items():
-            for m2, c2 in other.data.items():
-                prod = m1 + m2
-                if prod <= d_max:
-                    if prod in data:
-                        data[prod] += c1 * c2
-                    else:
-                        data[prod] = c1 * c2
-        return type(self)(data)
-
-    def inv_function(self, d_max):
-        """ inverse in the sense of composition """
-        if 1 not in self.data or self.data[1] != 1 or 0 in self.data:
-            raise ValueError("leading term not x")
-        data = {}
-        y_powers = []
-        prod = self.unit()
-        for i in range(d_max-1):
-            prod = prod.mul_trun(self, d_max)
-            y_powers.append(prod)
-        data[0] = 0
-        data[1] = 1
-        for n in range(2, d_max + 1):
-            data[n] = -sum(data[i] * y_powers[i-1].coeff(n) for i in range(1, n))
-        return type(self)(data)
-
-    def composition(self, other, d_max):
-        """ compute the composition of two polynomials """
-        deg = self.deg()
-        result = self.unit() * self.coeff(deg)
-        for i in range(deg - 1, -1, -1):
-            result = result.mul_trun(other, d_max) + self.coeff(i)
-        return result
+    def __rmul__(self, other):
+        return self * other
 
     def evaluation(self, x):
         """ compute f(x) """
@@ -60,36 +40,89 @@ class PolySingZ(BA.BasePolySingZ):
             result = result * x + self.coeff(i)
         return result
 
-    def pow(self, n, d_max):
-        power = self
-        pro = self.unit()
-        while n > 0:
-            if n % 2 == 1:
-                pro = pro.mul_trun(power, d_max)
-            n //= 2
-            power = power.square_trun(d_max)
-        return pro
 
-    def square_trun(self, d_max):
-        data = {}
-        for m, c in self.data.items():
-            prod = self.mul_mons(m, m)
-            if prod <= d_max:
-                if prod in data:
-                    data[prod] += c * c
-                else:
-                    data[prod] = c * c
-        list_data = list(self.data.items())
-        for i in range(len(list_data)):
-            for j in range(i + 1, len(list_data)):
-                m1, c1 = list_data[i]
-                m2, c2 = list_data[j]
-                prod = self.mul_mons(m1, m2)
-                if prod <= d_max:
-                    if prod in data:
-                        data[prod] += c1 * c2 * 2
+class PolySingZ_trun(PolySingZ):
+    deg_max = None
+
+    # -- BasePolySingZ -------------
+    @classmethod
+    def gen(cls, exp: int = 1):
+        if exp < 0:
+            raise ValueError("negative exponent")
+        return cls({exp: 1}) if exp <= cls.deg_max else cls.zero()
+
+    def repr_(self, clsname="PolySingZ_trun"):
+        return super().repr_(clsname)
+
+    @staticmethod
+    def repr_mon(mon: int, clsname="PolySingZ_trun"):
+        return PolySingZ.repr_mon(mon, clsname)
+
+    @classmethod
+    def mul_data(cls, data1, data2):
+        result = {}
+        for m1, c1 in data1.items():
+            for m2, c2 in data2.items():
+                prod = m1 + m2
+                if prod <= cls.deg_max:
+                    if prod in result:
+                        result[prod] += c1 * c2
                     else:
-                        data[prod] = c1 * c2 * 2
+                        result[prod] = c1 * c2
+        return result
+
+    @classmethod
+    def square_data(cls, data):
+        result = {}
+        for m, c in data.items():
+            prod = m * 2
+            if prod <= cls.deg_max:
+                if prod in result:
+                    result[prod] += c * c
+                else:
+                    result[prod] = c * c
+        for item1, item2 in combinations(data.items(), 2):
+            m1, c1 = item1
+            m2, c2 = item2
+            prod = m1 + m2
+            if prod <= cls.deg_max:
+                if prod in result:
+                    result[prod] += c1 * c2 * 2
+                else:
+                    result[prod] = c1 * c2 * 2
+        return result
+
+    # methods
+    def __truediv__(self, other: "PolySingZ_trun"):
+        inv = other.inverse(self.deg_max)
+        return self * inv
+
+    @classmethod
+    def set_deg_max(cls, d_max):
+        cls.deg_max = d_max
+
+    def composition(self, other):
+        """ compute the composition of two polynomials """
+        deg = self.deg()
+        result = self.unit() * self.coeff(deg)
+        for i in reversed(range(deg)):
+            result = result * other + self.unit() * self.coeff(i)
+        return result
+
+    def inverse_composition(self):
+        """Return the inverse in the sense of composition."""
+        if 1 not in self.data or self.data[1] != 1 or 0 in self.data:
+            raise ValueError("leading term is not x")
+        data = {}
+        y_powers = []
+        prod = self.unit()
+        for i in range(self.deg_max - 1):
+            prod *= self
+            y_powers.append(prod)
+        data[0] = 0
+        data[1] = 1
+        for n in range(2, self.deg_max + 1):
+            data[n] = -sum(data[i] * y_powers[i-1].coeff(n) for i in range(1, n))
         return type(self)(data)
 
 

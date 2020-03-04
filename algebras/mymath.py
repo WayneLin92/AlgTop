@@ -2,7 +2,7 @@
 import operator
 from functools import reduce
 from itertools import repeat, starmap, chain, zip_longest
-from typing import Tuple
+from typing import Tuple, Iterable
 # TODO: use zip_longest
 
 
@@ -190,7 +190,7 @@ def orderedpartition(k: int, n: int):
             yield (i,) + t
 
 
-def unique_min(iterable, *, default=None, key=None):
+def unique_min(iterable: Iterable, *, default=None, key=None):
     """Return min if unique otherwise return None."""
     it = iter(iterable)
     minimum = next(it) if default is None else default
@@ -213,6 +213,16 @@ def unique_min(iterable, *, default=None, key=None):
             elif key_x == key_minimum:
                 unique = False
     return minimum if unique else None
+
+
+def prod_algs(iterable: Iterable, default=None):
+    """Return prod of elements in algebras."""
+    it = iter(iterable)
+    initial = next(it) if default is None else default
+    result = initial.data
+    for x in it:
+        result = x.mul_data(result, x.data)
+    return type(initial)(result)
 
 
 # ---- latex --------

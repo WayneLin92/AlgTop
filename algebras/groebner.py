@@ -2,7 +2,7 @@
 # TODO: inplace option
 import copy
 import heapq
-from itertools import chain, repeat, combinations
+from itertools import chain, repeat, combinations, groupby
 import operator
 import pickle
 from typing import Tuple, List, Dict, Set, Type, Iterable
@@ -47,7 +47,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         dct = {'_gen_names': cls._gen_names.copy(), '_gen_degs': cls._gen_degs.copy(),
                '_unit_deg': cls._unit_deg, '_rels': copy.deepcopy(cls._rels),
                '_rels_gen_leads': cls._rels_gen_leads.copy(),
-               '_rels_cache': cls._rels_cache,
+               '_rels_cache': copy.deepcopy(cls._rels_cache),
                '_key': cls._key, 'auto_simplify': cls.auto_simplify}
         # noinspection PyTypeChecker
         return type(class_name, (GbAlgMod2,), dct)
@@ -167,12 +167,12 @@ class GbAlgMod2(BA.AlgebraMod2):
         cls.add_rels_data(rel_generators, clear_cache=True)
 
     @classmethod
-    def add_rel_data(cls, rel: set):
+    def add_rel_data(cls, rel: set, clear_cache=False):
         """Add relations."""
         if rel:
             deg = cls.deg_data(rel)
             heapq.heappush(cls._rels_cache, (deg, True, rel))
-            cls.add_rels_cache(deg)
+            cls.add_rels_cache(None if clear_cache else deg)
 
     @classmethod
     def add_rels_data(cls, rels: Iterable[set], sorted_=False, clear_cache=False):
@@ -183,11 +183,11 @@ class GbAlgMod2(BA.AlgebraMod2):
             cls.add_rels_cache()
 
     @classmethod
-    def add_rel(cls, rel: "GbAlgMod2"):
+    def add_rel(cls, rel: "GbAlgMod2", clear_cache=False):
         """Add a relation."""
         if not rel.is_homo():
             raise ValueError(f'relation {rel} not homogeneous!')
-        cls.add_rel_data(rel.data)
+        cls.add_rel_data(rel.data, clear_cache)
 
     @classmethod
     def add_rels(cls, rels: Iterable["GbAlgMod2"], sorted_=False, clear_cache=False):
@@ -248,8 +248,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         A = cls.copy_alg()
         rel_gens = []
         for rel in sorted(ideal, key=A.deg_data):
-            deg = A.deg_data(rel)
-            A.add_rels_cache(deg)
+            A.add_rels_cache(A.deg_data(rel))
             rel = A.simplify_data(rel)
             if rel:
                 rel_gens.append(rel)
@@ -260,13 +259,14 @@ class GbAlgMod2(BA.AlgebraMod2):
     def basis_mons_max(cls, deg_max):
         """Return an list of basis."""
         result = [((), 0)]
+        leadings = sorted(cls._rels, key=len)
+        leadings = {k - 1: list(g) for k, g in groupby(leadings, key=len)}
         for k in range(len(cls._gen_degs)):
-            length = len(result)
-            for i in range(length):
+            for i in range(len(result)):
                 m, d = result[i]
                 for e in range(1, (deg_max - d) // cls._gen_degs[k] + 1):
                     m1 = m + (0,) * (k - len(m)) + (e,)
-                    if any(map(mymath.le_tuple, cls._rels, repeat(m1))):
+                    if k in leadings and any(map(mymath.le_tuple, leadings[k], repeat(m1))):
                         break
                     else:
                         result.append((m1, d + e * cls._gen_degs[k]))
@@ -463,6 +463,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         A.add_rels(rels_module)
         result = []
         for index, rel in sorted(rels, key=lambda _x: _x[1].deg()):
+            A.add_rels_cache(rel.deg())
             rel.simplify()
             if rel:
                 result.append(index)
@@ -472,37 +473,11 @@ class GbAlgMod2(BA.AlgebraMod2):
     @classmethod
     def ann(cls, x):
         """Return the groebner basis for the ideal {y | xy=0}."""
-        rels_backup = cls._rels.copy()
-        rel_gen_leads_backup = cls._rels_gen_leads.copy()
-        key_backup = cls._key
-        d = x.deg()
-        try:
-            X = cls.add_gen('X_{ann}', d)
-            num_gen = len(cls._gen_names)
-            if key_backup is None:
-                cls._key = lambda _m: (-_m[-1] if len(_m) == num_gen else 0, _m)
-            else:
-                cls._key = lambda _m: (-_m[-1] if len(_m) == num_gen else 0, key_backup(_m))
-            cls.add_rel(X + x)
-            cls.add_rels_cache()
-            rels = cls._rels
-        finally:
-            cls._gen_names.pop()
-            cls._gen_degs.pop()
-            cls._rels = rels_backup
-            cls._rels_gen_leads = rel_gen_leads_backup
-            cls._key = key_backup
-        result = []
-        for m in rels:
-            if len(m) == num_gen:
-                result_i = cls.zero()
-                for m1 in chain((m,), rels[m]):
-                    result_i += cls(mymath.rstrip_tuple(m1[:-1])) * (x ** (m1[-1] - 1))
-                result.append(result_i.data)
-        return result
+        annihilators = cls.ann_seq([(x, '')])
+        return [a[0][0].data for a in annihilators]
 
     @classmethod
-    def ann_seq(cls, ele_names: List[Tuple["GbAlgMod2", str]]):  # TODO: QAnn
+    def ann_seq(cls, ele_names: List[Tuple["GbAlgMod2", str]]):
         """Return relations among elements: $\\sum a_ie_i=0$."""
         A = cls.copy_alg()
         num_gen = len(cls._gen_names)
@@ -515,7 +490,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         for ele, name in ele_names:
             x = A.add_gen(name, ele.deg())
             rels_new.append(x + ele)
-        A.add_rels(rels_new)
+        A.add_rels(rels_new, clear_cache=True)
         annilators = []
         for m in A._rels:
             if len(m) > num_gen:
