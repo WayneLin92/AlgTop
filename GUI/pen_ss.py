@@ -275,10 +275,11 @@ class Pen:
         type_bullet = self.bullets[deg][index][1]
         return COLOR_BULLET_TBD if type_bullet == TYPE_TBD else COLOR_BULLET_NON_TBD
 
-    def alg2addr(self, alg):
-        deg = alg.deg()
+    def id2addr(self, id_):
+        bullet = self.ss.get_bullet_by_id(id_)
+        deg = bullet.deg
         for i, bullet in enumerate(self.bullets[deg]):
-            if alg == bullet[0]:
+            if id_ == bullet[0]:
                 return deg, i
 
     def mouse_down(self, msg):
@@ -413,12 +414,6 @@ class Pen:
         elif msg['unicode'] == 'r':  # R -> initialize the view setting
             vs.__init__()
             self.exp_regen()
-        elif msg['unicode'] == '\x0e':  # Ctrl + N -> Compute and move to the next page
-            self.ss.new_page()
-            self.exp_close_all()
-            self.alg_hover_on = None
-            self.addr_mouse_down = None
-            self.wait_for_update = True
 
     def key_up(self, msg):
         # vir_pos = vs.surf2vir(msg['pos'])
@@ -478,7 +473,7 @@ class Pen:
                 draw_circle(surface, self.addr2color((deg, i)), pos_bullet, BULLETS_RADIUS)
         # enlarge hovered-on bullet
         if self.alg_hover_on is not None:
-            deg, i = self.alg2addr(self.alg_hover_on)
+            deg, i = self.id2addr(self.alg_hover_on)
             n = len(self.bullets[deg])
             if n <= 9:
                 draw_circle(surface, self.addr2color((deg, i)),

@@ -1,7 +1,7 @@
 from algebras.operations import Steenrod
 from algebras.constructions import FreeModuleMod2 as FM
 from algebras import linalg
-from spec.specseq1 import SpecSeq
+from GUI.specseq import SpecSeq
 from typing import List, Tuple
 
 

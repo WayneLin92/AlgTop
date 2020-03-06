@@ -96,7 +96,7 @@ class BUTestCase(unittest.TestCase):
 
 class SpecSeqTestCase(unittest.TestCase):
     def setUp(self):
-        from spec.specseq import SpecSeq
+        from GUI.specseq import SpecSeq
         self.SpecSeq = SpecSeq
 
     def test_serre(self):
@@ -180,7 +180,7 @@ class PolyTestCase(unittest.TestCase):
 
 class ResolutionTestCase(unittest.TestCase):
     def setUp(self):
-        from spec.resolution import Ext
+        from algebras.resolution import Ext
         self.Ext = Ext
 
     def test_ext(self):
