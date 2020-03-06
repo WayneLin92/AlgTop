@@ -202,6 +202,10 @@ class Steenrod(BA.HopfAlgWithDualMod2, BA.OperationsMod2):
     _chi_sq = []  # type: List["Steenrod"]
 
     # -- OperationsMod2 --------------
+    @staticmethod
+    def repr_mon(mon, clsname="Steenrod"):
+        return f"{clsname}({mon})"
+
     def __mul__(self, other):
         if type(other) is DyerLashof:
             return AR.tensor(DyerLashof(()), self) * other

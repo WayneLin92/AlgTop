@@ -3,6 +3,7 @@
 # TODO: improve GUI
 import collections
 import itertools
+import operator
 from typing import List, Dict, Tuple, Set, Callable
 from algebras import linalg, mymath
 from algebras.groebner import GbAlgMod2
@@ -23,7 +24,7 @@ class SpecSeq:
     def __init__(self, p_max: int, q_max: int, *, starting_page=2, func=None, Alg=None):
         """func is a function indicating the direction of the differential for each page."""
         mask = set(map(mymath.Deg, itertools.product(range(p_max + 1), range(q_max + 1))))
-        self.data = [self.MyTuple(mask, Alg or GbAlgMod2.new_alg(mymath.Deg((0, 0))),
+        self.data = [self.MyTuple(mask, Alg or GbAlgMod2.new_alg(unit_deg=mymath.Deg((0, 0))),
                                   {}, linalg.GradedLinearMapMod2())]
         self._d_max = mymath.Deg((p_max, q_max))
         self._initialized = False  # flag for using Alg.add_gen, Alg.add_map
@@ -44,10 +45,14 @@ class SpecSeq:
     def get_basis(self):
         """Get the basis of self.data[-1].Alg."""
         R, mask = self.data[-1].Alg, self.data[-1].mask
-        basis_mon = sorted(R.basis_mons_max(self._d_max), key=R.deg_mon)
-        for d, g in itertools.groupby(basis_mon, key=R.deg_mon):
+        result = {}
+        for d, m in R.basis_mons_max(self._d_max):
             if d in mask:
-                yield d, g
+                if d in result:
+                    result[d].append(m)
+                else:
+                    result[d] = [m]
+        return result.items()
 
     def present(self, deg):
         pass

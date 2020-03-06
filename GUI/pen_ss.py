@@ -24,6 +24,10 @@ TYPE_TBD = 3
 font = None
 
 
+def myround(r):
+    return int(round(r))
+
+
 def const_adjust(grid_width):
     global BULLETS_SEP, BULLETS_RADIUS, BULLETS, BULLETS_DICTS
     BULLETS_SEP = max(min(grid_width // 5, 25), 10)
@@ -97,7 +101,7 @@ def draw_circle(surface, color, pos, radius, b_fill=True):
 def draw_text(surface, text, pos):
     text_img = font.render(text, True, (0, 0, 0), BG_COLOR)
     w, h = text_img.get_size()
-    surface.blit(text_img, (pos[0] - w // 2, pos[1] - h // 2))
+    surface.blit(text_img, (myround(pos[0]) - w // 2, myround(pos[1]) - h // 2))
 
 
 def draw_rect(surface, color, rect, width=0):
@@ -197,7 +201,7 @@ class Pen:
         length_edge = BULLETS_SEP * (num_edge + 1)
         size = array([length_edge, length_edge])
         center = deg2sp(deg)
-        rect = pygame.Rect((center - size / 2), size)
+        rect = pygame.Rect((center - size // 2), size)
         self.expansion[deg] = {'n': n, 'num_edge': num_edge, 'rect': rect}
 
     def exp_regen(self):

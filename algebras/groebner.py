@@ -257,24 +257,24 @@ class GbAlgMod2(BA.AlgebraMod2):
 
     @classmethod
     def basis_mons_max(cls, deg_max):
-        """Return an list of basis."""
-        result = [((), 0)]
+        """Return a list of basis (mon, deg)."""
+        result = [(cls._unit_deg, ())]
         leadings = sorted(cls._rels, key=len)
         leadings = {k - 1: list(g) for k, g in groupby(leadings, key=len)}
         for k in range(len(cls._gen_degs)):
             for i in range(len(result)):
-                m, d = result[i]
+                d, m = result[i]
                 for e in range(1, (deg_max - d) // cls._gen_degs[k] + 1):
                     m1 = m + (0,) * (k - len(m)) + (e,)
                     if k in leadings and any(map(mymath.le_tuple, leadings[k], repeat(m1))):
                         break
                     else:
-                        result.append((m1, d + e * cls._gen_degs[k]))
+                        result.append((d + e * cls._gen_degs[k], m1))
         return result
 
     @classmethod
     def basis_max(cls, deg_max):
-        return (cls(m) for m, d in cls.basis_mons_max(deg_max))
+        return ((d, cls(m)) for d, m in cls.basis_mons_max(deg_max))
 
     @classmethod
     def is_reducible(cls, mon):
@@ -609,7 +609,8 @@ class GbDga(GbAlgMod2):
     def homology(cls, deg_max) -> Tuple[Type[GbAlgMod2], list]:
         """Compute HA. Return (HA, list of representing cycles)."""
         map_diff = linalg.GradedLinearMapKMod2()
-        for r in cls.basis_max(deg_max):
+        for d, r in cls.basis_max(deg_max):
+            # noinspection PyUnresolvedReferences
             map_diff.add_map(r, r.diff())
         Z = [map_diff.kernel(d) for d in range(deg_max + 1)]
         B = [map_diff.image(d) for d in range(deg_max + 1)]
@@ -647,7 +648,7 @@ class GbDga(GbAlgMod2):
         R = cls.copy_alg()
         R_basis_mons = R.basis_mons_max(deg_max)
         map_diff = linalg.GradedLinearMapKMod2()
-        for m, d in R_basis_mons:
+        for d, m in R_basis_mons:
             r = R(m)
             map_diff.add_map(r, r.diff())
         index = 1
@@ -660,11 +661,11 @@ class GbDga(GbAlgMod2):
 
                 length = len(R_basis_mons)
                 for i in range(length):
-                    m1, d1 = R_basis_mons[i]
+                    d1, m1 = R_basis_mons[i]
                     if d1 + d <= deg_max:
                         m2 = m1 + (0,) * (len(R._gen_degs) - len(m1) - 1) + (1,)
                         d2 = d1 + d
-                        R_basis_mons.append((m2, d2))
+                        R_basis_mons.append((d2, m2))
                         r2 = R(m2)
                         map_diff.add_map(r2, r2.diff())
         return R

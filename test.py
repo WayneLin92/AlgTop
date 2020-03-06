@@ -184,6 +184,7 @@ class ResolutionTestCase(unittest.TestCase):
         self.Ext = Ext
 
     def test_ext(self):
+        from algebras.operations import Steenrod
         ext = self.Ext(11, 30)
         ext.compute_minimal(Steenrod)
         self.assertTrue(True)

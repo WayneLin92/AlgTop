@@ -13,3 +13,5 @@ log/
 
 relations-9.txt
 spec/specseq1.py
+run_cprofile.py
+tmp.py
