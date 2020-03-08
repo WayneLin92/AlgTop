@@ -1,17 +1,18 @@
 {
-  "margin_top": 20,
   "margin_bottom": 100,
   "margin_left": 40,
-  "main_width": 900,
-  "main_height": 600,
-  "num_grid_x": 15,
-  "num_grid_y": 10,
-  "grid_color": [180, 180, 230],
-  "pen_width": 1,
+  "win_width": 900,
+  "win_height": 600,
+  "x_max": 15,
+  "y_max": 10,
+  "grid_color": [50, 50, 100],
+  "pen_width": 2,
   "pen_color": [0, 0, 0],
-  "bg_color": [253, 246, 227],
-  "bullet.sep": 10,
-  "bullet.radius": 3,
+  "bg_color": [180, 180, 120],
+  "bullet.sep_world": 0.166,
+  "bullet.sep_screen.interval": [6.66, 20],
+  "bullet.radius_world": 0.05,
+  "bullet.radius_screen.interval": [2, 5],
   "bullet.patterns": [
     [[0, 0]],
     [[-1, 0], [1, 0]],
@@ -23,7 +24,7 @@
     [[-2, 2], [0, 2], [2, 2], [-2, 0], [2, 0], [-2, -2], [0, -2], [2, -2]],
     [[-2, 2], [0, 2], [2, 2], [-2, 0], [0, 0], [2, 0], [-2, -2], [0, -2], [2, -2]]
   ],
+  "camera.unit_screen": 60,
   "camera.unit_screen.interval": [2, 200],
-  "camera.origin_sp.x.interval": [-1000000, 490],
-  "camera.origin_sp.y.interval": [360, 1000000]
+  "camera.zoom_rate": 1.3
 }

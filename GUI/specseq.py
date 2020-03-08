@@ -11,7 +11,7 @@ class BulletProperties(NamedTuple):
     id: int
     deg: Tuple[int, int]
     label: str
-    color: str
+    color: tuple
 
 
 class LineProperties(NamedTuple):
@@ -19,7 +19,7 @@ class LineProperties(NamedTuple):
     src: int
     tgt: int
     label: str
-    color: str
+    color: tuple
 
 
 class ArrowProperties(NamedTuple):
@@ -45,13 +45,13 @@ class SpecSeq:
                 return b
 
     # setters --------------------------
-    def add_bullet(self, deg, label=None, color="#000000"):
+    def add_bullet(self, deg, label=None, color=(0, 0, 0)):
         bullet = BulletProperties(self.bullet_id, deg, label or f"id: {self.bullet_id}", color)
         self.bullets.append(bullet)
         self.bullet_id += 1
         return self.bullet_id - 1
 
-    def add_line(self, src, tgt, label=None, color="#000000"):
+    def add_line(self, src, tgt, label=None, color=(0, 0, 0)):
         line = LineProperties(self.line_id, src, tgt, label or f"id: {self.line_id}", color)
         self.lines.append(line)
         self.line_id += 1
@@ -69,13 +69,13 @@ class SpecSeq:
 
 def test():
     spec = SpecSeq()
-    b1 = spec.add_bullet((1, 1), color="#ffff00")
+    b1 = spec.add_bullet((1, 1), color=(255, 255, 0))
     spec.add_bullet((2, 1))
     b2 = spec.add_bullet((1, 2))
     spec.add_arrow(b1, b2)
     for i in range(12):
         for j in range(i):
-            spec.add_bullet((i, 2), color="#0000ff")
+            spec.add_bullet((i, 2), color=(0, 0, 255))
     spec.draw()
 
 

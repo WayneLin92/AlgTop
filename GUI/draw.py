@@ -4,34 +4,30 @@ import pygame.gfxdraw
 from algebras.mymath import Vector
 
 
-def myround(t: Vector):
+def myroundv(t) -> Vector:
     return Vector(map(round, t))
 
 
 with open(f"{os.path.dirname(__file__)}\\pen_ss.json", "r") as file:
     config = json.load(file)
-    config["win_width"] = config["main_width"] + 2 * config["margin_left"]
-    config["win_height"] = config["main_height"] + config["margin_top"] + config["margin_bottom"]
-    config["grid_width"] = config["main_width"] // config["num_grid_x"]
-    config["grid_height"] = config["main_height"] // config["num_grid_y"]
     config["bullet.patterns.offset"] = [{tuple(pos): i for i, pos in enumerate(pattern)}
                                         for pattern in config["bullet.patterns"]]
     config["bullet.patterns"] = [[Vector(pos) for pos in pattern] for pattern in config["bullet.patterns"]]
 
 
 def draw_line(surface, color, start_pos, end_pos, width=1):
-    pygame.draw.line(surface, color, myround(start_pos), myround(end_pos), width)
+    pygame.draw.line(surface, color, myroundv(start_pos), myroundv(end_pos), width)
 
 
 def draw_circle(surface, color, pos, radius, b_fill=True):
     if b_fill:
-        pygame.gfxdraw.filled_circle(surface, *myround(pos), round(radius), color)
+        pygame.gfxdraw.filled_circle(surface, *myroundv(pos), int(radius), color)
     else:
-        pygame.gfxdraw.circle(surface, *myround(pos), round(radius), color)
+        pygame.gfxdraw.circle(surface, *myroundv(pos), int(radius), color)
 
 
 def draw_text(surface, text, pos, font):
-    text_img = font.render(text, True, (0, 0, 0), config["bg_color"])
+    text_img = font.render(text, True, config["pen_color"], config["bg_color"])
     w, h = text_img.get_size()
     surface.blit(text_img, (round(pos[0]) - w // 2, round(pos[1]) - h // 2))
 

@@ -4,15 +4,18 @@ from typing import Union
 
 class OperationsTestCase(unittest.TestCase):
     def setUp(self):
-        pass
+        import algebras.operations as op
+        self.Sq = op.Steenrod.gen
 
     def test_Sq(self):
-        a = Sq(4) * Sq(4) * Sq(4)
-        b = Sq(8) * Sq(3) * Sq(1) + Sq(9) * Sq(2) * Sq(1) + Sq(10) * Sq(2) + Sq(11) * Sq(1)
+        a = self.Sq(4) * self.Sq(4) * self.Sq(4)
+        b = self.Sq(8) * self.Sq(3) * self.Sq(1) + \
+            self.Sq(9) * self.Sq(2) * self.Sq(1) + \
+            self.Sq(10) * self.Sq(2) + self.Sq(11) * self.Sq(1)
         self.assertTrue(a)
         self.assertEqual(a, b)
 
-        c = Sq(8) * Sq(1) + Sq(6) * Sq(2) * Sq(1)
+        c = self.Sq(8) * self.Sq(1) + self.Sq(6) * self.Sq(2) * self.Sq(1)
         self.assertEqual(conj_Sq(9), c)
 
     def test_Q(self):
