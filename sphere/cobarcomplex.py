@@ -1,5 +1,5 @@
 import itertools
-from algebras.mymath import Deg, orderedpartition
+from algebras.mymath import Vector, orderedpartition
 import algebras.BaseAlgebras as BA
 from algebras.operations import DualSteenrod
 from algebras.mymath import two_expansion
@@ -13,7 +13,7 @@ class CobarSteenrod(BA.AlgebraMod2):
 
     @staticmethod
     def deg_mon(mon: tuple):
-        return Deg((len(mon), sum(DualSteenrod.deg_mon(m) for m in mon)))
+        return Vector((len(mon), sum(DualSteenrod.deg_mon(m) for m in mon)))
 
     @staticmethod
     def str_mon(mon: tuple):

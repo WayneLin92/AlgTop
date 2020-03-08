@@ -1,43 +1,61 @@
+import os, json
 import pygame
-from .pen_ss import Pen
-from .constants import *
+import pygame.gfxdraw
+from algebras.mymath import Vector
 
 
-def draw_ss(spec_seq):  # TODO: fix the reopen failing problem.
-    """ interface for drawing spectral sequences """
-    pygame.init()
-    surface = pygame.display.set_mode([WIN_WIDTH, WIN_HEIGHT])
-    pygame.display.set_caption("Spectral Sequence")
+def myround(t: Vector):
+    return Vector(map(round, t))
 
-    pen = Pen(spec_seq)
-    pen.bg(surface)
 
-    loop_init = 0
-    loop_exit = 1
-    loop_index = loop_init
-    while True: 
-        if loop_index == loop_init:
-            while True:
-                event = pygame.event.wait()
-                msg = event.dict
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    pen.mouse_down(msg)
-                elif event.type == pygame.MOUSEBUTTONUP:
-                    pen.mouse_up(msg)
-                elif event.type == pygame.MOUSEMOTION:
-                    pen.mouse_motion(msg)
-                elif event.type == pygame.KEYDOWN:
-                    pen.key_down(msg)
-                elif event.type == pygame.KEYUP:
-                    pen.key_up(msg)
-                elif event.type == pygame.QUIT:
-                    pygame.quit()
-                    return None
+with open(f"{os.path.dirname(__file__)}\\pen_ss.json", "r") as file:
+    config = json.load(file)
+    config["win_width"] = config["main_width"] + 2 * config["margin_left"]
+    config["win_height"] = config["main_height"] + config["margin_top"] + config["margin_bottom"]
+    config["grid_width"] = config["main_width"] // config["num_grid_x"]
+    config["grid_height"] = config["main_height"] // config["num_grid_y"]
+    config["bullet.patterns.offset"] = [{tuple(pos): i for i, pos in enumerate(pattern)}
+                                        for pattern in config["bullet.patterns"]]
+    config["bullet.patterns"] = [[Vector(pos) for pos in pattern] for pattern in config["bullet.patterns"]]
 
-                pen.render(surface)
-                pygame.display.flip()
-                pygame.time.wait(5)
 
-        elif loop_index == loop_exit:
-            pygame.quit()
-            return None
+def draw_line(surface, color, start_pos, end_pos, width=1):
+    pygame.draw.line(surface, color, myround(start_pos), myround(end_pos), width)
+
+
+def draw_circle(surface, color, pos, radius, b_fill=True):
+    if b_fill:
+        pygame.gfxdraw.filled_circle(surface, *myround(pos), round(radius), color)
+    else:
+        pygame.gfxdraw.circle(surface, *myround(pos), round(radius), color)
+
+
+def draw_text(surface, text, pos, font):
+    text_img = font.render(text, True, (0, 0, 0), config["bg_color"])
+    w, h = text_img.get_size()
+    surface.blit(text_img, (round(pos[0]) - w // 2, round(pos[1]) - h // 2))
+
+
+def draw_rect(surface, color, rect, width=0):
+    pygame.draw.rect(surface, color, rect, width)
+
+
+def c2Vector(z: complex):
+    return Vector((z.real, z.imag))
+
+
+def Vector2c(a):
+    return complex(a[0], a[1])
+
+
+def draw_arrow(surface, start_pos, end_pos):
+    """ Draw a classic arrow """
+    d = Vector2c(end_pos) - Vector2c(start_pos)
+    if abs(d) == 0:
+        return
+    d = d / abs(d)
+    d1, d2 = d * (10+5j), d * (10-5j)
+    end_pos = Vector(end_pos)
+    draw_line(surface, config["pen_color"], start_pos, end_pos, config["pen_width"])
+    draw_line(surface, config["pen_color"], end_pos - c2Vector(d1), end_pos, config["pen_width"])
+    draw_line(surface, config["pen_color"], end_pos - c2Vector(d2), end_pos, config["pen_width"])

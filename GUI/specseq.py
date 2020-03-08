@@ -1,5 +1,4 @@
 """Class of spectral sequences."""
-from itertools import groupby
 from typing import List, Tuple, NamedTuple
 
 TYPE_IMAGE = 0
@@ -45,27 +44,17 @@ class SpecSeq:
             if b.id == id_:
                 return b
 
-    def get_bullets_and_arrows(self):
-        bullets = {}
-        self.bullets.sort(key=lambda p: p.deg)
-        id2index = {}
-        for deg, group in groupby(self.bullets, key=lambda p: p.deg):
-            bullets[deg] = []
-            for i, b in enumerate(group):
-                bullets[deg].append((b.id, TYPE_TBD))
-                id2index[b.id] = i
-        arrows = []
-        for a in self.arrows:
-            src = self.get_bullet_by_id(a.src)
-            tgt = self.get_bullet_by_id(a.tgt)
-            arrows.append(((src.deg, id2index[src.id]), (tgt.deg, id2index[tgt.id])))
-        return bullets, arrows
-
     # setters --------------------------
-    def add_bullet(self, deg, label="", color="#000000"):
-        bullet = BulletProperties(self.bullet_id, deg, label, color)
+    def add_bullet(self, deg, label=None, color="#000000"):
+        bullet = BulletProperties(self.bullet_id, deg, label or f"id: {self.bullet_id}", color)
         self.bullets.append(bullet)
         self.bullet_id += 1
+        return self.bullet_id - 1
+
+    def add_line(self, src, tgt, label=None, color="#000000"):
+        line = LineProperties(self.line_id, src, tgt, label or f"id: {self.line_id}", color)
+        self.lines.append(line)
+        self.line_id += 1
 
     def add_arrow(self, src, tgt):
         arrow = ArrowProperties(self.arrow_id, src, tgt)
@@ -73,21 +62,21 @@ class SpecSeq:
         self.arrow_id += 1
 
     # methods ----------------------------
-    def add_diff(self, id1, id2):
-        self.add_arrow(id1, id2)
-
     def draw(self):
-        import GUI.draw
-        GUI.draw.draw_ss(self)
+        import GUI.event_loop
+        GUI.event_loop.draw_ss(self)
 
 
 def test():
     spec = SpecSeq()
-    spec.add_bullet((1, 1))
+    b1 = spec.add_bullet((1, 1), color="#ffff00")
     spec.add_bullet((2, 1))
-    spec.add_bullet((1, 2))
+    b2 = spec.add_bullet((1, 2))
+    spec.add_arrow(b1, b2)
+    for i in range(12):
+        for j in range(i):
+            spec.add_bullet((i, 2), color="#0000ff")
     spec.draw()
-    return spec
 
 
 if __name__ == "__main__":

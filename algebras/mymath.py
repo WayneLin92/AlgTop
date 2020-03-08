@@ -6,36 +6,42 @@ from typing import Tuple, Iterable
 # TODO: use zip_longest
 
 
-class Deg(tuple):
+class Vector(tuple):
     """A subclass of tuple with element-wise addition and broadcast multiplication.
 
     All Deg instances should have the same length when added together."""
-    def __new__(cls, iterable) -> "Deg":
+    def __new__(cls, iterable) -> "Vector":
         # noinspection PyTypeChecker
         return tuple.__new__(cls, iterable)
 
     def __add__(self, other):
         """Element-wise addition."""
-        return Deg(map(operator.add, self, other))
+        return Vector(map(operator.add, self, other))
 
     def __radd__(self, other):
         """This is implemented for supporting sum()."""
-        return Deg(map(operator.add, self, other)) if other != 0 else self
+        return Vector(map(operator.add, self, other)) if other != 0 else self
 
     def __sub__(self, other):
         """Element-wise addition."""
-        return Deg(map(operator.sub, self, other))
+        return Vector(map(operator.sub, self, other))
 
-    def __mul__(self, other: int) -> "Deg":
+    def __mul__(self, other) -> "Vector":
         """Broadcast multiplication."""
-        return Deg(map(operator.mul, self, repeat(other)))
+        return Vector(map(operator.mul, self, repeat(other)))
 
-    def __rmul__(self, other: int):
+    def __rmul__(self, other):
         """Broadcast multiplication."""
-        return Deg(map(operator.mul, self, repeat(other)))
+        return Vector(map(operator.mul, self, repeat(other)))
 
-    def __floordiv__(self, other) -> int:
-        return min(starmap(operator.floordiv, filter(operator.itemgetter(1), zip(self, other))))
+    def __floordiv__(self, other):
+        if type(other) is Vector:
+            return min(starmap(operator.floordiv, filter(operator.itemgetter(1), zip(self, other))))
+        else:
+            return Vector(map(operator.floordiv, self, repeat(other)))
+
+    def __truediv__(self, other) -> "Vector":
+        return Vector(map(operator.truediv, self, repeat(other)))
 
 
 # tuple operations as monomials, everything nonnegative.

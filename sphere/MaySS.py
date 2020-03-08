@@ -156,13 +156,13 @@ class MayE1(MayDGA, BC.BasePolyMod2):
         return cls((((i, j), 1),)) if i < j else cls.zero()
 
     @staticmethod
-    def deg_gen(k) -> mymath.Deg:
+    def deg_gen(k) -> mymath.Vector:
         i, j = k
-        return mymath.Deg((1, (1 << j) - (1 << i), j - i))
+        return mymath.Vector((1, (1 << j) - (1 << i), j - i))
 
     @classmethod
-    def deg_mon(cls, mon: frozenset) -> mymath.Deg:
-        return sum((cls.deg_gen(gen) * exp for gen, exp in mon), mymath.Deg((0, 0, 0)))
+    def deg_mon(cls, mon: frozenset) -> mymath.Vector:
+        return sum((cls.deg_gen(gen) * exp for gen, exp in mon), mymath.Vector((0, 0, 0)))
 
     @staticmethod
     def str_gen(k):
