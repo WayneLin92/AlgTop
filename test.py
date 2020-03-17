@@ -322,7 +322,7 @@ class GroebnerTestCase(unittest.TestCase):
 
     def test_GbAlgMod2(self):
         E1, _ = self.alg_B(7)
-        self.assertEqual(65, len(E1._rels))
+        self.assertEqual(65, len(E1.rels))
 
     def test_subalgebra(self):
         n_max = 4
@@ -340,8 +340,8 @@ class GroebnerTestCase(unittest.TestCase):
             for i in range(n_max + 1 - d):
                 j = i + d
                 ele_names.append((R(i, j) * R(i, j), f'b_{{{i}{j}}}'))
-        HX = E1.subalgebra(ele_names, key=E1._key)
-        self.assertEqual(15, len(HX._rels))
+        HX = E1.subalgebra(ele_names, key=E1.key)
+        self.assertEqual(15, len(HX.rels))
 
     @classmethod
     def tearDownClass(cls):

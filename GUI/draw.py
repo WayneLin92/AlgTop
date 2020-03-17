@@ -15,7 +15,7 @@ with open(f"{os.path.dirname(__file__)}\\pen_ss.json", "r") as file:
     config["bullet.patterns"] = [[Vector(pos) for pos in pattern] for pattern in config["bullet.patterns"]]
 
 
-def draw_line(surface, color, start_pos, end_pos, width=1):
+def draw_line(surface, color, start_pos, end_pos, width=config["pen_width"]):
     pygame.draw.line(surface, color, myroundv(start_pos), myroundv(end_pos), width)
 
 
@@ -52,6 +52,6 @@ def draw_arrow(surface, start_pos, end_pos):
     d = d / abs(d)
     d1, d2 = d * (10+5j), d * (10-5j)
     end_pos = Vector(end_pos)
-    draw_line(surface, config["pen_color"], start_pos, end_pos, config["pen_width"])
-    draw_line(surface, config["pen_color"], end_pos - c2Vector(d1), end_pos, config["pen_width"])
-    draw_line(surface, config["pen_color"], end_pos - c2Vector(d2), end_pos, config["pen_width"])
+    draw_line(surface, config["pen_color"], start_pos, end_pos)
+    draw_line(surface, config["pen_color"], end_pos - c2Vector(d1), end_pos)
+    draw_line(surface, config["pen_color"], end_pos - c2Vector(d2), end_pos)

@@ -6,9 +6,7 @@ from GUI.draw import pygame, config, draw_line, draw_text, draw_arrow, draw_rect
 from GUI.specseq import SpecSeq
 
 
-# TODO: auto expand
-# TODO: enlarge the click test area for expansion
-# TODO: improve grid lines and labels
+# TODO: improve grid lines
 
 
 class Camera:
@@ -70,6 +68,16 @@ class Camera:
         sep = config["bullet.sep_world"] * self.unit_screen
         return self.clip(sep, config["bullet.sep_screen.interval"])
 
+    def degs_in_screen(self):
+        """Return degrees which regions overlap with the visible screen."""
+        bottom_left_screen = (0, config["win_height"])
+        top_right_screen = (config["win_width"], 0)
+        deg1 = self.sp2wp(bottom_left_screen)
+        deg2 = self.sp2wp(top_right_screen)
+        deg1 = (math.floor(deg1[0]), math.floor(deg1[1]))
+        deg2 = (math.ceil(deg2[0]), math.ceil(deg2[1]))
+        return ((x, y) for x in range(deg1[0], deg2[0] + 1) for y in range(deg1[1], deg2[1] + 1))
+
 
 camera = Camera()
 
@@ -114,6 +122,7 @@ class Pen:
         self.status = "start"
         self.addr_mouse_down = None
         self.id_hover_on = None
+        self.spread = None
         self.expansion = set()
         self.pos_current = None
         self.ctrl_down = False
@@ -125,6 +134,7 @@ class Pen:
         self.deg2num_bullets = {}
         self.init_from_ss(ss)
 
+        self.init_spread()
         self.font = pygame.font.SysFont("Arial", 20)
 
     def init_from_ss(self, ss):
@@ -136,6 +146,16 @@ class Pen:
                 self.addr2id[(deg, i)] = b.id
             self.deg2num_bullets[deg] = i + 1
 
+    def init_spread(self):
+        self.spread = set()
+        for deg in self.deg2num_bullets:
+            n = self.deg2num_bullets[deg]
+            if n > 9:
+                num_edge = math.ceil(math.sqrt(n))
+                length_edge = camera.get_bullet_sep() * (num_edge + 1)
+                if length_edge / camera.unit_screen < config["auto_expand_rate"]:
+                    self.spread.add(deg)
+
     def exp_collide_point(self, screen_pos, deg=None):
         """Return if `screen_pos` is in an expansion square."""
         for d in (deg,) if deg else self.expansion:
@@ -144,7 +164,7 @@ class Pen:
             num_edge = math.ceil(math.sqrt(n))
             length_edge = camera.get_bullet_sep() * (num_edge + 1)
             size = Vector([length_edge, length_edge])
-            rect = pygame.Rect(myroundv(center - size // 2), myroundv(size))
+            rect = pygame.Rect(myroundv(center - size / 2), myroundv(size))
             if rect.collidepoint(*screen_pos):
                 return d
         return None
@@ -160,10 +180,11 @@ class Pen:
 
     def sp2addr(self, screen_pos):
         """Return (deg, index) where deg is for the expansion."""
-        deg = self.exp_collide_point(screen_pos)
-        if deg is not None:
-            center = deg2sp(deg)
-            n = self.deg2num_bullets[deg]
+        deg = sp2deg(screen_pos)
+        deg_expand = self.exp_collide_point(screen_pos) or (deg if deg in self.spread else None)
+        if deg_expand:
+            center = deg2sp(deg_expand)
+            n = self.deg2num_bullets[deg_expand]
             num_edge = math.ceil(math.sqrt(n))
             length_edge = camera.get_bullet_sep() * (num_edge + 1)
             size = Vector([length_edge, length_edge])
@@ -172,9 +193,8 @@ class Pen:
             if 0 < x <= num_edge and 0 < y <= num_edge:
                 index = x - 1 + num_edge * (y - 1)
                 if index < n:
-                    return deg, index
+                    return deg_expand, index
             return None
-        deg = sp2deg(screen_pos)
         if deg in self.deg2num_bullets:
             n = self.deg2num_bullets[deg]
             if 0 < n <= 9:
@@ -185,9 +205,7 @@ class Pen:
                 else:
                     return None
             elif n > 9:
-                offset = Vector(screen_pos) - Vector(deg2sp(deg))
-                index = offset_to_bullet(offset, 9)
-                if index is not None:
+                if math.dist(screen_pos, deg2sp(deg)) < 2 * camera.get_bullet_radius():
                     return deg, None
                 else:
                     return None
@@ -203,7 +221,7 @@ class Pen:
             offset = config["bullet.patterns"][n - 1][index] * camera.get_bullet_sep() // 2
             return deg2sp(deg) + offset
         else:
-            if deg in self.expansion:
+            if deg in self.expansion or deg in self.spread:
                 center = deg2sp(deg)
                 n = self.deg2num_bullets[deg]
                 num_edge = math.ceil(math.sqrt(n))
@@ -233,9 +251,11 @@ class Pen:
                     self.status = "on_bullet"
         elif msg['button'] == 4:
             camera.zoom(msg['pos'], config["camera.zoom_rate"])
+            self.init_spread()
             self.wait_for_update = True
         elif msg['button'] == 5:
             camera.zoom(msg['pos'], 1 / config["camera.zoom_rate"])
+            self.init_spread()
             self.wait_for_update = True
 
     def mouse_up(self, msg):
@@ -349,22 +369,25 @@ class Pen:
     def bg(self, surface: pygame.Surface):
         """Draw the grid lines."""
         surface.fill(config["bg_color"])
+        n_label_step = math.ceil(config["axis_text_sep_screen"] / camera.unit_screen)
         for i in range(0, config["y_max"] + 1):
             left = camera.wp2sp((0, i))
             right = camera.wp2sp((config["x_max"], i))
-            draw_line(surface, config["grid_color"], left, right)
-            text_pos = left - Vector([30, 0])
-            if text_pos[0] < 16:
-                text_pos = Vector((16, text_pos[1]))
-            draw_text(surface, str(i), text_pos, self.font)
+            draw_line(surface, config["grid_color"], left, right, 1)
+            if i % n_label_step == 0:
+                text_pos = left - Vector([30, 0])
+                if text_pos[0] < 16:
+                    text_pos = Vector((16, text_pos[1]))
+                draw_text(surface, str(i), text_pos, self.font)
         for i in range(0, config["x_max"] + 1):
             bottom = camera.wp2sp((i, 0))
             top = camera.wp2sp((i, config["y_max"]))
-            draw_line(surface, config["grid_color"], top, bottom)
-            text_pos = bottom + Vector([0, 30])
-            if text_pos[1] > config["win_height"] - 16:
-                text_pos = Vector((text_pos[0], config["win_height"] - 16))
-            draw_text(surface, str(i), text_pos, self.font)
+            draw_line(surface, config["grid_color"], top, bottom, 1)
+            if i % n_label_step == 0:
+                text_pos = bottom + Vector([0, 30])
+                if text_pos[1] > config["win_height"] - 16:
+                    text_pos = Vector((text_pos[0], config["win_height"] - 16))
+                draw_text(surface, str(i), text_pos, self.font)
 
     def render(self, surface):
         """Draw on the screen."""
@@ -375,49 +398,55 @@ class Pen:
 
         self.bg(surface)
         # draw bullets
-        for deg in self.deg2num_bullets:
-            n = self.deg2num_bullets[deg]
-            if n <= 9:
-                for i in range(n):
-                    offset = config["bullet.patterns"][n - 1][i] * camera.get_bullet_sep() / 2
-                    draw_circle(surface, self.addr2color((deg, i)),
-                                Vector(deg2sp(deg)) + offset, camera.get_bullet_radius())
-            else:
-                draw_circle(surface, config["pen_color"], deg2sp(deg), camera.get_bullet_radius())
-                draw_circle(surface, config["pen_color"], deg2sp(deg), camera.get_bullet_radius() * 2, False)
+        for deg in camera.degs_in_screen():
+            if deg in self.deg2num_bullets:
+                n = self.deg2num_bullets[deg]
+                if n <= 9:
+                    for i in range(n):
+                        offset = config["bullet.patterns"][n - 1][i] * camera.get_bullet_sep() / 2
+                        draw_circle(surface, self.addr2color((deg, i)),
+                                    Vector(deg2sp(deg)) + offset, camera.get_bullet_radius())
+                else:
+                    num_edge = math.ceil(math.sqrt(n))
+                    length_edge = camera.get_bullet_sep() * (num_edge + 1)
+                    center = deg2sp(deg)
+                    size = Vector([length_edge, length_edge])
+                    rect = pygame.Rect(myroundv(center - size / 2), myroundv(size))
+                    if deg in self.spread:
+                        for i in range(n):
+                            y, x = divmod(i, num_edge)
+                            pos_bullet = Vector(rect.topleft) + Vector((x + 1, y + 1)) * camera.get_bullet_sep()
+                            draw_circle(surface, self.addr2color((deg, i)), pos_bullet, camera.get_bullet_radius())
+                    else:
+                        draw_circle(surface, config["pen_color"], deg2sp(deg), camera.get_bullet_radius())
+                        draw_circle(surface, config["pen_color"], deg2sp(deg), camera.get_bullet_radius() * 2, False)
         # draw expansions
         for deg in self.expansion:
-            center = deg2sp(deg)
-            n = self.deg2num_bullets[deg]
-            num_edge = math.ceil(math.sqrt(n))
-            length_edge = camera.get_bullet_sep() * (num_edge + 1)
-            size = Vector([length_edge, length_edge])
-            rect = pygame.Rect(myroundv(center - size // 2), myroundv(size))
-            draw_rect(surface, pygame.Color("#dddddd"), rect)
-            draw_rect(surface, config["pen_color"], rect, 1)
-            for i in range(n):
-                y, x = divmod(i, num_edge)
-                pos_bullet = Vector(rect.topleft) + Vector((x + 1, y + 1)) * camera.get_bullet_sep()
-                draw_circle(surface, self.addr2color((deg, i)), pos_bullet, camera.get_bullet_radius())
-        # enlarge hovered-on bullet
-        if self.id_hover_on is not None:
-            deg, i = self.id2addr[self.id_hover_on]
-            n = self.deg2num_bullets[deg]
-            if n <= 9:
-                offset = config["bullet.patterns"][n - 1][i] * camera.get_bullet_sep() // 2
-                draw_circle(surface, self.addr2color((deg, i)),
-                            Vector(deg2sp(deg)) + offset, camera.get_bullet_radius() * 1.5)
-            else:
-                center = deg2sp(deg)
+            if deg not in self.spread:
                 n = self.deg2num_bullets[deg]
                 num_edge = math.ceil(math.sqrt(n))
                 length_edge = camera.get_bullet_sep() * (num_edge + 1)
+                center = deg2sp(deg)
                 size = Vector([length_edge, length_edge])
-                y, x = divmod(i, num_edge)
-                pos_bullet = (center - size / 2) + Vector((x + 1, y + 1)) * camera.get_bullet_sep()
-                draw_circle(surface, self.addr2color((deg, i)), pos_bullet, camera.get_bullet_radius() * 1.5)
+                rect = pygame.Rect(myroundv(center - size / 2), myroundv(size))
+                draw_rect(surface, config["bg_color"], rect)
+                draw_rect(surface, config["pen_color"], rect, 1)
+                for i in range(n):
+                    y, x = divmod(i, num_edge)
+                    pos_bullet = Vector(rect.topleft) + Vector((x + 1, y + 1)) * camera.get_bullet_sep()
+                    draw_circle(surface, self.addr2color((deg, i)), pos_bullet, camera.get_bullet_radius())
+
+        # enlarge hovered-on bullet
+        if self.id_hover_on is not None:
+            addr = self.id2addr[self.id_hover_on]
+            sp = self.addr2sp(addr)
+            color = self.ss.get_bullet_by_id(self.id_hover_on).color
+            draw_circle(surface, color, sp, camera.get_bullet_radius() * 1.5)
+        # draw lines
+        for line in self.ss.lines:
+            addr1, addr2 = self.id2addr[line.src], self.id2addr[line.tgt]
+            draw_line(surface, line.color, self.addr2sp(addr1), self.addr2sp(addr2))
         # draw arrows
-        # for arrow in self.ss.get_arrows(self.expansion):
         for arrow in self.ss.arrows:
             addr1, addr2 = self.id2addr[arrow.src], self.id2addr[arrow.tgt]
             draw_arrow(surface, self.addr2sp(addr1), self.addr2sp(addr2))
@@ -430,4 +459,4 @@ class Pen:
             draw_text(surface, s, (config["win_width"] // 2,
                                    config["win_height"] - config["margin_bottom"] // 2), self.font)
 
-# 477
+# 477, 432
