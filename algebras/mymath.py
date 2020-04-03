@@ -7,7 +7,7 @@ from typing import Tuple, Iterable
 
 
 class Vector(tuple):
-    """A subclass of tuple with element-wise addition and broadcast multiplication.
+    """A subclass of tuple with element-wise addition and scalar multiplication.
 
     All Deg instances should have the same length when added together."""
     def __new__(cls, iterable) -> "Vector":
@@ -27,20 +27,22 @@ class Vector(tuple):
         return Vector(map(operator.sub, self, other))
 
     def __mul__(self, other) -> "Vector":
-        """Broadcast multiplication."""
+        """Scalar multiplication."""
         return Vector(map(operator.mul, self, repeat(other)))
 
     def __rmul__(self, other):
-        """Broadcast multiplication."""
+        """Scalar multiplication."""
         return Vector(map(operator.mul, self, repeat(other)))
 
     def __floordiv__(self, other):
+        """Floor division by a Vector or a scalar."""
         if type(other) is Vector:
             return min(starmap(operator.floordiv, filter(operator.itemgetter(1), zip(self, other))))
         else:
             return Vector(map(operator.floordiv, self, repeat(other)))
 
     def __truediv__(self, other) -> "Vector":
+        """Division by a scalar."""
         return Vector(map(operator.truediv, self, repeat(other)))
 
 
@@ -105,17 +107,17 @@ def add_dict(d1: tuple, d2: tuple):
 
 # binomial coefficients
 def choose_mod2(m: int, n: int) -> bool:
-    """Compute $\\binom{m}{n}\\text{ mod } 2$."""
+    R"""Compute $\binom{m}{n}\text{ mod } 2$."""
     return binom_mod2(m-n, n)
 
 
 def binom_mod2(m: int, n: int) -> bool:
-    """Compute the binomial $(m, n)\\text{ mod } 2$."""
+    R"""Compute the binomial $(m, n)\text{ mod } 2$."""
     return not m & n if m >= 0 and n >= 0 else 0
 
 
 def multinom_mod2(*args: int) -> bool:
-    """Compute the multinomial $(arg1, arg2, ...)\\text{ mod } 2$."""
+    R"""Compute the multinomial $(arg1, arg2, ...)\text{ mod } 2$."""
     for i in args:
         if i < 0:
             return False
@@ -126,7 +128,7 @@ def multinom_mod2(*args: int) -> bool:
 
 
 def choose(m: int, n: int) -> int:
-    """Compute $\\binom{m}{n}$."""
+    R"""Compute $\binom{m}{n}$."""
     n = min(n, m-n)
     if n == 0:
         return 1
@@ -173,7 +175,7 @@ def two_expansion(n: int):
 
 
 def cartanindices(k: int, n: int):
-    """Return an iterator of $(i_j\\ge 0)$ such that $i_1+\\cdots+i_k=n$."""
+    R"""Return an iterator of $(i_j\ge 0)$ such that $i_1+\cdots+i_k=n$."""
     if k == 0:
         return
     elif k == 1:
@@ -185,7 +187,7 @@ def cartanindices(k: int, n: int):
 
 
 def orderedpartition(k: int, n: int):
-    """Return an iterator of $(i_j>0)$ such that $i_1+\\cdots+i_k=n$."""
+    R"""Return an iterator of $(i_j>0)$ such that $i_1+\cdots+i_k=n$."""
     if k == 0 or n < k:
         return
     elif k == 1:
