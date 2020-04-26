@@ -362,6 +362,10 @@ class SteenrodT2(BA.AlgebraT2Mod2):  # todo: T2 for odd primes
     type_c0 = Steenrod
     type_c1 = Steenrod
 
+    @staticmethod
+    def repr_mon(mon, clsname) -> str:
+        pass
+
     def __mul__(self, other):
         return super().__mul__(other).simplify()
 
@@ -388,6 +392,10 @@ class DualSteenrod(BA.HopfAlgWithDualMod2, BA.BasePolyMod2):
             return "\\xi_{{{}}}".format(n)
         else:
             return "\\xi_{}".format(n)
+
+    @staticmethod
+    def repr_mon(mon, clsname) -> str:
+        pass
 
     # -- HopfAlgebra --------------
     @classmethod
@@ -490,6 +498,10 @@ class DualSteenrodT2(BA.AlgebraT2Mod2):
     """ Tensor product of two DualSteenrod """
     type_c0 = DualSteenrod
     type_c1 = DualSteenrod
+
+    @staticmethod
+    def repr_mon(mon, clsname) -> str:
+        pass
 
 
 class AR(BA.AlgebraT2Mod2):

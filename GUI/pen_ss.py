@@ -6,7 +6,7 @@ from GUI.draw import pygame, config, draw_line, draw_text, draw_arrow, draw_rect
 from GUI.specseq import SpecSeq
 
 
-# TODO: improve grid lines
+# TODO: build polymorphic class for geometric objects
 
 
 class Camera:

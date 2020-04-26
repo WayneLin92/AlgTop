@@ -27,6 +27,10 @@ class CobarSteenrod(BA.AlgebraMod2):
         result += "]"
         return result
 
+    @staticmethod
+    def repr_mon(mon, clsname) -> str:
+        pass
+
     # Methods -----------------
     @classmethod
     def tensor(cls, *args: DualSteenrod):

@@ -9,6 +9,7 @@ from algebras import mymath
 # Todo: avoid creating new user-defined objects inside a class
 # todo: try __slots__
 # todo: consider unit degree
+# Todo: unit_data(), repr_mon()
 
 
 class Algebra(ABC):
@@ -743,9 +744,10 @@ class AlgebraT2Mod2(AlgebraMod2, ABC):
     type_c1: AlgebraMod2 = None
 
     # -- AlgebraMod2 --------------
-    def mul_mons(self, mon1: tuple, mon2: tuple):  # todo: return type
-        prod0 = self.type_c0.mul_mons(mon1[0], mon2[0])
-        prod1 = self.type_c1.mul_mons(mon1[1], mon2[1])
+    @classmethod
+    def mul_mons(cls, mon1: tuple, mon2: tuple):
+        prod0 = cls.type_c0.mul_mons(mon1[0], mon2[0])
+        prod1 = cls.type_c1.mul_mons(mon1[1], mon2[1])
         if type(prod0) is tuple or type(prod0) is frozenset:  # assume both are monomials
             return prod0, prod1
         else:
@@ -762,9 +764,9 @@ class AlgebraT2Mod2(AlgebraMod2, ABC):
         str1 = self.type_c1.str_mon(mon[1])
         return str0 + "\\otimes " + str1
 
-    @classmethod
-    def unit(cls):
-        return cls({((), ())})
+    @staticmethod
+    def unit_data():
+        return {((), ())}
 
     # methods ----------------
     @classmethod

@@ -257,4 +257,7 @@ def tex_parenthesis(obj):
     return f"({result})" if "+" in result or "-" in result else result
 
 
-# 73, 87, 177
+def tex_braces(obj):
+    """Return obj with curly braces if there are more than one character."""
+    result = str(obj)
+    return f"{{{result}}}" if len(result) > 1 else result

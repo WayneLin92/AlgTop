@@ -1,3 +1,4 @@
+"""E1 page of the May Spectral Sequence."""
 import itertools
 import operator
 from typing import Union
@@ -27,7 +28,7 @@ class Signature(tuple):
 
     def __radd__(self, other):
         """This is implemented for supporting sum()."""
-        return self.__add__(other) if other is not 0 else self
+        return self.__add__(other) if other != 0 else self
 
     def __mul__(self, other: int):
         """Broadcast multiplication."""
@@ -171,6 +172,10 @@ class MayE1(MayDGA, BC.BasePolyMod2):
             return f"R_{{{k[0]}{k[1]}}}"
         else:
             return f"R_{{{k[0]},{k[1]}}}"
+
+    @staticmethod
+    def repr_mon(mon, clsname) -> str:
+        pass
 
     # methods -----------------
     @classmethod
