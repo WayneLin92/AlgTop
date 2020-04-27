@@ -1,11 +1,9 @@
-import os, json
+"""pygame wrapper"""
+import os
+import json
 import pygame
 import pygame.gfxdraw
 from algebras.mymath import Vector
-
-
-def myroundv(t) -> Vector:
-    return Vector(map(round, t))
 
 
 with open(f"{os.path.dirname(__file__)}\\pen_ss.json", "r") as file:
@@ -13,6 +11,10 @@ with open(f"{os.path.dirname(__file__)}\\pen_ss.json", "r") as file:
     config["bullet.patterns.offset"] = [{tuple(pos): i for i, pos in enumerate(pattern)}
                                         for pattern in config["bullet.patterns"]]
     config["bullet.patterns"] = [[Vector(pos) for pos in pattern] for pattern in config["bullet.patterns"]]
+
+
+def myroundv(t) -> Vector:
+    return Vector(map(round, t))
 
 
 def draw_line(surface, color, start_pos, end_pos, width=config["pen_width"]):
@@ -26,14 +28,14 @@ def draw_circle(surface, color, pos, radius, b_fill=True):
         pygame.gfxdraw.circle(surface, *myroundv(pos), int(radius), color)
 
 
+def draw_rect(surface, color, rect, width=0):
+    pygame.draw.rect(surface, color, rect, width)
+
+
 def draw_text(surface, text, pos, font):
     text_img = font.render(text, True, config["pen_color"], config["bg_color"])
     w, h = text_img.get_size()
     surface.blit(text_img, (round(pos[0]) - w // 2, round(pos[1]) - h // 2))
-
-
-def draw_rect(surface, color, rect, width=0):
-    pygame.draw.rect(surface, color, rect, width)
 
 
 def c2Vector(z: complex):

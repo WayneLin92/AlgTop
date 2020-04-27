@@ -5,8 +5,7 @@ from itertools import chain, repeat, combinations, groupby
 import operator
 import pickle
 from typing import Tuple, List, Dict, Set, Type, Iterable
-
-from . import BaseAlgebras as BA, linalg, mymath
+from algebras import BaseAlgebras as BA, linalg, mymath
 
 
 class GbAlgMod2(BA.AlgebraMod2):

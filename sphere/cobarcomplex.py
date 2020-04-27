@@ -128,22 +128,5 @@ class CobarSteenrod(BA.AlgebraMod2):
                         data ^= {mon[:i] + (m1, m2) + mon[i+1:]}
         return type(self)(data)
 
-    @staticmethod
-    def cup(x, y, j):
-        """Return $x\\cup_j y$."""
-        data = set()
-        for alpha in x.data:
-            for beta in y.data:
-                p, q = len(alpha), len(beta)
-                if j % 2 == 0:
-                    i = j // 2
-                    for r1 in itertools.combinations(range(p-i-1), i):
-                        for s1 in itertools.combinations(range(1, q-i), i):
-                            r = [r1[k] + k + 1 for k in range(i)]
-                            s = [s1[k] + k + 1 for k in range(i)]
-                            m = [alpha[k] for k in range(r[0])]
-                            for ell in range(i):
-                                pass
-
 
 

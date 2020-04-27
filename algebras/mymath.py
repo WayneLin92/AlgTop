@@ -3,7 +3,6 @@ import operator
 from functools import reduce
 from itertools import repeat, starmap, chain, zip_longest
 from typing import Tuple, Iterable
-# TODO: use zip_longest
 
 
 class Vector(tuple):
@@ -231,6 +230,11 @@ def prod_algs(iterable: Iterable, default=None):
     for x in it:
         result = x.mul_data(result, x.data)
     return type(initial)(result)
+
+
+def clip(x, min_, max_):
+    """Clip value `x` by [min_, max_]."""
+    return min_ if x < min_ else (max_ if x > max_ else x)
 
 
 # ---- latex --------
