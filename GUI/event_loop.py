@@ -1,5 +1,5 @@
 import pygame
-from GUI.pen_ss import Pen, config
+from GUI.app_ss import App, config
 
 
 def draw_ss(spec_seq):
@@ -8,8 +8,8 @@ def draw_ss(spec_seq):
     surface = pygame.display.set_mode([config["win_width"], config["win_height"]])
     pygame.display.set_caption("Spectral Sequence")
 
-    pen = Pen(spec_seq)
-    pen.bg(surface)
+    app = App(spec_seq, surface)
+    app.bg()
 
     loop_init = 0
     loop_exit = 1
@@ -20,20 +20,20 @@ def draw_ss(spec_seq):
                 event = pygame.event.wait()
                 msg = event.dict
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    pen.mouse_down(msg)
+                    app.mouse_down(msg)
                 elif event.type == pygame.MOUSEBUTTONUP:
-                    pen.mouse_up(msg)
+                    app.mouse_up(msg)
                 elif event.type == pygame.MOUSEMOTION:
-                    pen.mouse_motion(msg)
+                    app.mouse_motion(msg)
                 elif event.type == pygame.KEYDOWN:
-                    pen.key_down(msg)
+                    app.key_down(msg)
                 elif event.type == pygame.KEYUP:
-                    pen.key_up(msg)
+                    app.key_up(msg)
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     return None
 
-                pen.render(surface)
+                app.render()
                 pygame.display.flip()
                 pygame.time.wait(5)
 
