@@ -8,7 +8,9 @@ from typing import Tuple, Iterable
 class Vector(tuple):
     """A subclass of tuple with element-wise addition and scalar multiplication.
 
-    All Deg instances should have the same length when added together."""
+    All Vector instances should have the same length when added together."""
+    __slots__ = []
+
     def __new__(cls, iterable) -> "Vector":
         # noinspection PyTypeChecker
         return tuple.__new__(cls, iterable)
@@ -45,14 +47,14 @@ class Vector(tuple):
         return Vector(map(operator.truediv, self, repeat(other)))
 
 
-# tuple operations as monomials, everything nonnegative.
+# tuple operations especially for dense monomials
 def le_tuple(t1, t2):
-    """Return if t1 <= t2 element-wise."""
+    """Return if t1_i <= t2_i."""
     return len(t1) <= len(t2) and all(map(operator.le, t1, t2))
 
 
 def rstrip_tuple(t: tuple):
-    """Return `t` with trailing zeroes removed."""
+    """Remove trailing zeroes in `t`."""
     if not t or t[-1]:
         return t
     right = len(t) - 1
@@ -62,7 +64,7 @@ def rstrip_tuple(t: tuple):
 
 
 def sub_tuple(t1, t2):
-    """Require le_tuple(t2, t1). Return t1 - t2 element-wise"""
+    """Require len(t2)<len(t1). Return t1 - t2 element-wise."""
     result = tuple(chain(map(operator.sub, t1, t2), t1[len(t2):]))
     return rstrip_tuple(result)
 
@@ -72,16 +74,23 @@ def add_tuple(t1, t2):
     return tuple(starmap(operator.add, zip_longest(t1, t2, fillvalue=0)))
 
 
+def mul_tuple(t, k):
+    """Return Scalar product t * k."""
+    return tuple(map(operator.mul, t, repeat(k)))
+
+
 def min_tuple(t1, t2):
+    """return (min(t1_i, t2_i), ...)."""
     return rstrip_tuple(tuple(map(min, t1, t2)))
 
 
 def max_tuple(t1, t2):
+    """return (max(t1_i, t2_i), ...)."""
     return tuple(starmap(max, zip_longest(t1, t2, fillvalue=0)))
 
 
 def div_tuple(t1, t2) -> int:
-    """Require le_tuple(t2, t1). Return t1 // t2."""
+    """Require le_tuple(t2, t1). Return the largest q such that t2 * q <= t1."""
     return min(starmap(operator.floordiv, filter(operator.itemgetter(1), zip(t1, t2))))
 
 
@@ -92,16 +101,66 @@ def div_mod_tuple(t1, t2) -> Tuple[int, tuple]:
     return q, rstrip_tuple(r)
 
 
-def add_dict(d1: tuple, d2: tuple):
-    """Add tuples from tuple(sorted(d.items()))."""
+# tuple operations especially for sparse monomials
+def add_dtuple(d1, d2):
+    """Return d1 + d2 as sparse vectors."""
     result = dict(d1)
     for gen, exp in d2:
         if gen in result:
             result[gen] += exp
         else:
             result[gen] = exp
-    result = tuple(sorted(result.items()))
-    return result
+    return tuple(sorted(result.items()))
+
+
+def sub_dtuple(d1, d2):
+    """Return d1 - d2 as sparse vectors."""
+    result = dict(d1)
+    for gen, exp in d2:
+        if gen in result:
+            result[gen] -= exp
+        else:
+            result[gen] = -exp
+    return tuple(sorted((k, v) for k, v in result.items() if v))
+
+
+def le_dtuple(d1, d2):
+    """Return if d1_i <= d2_i as sparse vectors."""
+    d2_dict = dict(d2)
+    return all(gen in d2_dict and exp <= d2_dict[gen] for gen, exp in d1)
+
+
+def min_dtuple(d1, d2):
+    """return (min(d1_i, d2_i), ...)."""
+    d1_dict = dict(d1)
+    result = {}
+    for gen, exp in d2:
+        if gen in d1_dict:
+            result[gen] = min(exp, d1_dict[gen])
+    return tuple(sorted(result.items()))
+
+
+def max_dtuple(d1, d2):
+    """return (max(d1_i, d2_i), ...)."""
+    result = dict(d1)
+    for gen, exp in d2:
+        result[gen] = max(exp, result[gen]) if gen in result else exp
+    return tuple(sorted(result.items()))
+
+
+def div_dtuple(d1, d2) -> int:
+    """Require le_dtuple(t2, t1). Return the largest q such that d2 * q <= d1"""
+    d1_dict = dict(d1)
+    return min(d1_dict[gen] // exp for gen, exp in d2)
+
+
+def div_mod_dtuple(d1, d2) -> Tuple[int, tuple]:
+    """Require le_dtuple(d2, d1). Return div_mod(d1, d2)."""
+    d1_dict = dict(d1)
+    q = min(d1_dict[gen] // exp for gen, exp in d2)
+    for gen, exp in d2:
+        d1_dict[gen] -= exp * q
+    return q, tuple(sorted((k, v) for k, v in d1_dict.items() if v))
 
 
 # binomial coefficients
@@ -235,6 +294,11 @@ def prod_algs(iterable: Iterable, default=None):
 def clip(x, min_, max_):
     """Clip value `x` by [min_, max_]."""
     return min_ if x < min_ else (max_ if x > max_ else x)
+
+
+def interpolation(alpha, t1: tuple, t2: tuple):
+    """Return alpha * t1 + (1 - alpha * t2)."""
+    return tuple(alpha * i + (1 - alpha) * j for i, j in zip(t1, t2))
 
 
 # ---- latex --------

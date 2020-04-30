@@ -1,6 +1,6 @@
 import math
 from itertools import groupby
-from algebras.mymath import clip, Vector
+from algebras.mymath import Vector, clip, interpolation
 from pygame import Rect
 from GUI.camera import Camera
 from GUI.pygame_wrapper import config, myroundv, Paint
@@ -21,7 +21,7 @@ class App:
         self.expansion = set()
         self.pos_current = None
         self.ctrl_down = False
-        self.wait_for_update = True
+        self.wait_for_update = True  # signals changes on screen
         self.paint = Paint(surface)
 
         self.ss = ss
@@ -100,7 +100,9 @@ class App:
         self.expansion = set()
 
     def sp2addr(self, screen_pos):
-        """Return (deg, index) where deg is for the expansion."""
+        """* Return None if not on any bullet
+        * Return (deg, None) if on folded bullet
+        * Return (deg, index) if on some bullet"""
         deg = self.sp2deg(screen_pos)
         deg_expand = self.exp_collide_point(screen_pos) or (deg if deg in self.spread else None)
         if deg_expand:
@@ -210,7 +212,7 @@ class App:
             if deg in self.expansion and not self.exp_collide_point(msg['pos'], deg):
                 self.exp_close(deg)
             self.wait_for_update = True
-        if self.status in {"on_canvas", "on_canvas_moving"}:
+        elif self.status in {"on_canvas", "on_canvas_moving"}:
             self.camera.translation(msg['rel'])
             self.status = "on_canvas_moving"
             self.wait_for_update = True
@@ -226,7 +228,6 @@ class App:
 
     def key_down(self, msg):
         if msg['unicode'] == '\x03':  # Ctrl+C => output for tex
-            # todo: save and open diagrams
             pass
         elif msg['key'] == 127:  # Del -> initialize every thing
             pass
@@ -272,8 +273,42 @@ class App:
             return
         else:
             self.wait_for_update = False
+        
+        bullet_radius = self.get_bullet_radius()
+
         # draw background
         self.bg()
+
+        # draw expansions
+        for deg in self.expansion:
+            if deg not in self.spread:
+                n = self.deg2num_bullets[deg]
+                num_edge = math.ceil(math.sqrt(n))
+                length_edge = self.get_bullet_sep() * (num_edge + 1)
+                center = self.deg2sp(deg)
+                size = Vector([length_edge, length_edge])
+                rect = Rect(myroundv(center - size / 2), myroundv(size))
+                self.paint.draw_rect(config["pen_color"], rect, 1)
+
+        # draw lines
+        lines = sorted(((addr1 := self.id2addr[line.src_id], addr2 := self.id2addr[line.tgt_id],
+                         math.dist(addr1[0], addr2[0]), line.color)
+                        for line in self.ss.lines), key=lambda _l: _l[2])
+        for addr1, addr2, dist, color in reversed(lines):
+            if dist < 3:
+                line_color = color
+            else:
+                line_color = interpolation(3 / dist, color, config['bg_color'])
+            self.paint.draw_line(line_color, self.addr2sp(addr1), self.addr2sp(addr2))
+
+        # draw arrows
+        for arrow in self.ss.arrows:
+            addr1, addr2 = self.id2addr[arrow.src_id], self.id2addr[arrow.tgt_id]
+            self.paint.draw_arrow(self.addr2sp(addr1), self.addr2sp(addr2))
+        if self.status == "on_bullet":
+            if self.addr_mouse_down is not None and self.addr_mouse_down[1] is not None:
+                self.paint.draw_arrow(self.addr2sp(self.addr_mouse_down), self.pos_current)
+
         # draw bullets
         for deg in self.camera.degs_in_screen():
             if deg in self.deg2num_bullets:
@@ -282,7 +317,7 @@ class App:
                     for i in range(n):
                         offset = config["bullet.patterns"][n - 1][i] * self.get_bullet_sep() / 2
                         self.paint.draw_circle(self.addr2color((deg, i)),
-                                               Vector(self.deg2sp(deg)) + offset, self.get_bullet_radius())
+                                               Vector(self.deg2sp(deg)) + offset, bullet_radius)
                 else:
                     num_edge = math.ceil(math.sqrt(n))
                     length_edge = self.get_bullet_sep() * (num_edge + 1)
@@ -293,12 +328,12 @@ class App:
                         for i in range(n):
                             y, x = divmod(i, num_edge)
                             pos_bullet = Vector(rect.topleft) + Vector((x + 1, y + 1)) * self.get_bullet_sep()
-                            self.paint.draw_circle(self.addr2color((deg, i)), pos_bullet, self.get_bullet_radius())
-                    else:
-                        self.paint.draw_circle(config["pen_color"], self.deg2sp(deg), self.get_bullet_radius())
-                        self.paint.draw_circle(config["pen_color"], self.deg2sp(deg), self.get_bullet_radius() * 2,
-                                               False)
-        # draw expansions
+                            self.paint.draw_circle(self.addr2color((deg, i)), pos_bullet, bullet_radius)
+                    elif deg not in self.expansion:
+                        self.paint.draw_circle(config["pen_color"], self.deg2sp(deg), bullet_radius)
+                        self.paint.draw_circle(config["pen_color"], self.deg2sp(deg), bullet_radius * 2, False)
+
+        # draw bullets in expansions
         for deg in self.expansion:
             if deg not in self.spread:
                 n = self.deg2num_bullets[deg]
@@ -306,33 +341,18 @@ class App:
                 length_edge = self.get_bullet_sep() * (num_edge + 1)
                 center = self.deg2sp(deg)
                 size = Vector([length_edge, length_edge])
-                rect = Rect(myroundv(center - size / 2), myroundv(size))
-                self.paint.draw_rect(config["bg_color"], rect)
-                self.paint.draw_rect(config["pen_color"], rect, 1)
+                top_left = myroundv(center - size / 2)
                 for i in range(n):
                     y, x = divmod(i, num_edge)
-                    pos_bullet = Vector(rect.topleft) + Vector((x + 1, y + 1)) * self.get_bullet_sep()
-                    self.paint.draw_circle(self.addr2color((deg, i)), pos_bullet, self.get_bullet_radius())
+                    pos_bullet = Vector(top_left) + Vector((x + 1, y + 1)) * self.get_bullet_sep()
+                    self.paint.draw_circle(self.addr2color((deg, i)), pos_bullet, bullet_radius)
 
         # enlarge hovered-on bullet
         if self.id_hover_on is not None:
             addr = self.id2addr[self.id_hover_on]
             sp = self.addr2sp(addr)
             color = self.ss.get_bullet_by_id(self.id_hover_on).color
-            self.paint.draw_circle(color, sp, self.get_bullet_radius() * 1.5)
-
-        # draw lines
-        for line in self.ss.lines:
-            addr1, addr2 = self.id2addr[line.src], self.id2addr[line.tgt]
-            self.paint.draw_line(line.color, self.addr2sp(addr1), self.addr2sp(addr2))
-
-        # draw arrows
-        for arrow in self.ss.arrows:
-            addr1, addr2 = self.id2addr[arrow.src], self.id2addr[arrow.tgt]
-            self.paint.draw_arrow(self.addr2sp(addr1), self.addr2sp(addr2))
-        if self.status == "on_bullet":
-            if self.addr_mouse_down is not None and self.addr_mouse_down[1] is not None:
-                self.paint.draw_arrow(self.addr2sp(self.addr_mouse_down), self.pos_current)
+            self.paint.draw_circle(color, sp, bullet_radius * 1.5)
 
         # draw label
         if self.id_hover_on is not None:

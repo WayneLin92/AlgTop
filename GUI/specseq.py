@@ -1,10 +1,7 @@
-"""Class of spectral sequences."""
-from typing import List, Tuple, NamedTuple
+"""Class of spectral sequences.
 
-TYPE_IMAGE = 0
-TYPE_KERNEL = 1
-TYPE_DIFF = 2
-TYPE_TBD = 3
+This class mainly handles the logical data of the spectral sequence."""
+from typing import List, Tuple, NamedTuple
 
 
 class BulletProperties(NamedTuple):
@@ -16,16 +13,16 @@ class BulletProperties(NamedTuple):
 
 class LineProperties(NamedTuple):
     id: int
-    src: int
-    tgt: int
+    src_id: int
+    tgt_id: int
     label: str
     color: tuple
 
 
 class ArrowProperties(NamedTuple):
     id: int
-    src: int
-    tgt: int
+    src_id: int
+    tgt_id: int
 
 
 class SpecSeq:

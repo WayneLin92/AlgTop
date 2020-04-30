@@ -350,7 +350,7 @@ class AlgebraDict(Algebra, ABC):
 class BasePolyMulti(Algebra, ABC):
     """ class for multi-var polynomials """
     # -- Algebra --------------
-    mul_mons = staticmethod(mymath.add_dict)
+    mul_mons = staticmethod(mymath.add_dtuple)
 
     @classmethod
     def str_mon(cls, mon: tuple):

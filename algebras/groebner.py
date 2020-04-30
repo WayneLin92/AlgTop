@@ -27,7 +27,9 @@ class GbAlgMod2(BA.AlgebraMod2):
 
     @staticmethod
     def new_alg(*, unit_deg=None, key=None) -> "Type[GbAlgMod2]":
-        """Return a dynamically created subclass of GbAlgMod2."""
+        """Return a dynamically created subclass of GbAlgMod2.
+
+        When key=None, use reversed lexicographical ordering by default"""
         cls = GbAlgMod2
         class_name = f"GbAlgMod2_{cls._name_index}"
         cls._name_index += 1
@@ -190,6 +192,9 @@ class GbAlgMod2(BA.AlgebraMod2):
     @classmethod
     def add_rels(cls, rels: Iterable["GbAlgMod2"], sorted_=False, clear_cache=False):
         """Add a relation."""
+        for rel in rels:
+            if not rel.is_homo():
+                raise ValueError(f'relation {rel} not homogeneous!')
         cls.add_rels_data((rel.data for rel in rels), sorted_, clear_cache)
 
     @classmethod
@@ -213,7 +218,7 @@ class GbAlgMod2(BA.AlgebraMod2):
     @classmethod
     def get_lead(cls, data):
         """Return the leading term of `data`."""
-        return max(data, key=cls.key) if cls.key else max(data)
+        return max(data, key=cls.key) if cls.key else min(data)
 
     @classmethod
     def get_num_gens(cls):
@@ -373,6 +378,16 @@ class GbAlgMod2(BA.AlgebraMod2):
                            for coeff, name, d in a)
             result += f"{s}\n"
         return result
+
+    @classmethod
+    def init_DGA(cls) -> "Type[GbDga]":
+        class_name = f"GbDGA_{GbDga._name_index}"
+        GbDga._name_index += 1
+        dct = {'gen_names': cls.gen_names.copy(), 'gen_degs': cls.gen_degs.copy(),
+               '_gen_diff': [None] * len(cls.gen_names), '_unit_deg': cls._unit_deg,
+               'rels': copy.deepcopy(cls.rels), 'auto_simplify': cls.auto_simplify}
+        # noinspection PyTypeChecker
+        return type(class_name, (GbDga,), dct)
 
     # algorithms --------------------------
     @classmethod
@@ -552,7 +567,6 @@ class GbAlgMod2(BA.AlgebraMod2):
 
 class GbDga(GbAlgMod2):
     """A factory for DGA over F_2."""
-
     _gen_diff = None  # type: List[set]
 
     @staticmethod
@@ -591,8 +605,13 @@ class GbDga(GbAlgMod2):
         m = (0,) * (len(cls.gen_names) - 1) + (1,)
         return cls(m).simplify()
 
+    @classmethod
+    def set_diff(cls, k: str, diff):
+        index = cls.gen_names.index(k)
+        cls._gen_diff[index] = diff.data
+
     def diff(self):
-        """Return the coboundary of the cochain."""
+        """Return the boundary of the chain."""
         result = set()
         for m in self.data:
             for i in range(len(m)):
@@ -602,10 +621,16 @@ class GbDga(GbAlgMod2):
                     result ^= m1_by_dg_i
         return type(self)(result).simplify()
 
+    def inv_diff(self):
+        """Return the boundary of the chain."""
+        pass
+
     # getters ----------------------------
     @classmethod
-    def homology(cls, deg_max) -> Tuple[Type[GbAlgMod2], list]:
-        """Compute HA. Return (HA, list of representing cycles)."""
+    def homology(cls, deg_max) -> Type[GbAlgMod2]:
+        """Compute HA. Return (HA, list of representing cycles).
+
+        HX._rel_cache is not cleared above deg_max."""
         map_diff = linalg.GradedLinearMapKMod2()
         for d, r in cls.basis_max(deg_max):
             # noinspection PyUnresolvedReferences
@@ -618,11 +643,9 @@ class GbDga(GbAlgMod2):
         R_basis_mons = [((), 0)]
         map_alg = linalg.GradedLinearMapKMod2()
         image_gens = []
-        index = 1
         for d in range(1, deg_max + 1):
             for x in (H[d] / map_alg.image(d)).basis(cls):
-                R.add_gen(mymath.tex_sub('x', index), d)
-                index += 1
+                R.add_gen(f'[{x}]', d)
                 image_gens.append(x)
 
                 length = len(R_basis_mons)
@@ -638,7 +661,8 @@ class GbDga(GbAlgMod2):
                         if map_alg.kernel(d2):
                             R.add_rels_data(map_alg.kernel(d2).basis(set))
                             map_alg.kernel(d2).clear()
-        return R, image_gens
+
+        return R
 
     @classmethod
     def resolution(cls, deg_max) -> Type["GbDga"]:

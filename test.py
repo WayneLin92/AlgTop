@@ -293,8 +293,9 @@ class GroebnerTestCase(unittest.TestCase):
                 gens.append((f"R_{{{i}{j}}}", 2 ** j - 2 ** i, j - i))
         gens.sort(key=lambda _x: _x[2])
 
-        E1 = self.GbAlgMod2.new_alg(key=lambda _m: [-_i for _i in _m])
-        E1.add_gens(gens)
+        E1 = self.GbAlgMod2.new_alg()
+        for gen in gens:
+            E1.add_gen(gen[0], gen[1])
 
         def R(S: Union[int, tuple], T: Union[int, tuple]):
             if type(S) is int:
