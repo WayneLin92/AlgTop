@@ -31,11 +31,14 @@ class GbAlgMod2(BA.AlgebraMod2):
     key = None  # key function: mon -> value
     pred = None  # Predicate function to truncate the Groebner basis
     auto_simplify = None  # type: bool
+    _attributes = ["generators", "rels", "_rels_gen_leads", "_rels_cache", "key", "pred", "auto_simplify"]
     _name_index = 0
 
     @staticmethod
     def new_alg(*, key=None, pred=None) -> "Type[GbAlgMod2]":
-        """Return a dynamically created subclass of GbAlgMod2."""
+        """Return a dynamically created subclass of GbAlgMod2.
+
+        When key=None, use reversed lexicographical ordering by default."""
         cls = GbAlgMod2
         class_name = f"GbAlgMod2_{cls._name_index}"
         cls._name_index += 1
@@ -60,28 +63,19 @@ class GbAlgMod2(BA.AlgebraMod2):
     def save_alg(cls, filename):
         """Save to a pickle file."""
         with open(filename, 'wb') as file:
-            pickle.dump([cls.generators,  cls.rels,
-                         cls._rels_gen_leads, cls._rels_cache,
-                         cls.key, cls.pred], file)
+            pickle.dump([getattr(cls, attr) for attr in cls._attributes], file)
 
     @staticmethod
-    def load_alg(filename):
+    def load_alg(filename) -> "Type[GbAlgMod2]":
         """Create an algebra from a pickle file."""
         with open(filename, 'rb') as file:
             init_list = pickle.load(file)
             cls = GbAlgMod2
             class_name = f"GbAlgMod2_{cls._name_index}"
             cls._name_index += 1
-            dct = {'generators': init_list[0], 'rels': init_list[1],
-                   '_rels_gen_leads': init_list[2], '_rels_cache': init_list[3],
-                   'key': init_list[4], 'pred': init_list[5],
-                   'auto_simplify': True}
+            dct = {attr: init_v for attr, init_v in zip(cls._attributes, init_list)}
             # noinspection PyTypeChecker
             return type(class_name, (cls,), dct)
-
-    @staticmethod
-    def key_rev_lex(mon):
-        return [(i, -e) for i, e in mon]
 
     # ----- AlgebraMod2 -------------
     @classmethod
@@ -92,26 +86,26 @@ class GbAlgMod2(BA.AlgebraMod2):
     @classmethod
     def str_mon(cls, mon: tuple):
         if mon:
-            return "".join(mymath.tex_pow(cls.get_gen_name(i), e) for i, e in mon)
+            return "".join(mymath.tex_pow(cls.get_gen_name(i), -e) for i, e in mon)
         else:
             return "1"
 
     @classmethod
     def repr_mon(cls, mon: tuple, clsname):
         if mon:
-            return " * ".join(f"{clsname}.gen(\"{cls.get_gen_name(i)}\") ** {e}"
-                              if e > 1 else f"{clsname}.gen(\"{cls.get_gen_name(i)}\")"
+            return " * ".join(f"{clsname}.gen(\"{cls.get_gen_name(i)}\") ** {-e}"
+                              if -e > 1 else f"{clsname}.gen(\"{cls.get_gen_name(i)}\")"
                               for i, e in mon)
         else:
             return f"{clsname}.unit()"
 
     @classmethod
     def deg_mon(cls, mon: tuple):
-        return sum(cls.get_gen_deg(i) * e for i, e in mon)
+        return sum(cls.get_gen_deg(i) * -e for i, e in mon)
 
     @classmethod
     def deg3d_mon(cls, mon: tuple):
-        return sum((cls.get_gen_deg3d(i) * e for i, e in mon), mymath.Vector((0, 0, 0)))
+        return sum((cls.get_gen_deg3d(i) * -e for i, e in mon), mymath.Vector((0, 0, 0)))
 
     def deg(self):
         """Require `self` to be homogeneous."""
@@ -129,7 +123,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         """Add a new generator and return it."""
         index = cls.generators[-1][0] + 1 if cls.generators else 0
         cls.generators.append((index, name, deg, mymath.Vector(deg3d)))
-        m = ((index, 1),)
+        m = ((index, -1),)
         return cls(m).simplify() if cls.auto_simplify else cls(m)
 
     @classmethod
@@ -151,7 +145,7 @@ class GbAlgMod2(BA.AlgebraMod2):
                 break
         else:
             raise ValueError(f"no generator named {name}")
-        m = ((item[0], 1),)
+        m = ((item[0], -1),)
         assert not cls.rels[m]
         del cls.rels[m]
         del cls.generators[i]
@@ -256,7 +250,7 @@ class GbAlgMod2(BA.AlgebraMod2):
     @classmethod
     def get_lead(cls, data):
         """Return the leading term of `data`."""
-        return max(data, key=(cls.key if cls.key else cls.key_rev_lex))
+        return max(data, key=cls.key) if cls.key else max(data)
 
     @classmethod
     def get_num_gens(cls):
@@ -272,7 +266,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         """Return a generator."""
         for index, name, _, _ in cls.generators:
             if name == k:
-                m = ((index, 1),)
+                m = ((index, -1),)
                 return cls(m).simplify() if cls.auto_simplify else cls(m)
         else:
             raise ValueError(f"No generator named {k}")
@@ -310,7 +304,7 @@ class GbAlgMod2(BA.AlgebraMod2):
                 d, m = result[i]
                 for e in range(1, (deg_max - d) // cls.gen_degs[k] + 1):
                     m1 = m + (0,) * (k - len(m)) + (e,)
-                    if k in leadings and any(map(mymath.le_dtuple, leadings[k], repeat(m1))):
+                    if k in leadings and any(map(le_dtuple, leadings[k], repeat(m1))):
                         break
                     else:
                         result.append((d + e * cls.gen_degs[k], m1))
@@ -323,7 +317,7 @@ class GbAlgMod2(BA.AlgebraMod2):
     @classmethod
     def is_reducible(cls, mon):
         """Determine if mon is reducible by `cls.rels`."""
-        return any(mymath.le_dtuple(m, mon) for m in cls.rels)
+        return any(le_dtuple(m, mon) for m in cls.rels)
 
     def evaluation(self, image_gens):
         """Return f(self) where f is an algebraic map determined by `image_gens`."""
@@ -440,7 +434,7 @@ class GbAlgMod2(BA.AlgebraMod2):
             mon = cls.get_lead(s)
             s.remove(mon)
             for m in cls.rels:
-                if mymath.le_dtuple(m, mon):
+                if le_dtuple(m, mon):
                     q, r = mymath.div_mod_dtuple(mon, m)
                     m_to_q = (cls(cls.rels[m]) ** q).data
                     s ^= {mymath.add_dtuple(r, m1) for m1 in m_to_q}
@@ -464,7 +458,7 @@ class GbAlgMod2(BA.AlgebraMod2):
                 redundant_leading_terms = []
                 for m1, v1 in cls.rels.items():
                     if gcd_nonzero_dtuple(m, m1):
-                        lcm = mymath.max_dtuple(m, m1)
+                        lcm = max_dtuple(m, m1)
                         dif = mymath.sub_dtuple(lcm, m)
                         dif1 = mymath.sub_dtuple(lcm, m1)
                         new_rel = {mymath.add_dtuple(_m, dif) for _m in r}
@@ -472,7 +466,7 @@ class GbAlgMod2(BA.AlgebraMod2):
                         new_rel -= {lcm}
                         new_rel ^= v1dif1
                         # print(cls.str_mon(m), cls.str_mon(m1), cls.str_mon(lcm), cls(new_rel))
-                        if mymath.le_dtuple(m, m1):
+                        if le_dtuple(m, m1):
                             BA.Monitor.count("redundant_leading_terms")  #
                             redundant_leading_terms.append(m1)
                             is_lead = m1 in cls._rels_gen_leads
@@ -782,6 +776,31 @@ class GbDga(GbAlgMod2):
         result = '<table>\n' + tr1 + tr2 + '</table>' +\
                  '<table>' + tr3 + tr4 + '</table>'
         return Markdown(result)
+
+
+# operations for monomials with negative exponents
+def le_dtuple(d1, d2):
+    """Return if d1_i <= d2_i as sparse vectors."""
+    d2_dict = dict(d2)
+    return all(gen in d2_dict and exp >= d2_dict[gen] for gen, exp in d1)
+
+
+def min_dtuple(d1, d2):
+    """return (min(d1_i, d2_i), ...)."""
+    d1_dict = dict(d1)
+    result = {}
+    for gen, exp in d2:
+        if gen in d1_dict:
+            result[gen] = max(exp, d1_dict[gen])
+    return tuple(sorted(result.items()))
+
+
+def max_dtuple(d1, d2):
+    """return (max(d1_i, d2_i), ...)."""
+    result = dict(d1)
+    for gen, exp in d2:
+        result[gen] = min(exp, result[gen]) if gen in result else exp
+    return tuple(sorted(result.items()))
 
 
 def gcd_nonzero_dtuple(d1, d2):

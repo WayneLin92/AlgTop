@@ -23,13 +23,15 @@ class GbAlgMod2(BA.AlgebraMod2):
     _rels_cache = None  # type: List[Tuple[int, bool, set]]
     key = None  # key function: mon -> value
     auto_simplify = None  # type: bool
+    _attributes = ["gen_names", "gen_degs", "_unit_deg", "rels",
+                   "_rels_gen_leads", "_rels_cache", "key", "auto_simplify"]
     _name_index = 0
 
     @staticmethod
     def new_alg(*, unit_deg=None, key=None) -> "Type[GbAlgMod2]":
         """Return a dynamically created subclass of GbAlgMod2.
 
-        When key=None, use reversed lexicographical ordering by default"""
+        When key=None, use reversed lexicographical ordering by default."""
         cls = GbAlgMod2
         class_name = f"GbAlgMod2_{cls._name_index}"
         cls._name_index += 1
@@ -55,12 +57,8 @@ class GbAlgMod2(BA.AlgebraMod2):
     @classmethod
     def save_alg(cls, filename):
         """Save to a pickle file."""
-        if cls._rels_cache:
-            raise ValueError("relation cache not empty!")
-        else:
-            with open(filename, 'wb') as file:
-                pickle.dump([cls.gen_names, cls.gen_degs, cls._unit_deg,
-                             cls.rels, cls._rels_gen_leads, cls.key], file)
+        with open(filename, 'wb') as file:
+            pickle.dump([getattr(cls, attr) for attr in cls._attributes], file)
 
     @staticmethod
     def load_alg(filename):
@@ -70,9 +68,7 @@ class GbAlgMod2(BA.AlgebraMod2):
             cls = GbAlgMod2
             class_name = f"GbAlgMod2_{cls._name_index}"
             cls._name_index += 1
-            dct = {'gen_names': init_list[0], 'gen_degs': init_list[1], '_unit_deg': init_list[2],
-                   'rels': init_list[3], '_rels_gen_leads': init_list[4], '_rels_cache': [],
-                   'key': init_list[5], 'auto_simplify': True}
+            dct = {attr: init_v for attr, init_v in zip(cls._attributes, init_list + [True])}  # TODO: change this
             # noinspection PyTypeChecker
             return type(class_name, (cls,), dct)
 
