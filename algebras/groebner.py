@@ -1,4 +1,5 @@
 """Algebras based on Groebner basis."""
+# TODO: get rid of unit_deg
 import copy
 import heapq
 from itertools import chain, repeat, combinations, groupby
@@ -18,7 +19,7 @@ class GbAlgMod2(BA.AlgebraMod2):
     gen_names = None  # type: List[str]
     gen_degs = None  # type: list
     _unit_deg = None
-    rels = None  # type: Dict[tuple, set]
+    rels = None  # type: Dict[tuple, Set[Tuple[int]]]
     _rels_gen_leads = None  # type: Set[tuple]
     _rels_cache = None  # type: List[Tuple[int, bool, set]]
     key = None  # key function: mon -> value
@@ -198,6 +199,8 @@ class GbAlgMod2(BA.AlgebraMod2):
         """Simplify `cls.rels`."""
         for m in cls.rels:
             cls.rels[m] = cls.simplify_data(cls.rels[m])
+        for i, item in enumerate(cls._rels_cache):
+            cls._rels_cache[i] = (item[0], item[1], cls.simplify_data(item[2]))
 
     def simplify(self):
         """Simplify self by relations."""
@@ -296,7 +299,7 @@ class GbAlgMod2(BA.AlgebraMod2):
 
     @classmethod
     def print_latex_alg(cls, show_gb=True):
-        """For pdflatex."""
+        """For latex."""
         print(f"Generators: ${', '.join(cls.gen_names)}$.\\\\")
         print(f"Degrees: ${', '.join(map(str, cls.gen_degs))}$")
         print("Relations:\\\\")
@@ -376,7 +379,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         return result
 
     @classmethod
-    def init_DGA(cls) -> "Type[GbDga]":
+    def to_dga(cls) -> "Type[GbDga]":
         class_name = f"GbDGA_{GbDga._name_index}"
         GbDga._name_index += 1
         dct = {'gen_names': cls.gen_names.copy(), 'gen_degs': cls.gen_degs.copy(),
@@ -447,7 +450,10 @@ class GbAlgMod2(BA.AlgebraMod2):
 
     @classmethod
     def get_vector_gens(cls, ideal: List[List[Tuple["GbAlgMod2", str, int]]], *, inplace=False):
-        """Return the minimal generating set of `ideal`, which is a A-submodule of A^n."""
+        """Return the minimal generating set of `ideal`, which is a A-submodule of A^n.
+
+        `ideal` is a list of [(ele, name, deg), ...].
+        The names should not overlap with existing generator names of `cls`."""
         # TODO: create class AugModuleMod2
         A = cls if inplace else cls.copy_alg()
         num_gen = len(A.gen_names)
@@ -494,7 +500,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         if cls.key:
             A.key = lambda _m: ([-i for i in _m[num_gen:]] + [0] * num_ele, cls.key(_m))
         else:
-            A.key = lambda _m: ([-i for i in _m[num_gen:]] + [0] * num_ele, _m)
+            A.key = lambda _m: ([-i for i in _m[num_gen:]] + [0] * num_ele, [-i for i in _m])  #
         rels_new = []
         for ele, name in ele_names:
             x = A.add_gen(name, ele.deg())
@@ -523,10 +529,10 @@ class GbAlgMod2(BA.AlgebraMod2):
             annilators.append(a)
         if cls.key:
             def key(_m):
-                return _m[num_gen:], cls.key(_m)
+                return A.deg_mon(_m[num_gen:]), cls.key(_m)
         else:
             def key(_m):
-                return _m[num_gen:], _m
+                return A.deg_mon(_m[num_gen:]), [-i for i in _m]
         A.reorder_gens(key=key)
         annilators = [[(cls(A.simplify_data({_m})), name, deg) for _m, name, deg in a] for a in annilators]
         return cls.get_vector_gens(annilators)
@@ -539,7 +545,8 @@ class GbAlgMod2(BA.AlgebraMod2):
 
         def key1(_m):
             _m1, _m2 = _m[:num_gens], _m[num_gens:]
-            return cls.deg_mon(_m1), (cls.key(_m1) if cls.key else _m1), (key(_m2) if key else _m2)
+            return (cls.deg_mon(_m1), (cls.key(_m1) if cls.key else [-i for i in _m1]),
+                    (key(_m2) if key else [-i for i in _m2]))
         A.key = key1
         for ele, name in ele_names:
             x = A.add_gen(name, ele.deg())
