@@ -54,3 +54,13 @@ class Camera:
         deg1 = (math.floor(deg1[0]), math.floor(deg1[1]))
         deg2 = (math.ceil(deg2[0]), math.ceil(deg2[1]))
         return ((x, y) for x in range(deg1[0], deg2[0] + 1) for y in range(deg1[1], deg2[1] + 1))
+
+    def is_in_screen(self, deg):
+        """Return degrees which regions overlap with the visible screen."""
+        bottom_left_screen = (0, config["win_height"])
+        top_right_screen = (config["win_width"], 0)
+        deg1 = self.sp2wp(bottom_left_screen)
+        deg2 = self.sp2wp(top_right_screen)
+        deg1 = (math.floor(deg1[0]), math.floor(deg1[1]))
+        deg2 = (math.ceil(deg2[0]), math.ceil(deg2[1]))
+        return deg1[0] <= deg[0] <= deg2[0] and deg1[1] <= deg[1] <= deg2[1]

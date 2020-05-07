@@ -256,7 +256,7 @@ class App:
                 text_pos = left - Vector([30, 0])
                 if text_pos[0] < 16:
                     text_pos = Vector((16, text_pos[1]))
-                self.paint.draw_text(str(i), text_pos)
+                self.paint.draw_text(str(i), text_pos, config["axis_numbers_color"])
         for i in range(0, config["x_max"] + 1):
             bottom = self.camera.wp2sp((i, 0))
             top = self.camera.wp2sp((i, config["y_max"]))
@@ -265,7 +265,7 @@ class App:
                 text_pos = bottom + Vector([0, 30])
                 if text_pos[1] > config["win_height"] - 16:
                     text_pos = Vector((text_pos[0], config["win_height"] - 16))
-                self.paint.draw_text(str(i), text_pos)
+                self.paint.draw_text(str(i), text_pos, config["axis_numbers_color"])
 
     def render(self):
         """Draw on the screen."""
@@ -356,9 +356,10 @@ class App:
 
         # draw texts
         for text_p in self.ss.texts:
-            s = text_p.text
-            pos = self.camera.wp2sp(Vector(text_p.deg) + text_p.offset)
-            self.paint.draw_text(s, pos)
+            if self.camera.is_in_screen(text_p.deg):
+                s = text_p.text
+                pos = self.camera.wp2sp(Vector(text_p.deg) + text_p.offset)
+                self.paint.draw_text(s, pos, text_p.color)
 
         # draw label
         if self.id_hover_on is not None:

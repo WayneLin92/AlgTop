@@ -34,20 +34,20 @@ class Paint:
         self.surface.fill(config["bg_color"])
 
     def draw_line(self, color, start_pos, end_pos, width=config["pen_width"]):
-        pygame.draw.line(self.surface, color, myroundv(start_pos), myroundv(end_pos), width)
+        pygame.draw.line(self.surface, color or config["pen_color"], myroundv(start_pos), myroundv(end_pos), width)
 
     def draw_circle(self, color, pos, radius, b_fill=True):
         if b_fill:
-            pygame.gfxdraw.filled_circle(self.surface, *myroundv(pos), int(radius), color)
+            pygame.gfxdraw.filled_circle(self.surface, *myroundv(pos), int(radius), color or config["pen_color"])
         else:
-            pygame.gfxdraw.circle(self.surface, *myroundv(pos), int(radius), color)
+            pygame.gfxdraw.circle(self.surface, *myroundv(pos), int(radius), color or config["pen_color"])
 
     def draw_rect(self, color, rect, width=0):
-        pygame.draw.rect(self.surface, color, rect, width)
+        pygame.draw.rect(self.surface, color or config["pen_color"], rect, width)
 
-    def draw_text(self, text, pos):
+    def draw_text(self, text, pos, color=None):
         """The center of the text is placed at pos."""
-        text_img = self.font.render(text, True, config["pen_color"], config["bg_color"])
+        text_img = self.font.render(text, True, color or config["pen_color"], config["bg_color"])
         w, h = text_img.get_size()
         self.surface.blit(text_img, (round(pos[0]) - w // 2, round(pos[1]) - h // 2))
 

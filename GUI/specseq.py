@@ -30,6 +30,7 @@ class TextProperties(NamedTuple):
     text: str
     deg: Tuple[int, int]
     offset: Tuple[float, float]
+    color: tuple
 
 
 class SpecSeq:
@@ -61,13 +62,13 @@ class SpecSeq:
             raise ValueError(f"label {label} not found.")
 
     # setters --------------------------
-    def add_bullet(self, deg, label=None, color=(0, 0, 0)):
+    def add_bullet(self, deg, label=None, color=None):
         bullet = BulletProperties(self.bullet_id, deg, label or f"id: {self.bullet_id}", color)
         self.bullets.append(bullet)
         self.bullet_id += 1
         return self.bullet_id - 1
 
-    def add_line(self, src, tgt, label=None, color=(0, 0, 0), *, by_label=False):
+    def add_line(self, src, tgt, label=None, color=None, *, by_label=False):
         if by_label:  # Warning: labels might be non-unique
             src = self.get_bullet_by_label(src).id
             tgt = self.get_bullet_by_label(tgt).id
@@ -83,8 +84,8 @@ class SpecSeq:
         self.arrows.append(arrow)
         self.arrow_id += 1
 
-    def add_text(self, text: str, deg: Tuple[int, int], offset: Tuple[float, float] = (0.0, 0.0)):
-        text_p = TextProperties(self.text_id, text, deg, offset)
+    def add_text(self, text: str, deg: Tuple[int, int], offset: Tuple[float, float] = (0.0, 0.0), color=None):
+        text_p = TextProperties(self.text_id, text, deg, offset, color)
         self.texts.append(text_p)
         self.text_id += 1
 
@@ -101,7 +102,7 @@ def test():
     b3 = spec.add_bullet((1, 2))
     spec.add_arrow(b1, b2)
     spec.add_line(b1, b3, color=(0, 255, 0))
-    spec.add_text("1234", (4, 4))
+    spec.add_text("12341123412341234", (4, 4), color=(0, 255, 255))
 
     for i in range(12):
         for j in range(i):

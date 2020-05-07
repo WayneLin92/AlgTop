@@ -10,6 +10,7 @@
   "pen_width": 2,
   "pen_color": [0, 0, 0],
   "bg_color": [253, 246, 227],
+  "axis_numbers_color": [100, 50, 50],
   "axis_text_sep_screen": 30,
   "bullet.sep_world": 0.24,
   "bullet.sep_screen.interval": [6.66, 20],
