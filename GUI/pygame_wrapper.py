@@ -46,6 +46,7 @@ class Paint:
         pygame.draw.rect(self.surface, color, rect, width)
 
     def draw_text(self, text, pos):
+        """The center of the text is placed at pos."""
         text_img = self.font.render(text, True, config["pen_color"], config["bg_color"])
         w, h = text_img.get_size()
         self.surface.blit(text_img, (round(pos[0]) - w // 2, round(pos[1]) - h // 2))

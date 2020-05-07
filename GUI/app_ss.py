@@ -354,6 +354,12 @@ class App:
             color = self.ss.get_bullet_by_id(self.id_hover_on).color
             self.paint.draw_circle(color, sp, bullet_radius * 1.5)
 
+        # draw texts
+        for text_p in self.ss.texts:
+            s = text_p.text
+            pos = self.camera.wp2sp(Vector(text_p.deg) + text_p.offset)
+            self.paint.draw_text(s, pos)
+
         # draw label
         if self.id_hover_on is not None:
             s = self.ss.get_bullet_by_id(self.id_hover_on).label

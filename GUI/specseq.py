@@ -25,15 +25,24 @@ class ArrowProperties(NamedTuple):
     tgt_id: int
 
 
+class TextProperties(NamedTuple):
+    id: int
+    text: str
+    deg: Tuple[int, int]
+    offset: Tuple[float, float]
+
+
 class SpecSeq:
     """This class is the database for the graph of spectral sequence."""
     def __init__(self):
         self.bullets = []  # type: List[BulletProperties]
         self.lines = []  # type: List[LineProperties]
         self.arrows = []  # type: List[ArrowProperties]
+        self.texts = []  # type: List[TextProperties]
         self.bullet_id = 0
         self.line_id = 0
         self.arrow_id = 0
+        self.text_id = 0
 
     # getters -------------------------
     def get_bullet_by_id(self, id_):
@@ -74,6 +83,11 @@ class SpecSeq:
         self.arrows.append(arrow)
         self.arrow_id += 1
 
+    def add_text(self, text: str, deg: Tuple[int, int], offset: Tuple[float, float] = (0.0, 0.0)):
+        text_p = TextProperties(self.text_id, text, deg, offset)
+        self.texts.append(text_p)
+        self.text_id += 1
+
     # methods ----------------------------
     def draw(self):
         import GUI.event_loop
@@ -87,6 +101,8 @@ def test():
     b3 = spec.add_bullet((1, 2))
     spec.add_arrow(b1, b2)
     spec.add_line(b1, b3, color=(0, 255, 0))
+    spec.add_text("1234", (4, 4))
+
     for i in range(12):
         for j in range(i):
             spec.add_bullet((i, 2), color=(0, 0, 255))
