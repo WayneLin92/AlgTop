@@ -4,7 +4,7 @@
   "win_width": 1300,
   "win_height": 800,
   "x_max": 200,
-  "y_max": 50,
+  "y_max": 100,
   "grid_color": [180, 180, 200],
   "auto_expand_rate": 0.85,
   "pen_width": 2,

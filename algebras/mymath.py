@@ -19,11 +19,19 @@ class Vector(tuple):
         """Element-wise addition."""
         return Vector(map(operator.add, self, other))
 
+    def __iadd__(self, other):
+        """Element-wise addition."""
+        return Vector(map(operator.add, self, other))
+
     def __radd__(self, other):
         """This is implemented for supporting sum()."""
         return Vector(map(operator.add, self, other)) if other != 0 else self
 
     def __sub__(self, other):
+        """Element-wise addition."""
+        return Vector(map(operator.sub, self, other))
+
+    def __isub__(self, other):
         """Element-wise addition."""
         return Vector(map(operator.sub, self, other))
 
@@ -309,7 +317,7 @@ def tex_pow(base, exp: int) -> str:
     if exp == 1:
         return base
     else:
-        if "^" in base:
+        if tex_outside_delimiter(base, "^"):
             base = "(" + base + ")"
         return f"{base}^{exp}" if len(str(exp)) == 1 else f"{base}^{{{exp}}}"
 
@@ -329,3 +337,17 @@ def tex_braces(obj):
     """Return obj with curly braces if there are more than one character."""
     result = str(obj)
     return f"{{{result}}}" if len(result) > 1 else result
+
+
+def tex_outside_delimiter(text: str, symbol: str):
+    """Return if symbol appears in text and is outside any pair of delimiters including ()[]{}"""
+    left, right = "([{", ")]}"
+    left_minus_right = 0
+    for c in text:
+        if c in left:
+            left_minus_right += 1
+        elif c in right:
+            left_minus_right -= 1
+        elif c == symbol and left_minus_right == 0:
+            return True
+    return False

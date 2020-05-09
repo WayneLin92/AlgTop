@@ -1,6 +1,7 @@
+import json
 from itertools import permutations, combinations, product
-from algebras.mymath import prod_algs
-from algebras.groebner import GbAlgMod2
+from algebras.mymath import prod_algs, Vector
+from MaySS.groebner import GbAlgMod2
 
 
 def key(m):
@@ -9,11 +10,11 @@ def key(m):
 
 def def_gens(R: GbAlgMod2):
     """Bind some local variables to the generators of `R`."""
-    for name in R.gen_names:
-        translation = str.maketrans("(", "_", " _){},")
-        var_name = name.translate(translation)
+    for gen in R.generators:
+        translation = str.maketrans("(", "_", " _){}[],")
+        var_name = gen.name.translate(translation)
         var_dict = globals()
-        var_dict[var_name] = R.gen(name)
+        var_dict[var_name] = R.gen(gen.name)
 
 
 def decompose(S, T):
@@ -304,4 +305,13 @@ def relations6(j_max):
                                                   A.zero())
 
 
-A = GbAlgMod2.load_alg("output/HX9-gens.pickle")
+def pred_E2(d3d):
+    s, t, u = d3d
+    return t - s <= 150 and s <= 87
+
+
+with open("output/E2_9_generators.json", "r") as fp:
+    generators = json.load(fp)
+A = GbAlgMod2.new_alg(pred=pred_E2)
+for name, *d3d in generators:
+    A.add_gen(name, d3d[1], Vector(d3d))

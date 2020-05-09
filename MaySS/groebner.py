@@ -4,29 +4,40 @@ Tailored for May spectral sequence.
 The algebra is tri-graded with (s, t, u).
 Monomials are structured by sparse vectors.
 The Groebner basis is truncated by a predicate function."""
+# TODO: use sqlite to store basis
+# TODO: consider square-free property of E_2
+# TODO: special treatment of relations x_ix_j=0
 # TODO: support json
 import copy
 import heapq
 import pickle
 from bisect import bisect_left
 from itertools import chain, repeat, combinations, groupby, combinations_with_replacement
-from typing import Tuple, List, Dict, Set, Type, Iterable, NamedTuple, Union
-from algebras import BaseAlgebras as BA, linalg, mymath
+from typing import Tuple, List, Dict, Set, Type, Iterable, NamedTuple, Union, Callable, Any
+from algebras import BaseAlgebras as BA, linalg
+from algebras.mymath import add_dtuple, sub_dtuple, div_mod_dtuple, Vector, tex_parenthesis, tex_pow
 
 
 class Gen(NamedTuple):
     index: int
     name: str
     deg: int
-    deg3d: mymath.Vector
+    deg3d: Vector
 
 
 class DgaGen(NamedTuple):
     index: int
     name: str
     deg: int
-    deg3d: mymath.Vector
+    deg3d: Vector
     diff: set
+
+
+class RelCache(NamedTuple):
+    deg: int
+    is_rel_gen: bool
+    rel: set
+    deg3d: Vector = Vector((0, 0, 0))
 
 
 class GbAlgMod2(BA.AlgebraMod2):
@@ -40,9 +51,9 @@ class GbAlgMod2(BA.AlgebraMod2):
     generators = None  # type: List[Gen]
     rels = None  # type: Dict[tuple, Set[Tuple[int, int]]]
     _rels_gen_leads = None  # type: Set[tuple]
-    _rels_cache = None  # type: List[Tuple[int, bool, set]]
-    key = None  # key function: mon -> value
-    pred = None  # Predicate function to truncate the Groebner basis
+    _rels_cache = None  # type: List[RelCache]
+    key = None  # type: Callable[[tuple], Any]
+    pred = None  # type: Callable[[Vector], Any]
     auto_simplify = None  # type: bool
     _attributes = ["generators", "rels", "_rels_gen_leads", "_rels_cache", "key", "pred", "auto_simplify"]
     _name_index = 0
@@ -56,7 +67,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         class_name = f"GbAlgMod2_{cls._name_index}"
         cls._name_index += 1
         dct = {'generators': [], 'rels': {}, '_rels_gen_leads': set(), '_rels_cache': [],
-               'key': key, 'pred': pred, 'auto_simplify': True}
+               'key': key, 'pred': pred or cls.pred_default, 'auto_simplify': True}
         # noinspection PyTypeChecker
         return type(class_name, (cls,), dct)
 
@@ -93,13 +104,13 @@ class GbAlgMod2(BA.AlgebraMod2):
     # ----- AlgebraMod2 -------------
     @classmethod
     def mul_mons(cls, mon1: tuple, mon2: tuple):
-        m = mymath.add_dtuple(mon1, mon2)
+        m = add_dtuple(mon1, mon2)
         return cls.simplify_data({m}) if cls.auto_simplify else m
 
     @classmethod
     def str_mon(cls, mon: tuple):
         if mon:
-            return "".join(mymath.tex_pow(cls.get_gen(i).name, -e) for i, e in mon)
+            return "".join(tex_pow(cls.get_gen(i).name, -e) for i, e in mon)
         else:
             return "1"
 
@@ -118,7 +129,7 @@ class GbAlgMod2(BA.AlgebraMod2):
 
     @classmethod
     def deg3d_mon(cls, mon: tuple):
-        return sum((cls.get_gen(i).deg3d * -e for i, e in mon), mymath.Vector((0, 0, 0)))
+        return sum((cls.get_gen(i).deg3d * -e for i, e in mon), Vector((0, 0, 0)))
 
     def deg(self):
         """Require `self` to be homogeneous."""
@@ -134,18 +145,20 @@ class GbAlgMod2(BA.AlgebraMod2):
     @classmethod
     def add_gen(cls, name: str, deg, deg3d=(0, 0, 0)):
         """Add a new generator and return it."""
-        index = cls.generators[-1][0] + 1 if cls.generators else 0
-        cls.generators.append(Gen(index, name, deg, mymath.Vector(deg3d)))
-        m = ((index, -1),)
-        return cls(m).simplify() if cls.auto_simplify else cls(m)
+        if cls.pred(deg3d):
+            index = cls.generators[-1][0] + 1 if cls.generators else 0
+            cls.generators.append(Gen(index, name, deg, Vector(deg3d)))
+            m = ((index, -1),)
+            return cls(m).simplify() if cls.auto_simplify else cls(m)
 
     @classmethod
     def add_gens(cls, name_deg_deg3d_s):
         """Add generators. name_deg_deg3d_s is a list of tuples (name, deg, deg3d)."""
         index = cls.generators[-1][0] + 1 if cls.generators else 0
         for n, d, d3d in name_deg_deg3d_s:
-            cls.generators.append(Gen(index, n, d, mymath.Vector(d3d)))
-            index += 1
+            if cls.pred(d3d):
+                cls.generators.append(Gen(index, n, d, Vector(d3d)))
+                index += 1
 
     @classmethod
     def remove_gen(cls, name: str):
@@ -177,7 +190,6 @@ class GbAlgMod2(BA.AlgebraMod2):
     def reorder_gens(cls, index_map=None, key=None):  # TODO: create a new alg instead
         """Reorganize the relations by a new ordering of generators and a new key function.
         The new i'th generator is the old `index_map[i]`'th generator."""
-        # TODO: change this
         index_map_inv = {}
         for i, fi in enumerate(index_map):
             index_map_inv[fi] = i
@@ -199,9 +211,11 @@ class GbAlgMod2(BA.AlgebraMod2):
     def add_rel_data(cls, rel: set, clear_cache=False):
         """Add relations."""
         if rel:
-            deg = cls.deg_data(rel)
-            heapq.heappush(cls._rels_cache, (deg, True, rel))
-            cls.add_rels_cache(None if clear_cache else deg)
+            deg3d = cls.deg3d_data(rel)
+            if cls.pred(deg3d):
+                deg = cls.deg_data(rel)
+                heapq.heappush(cls._rels_cache, RelCache(deg, True, rel, deg3d))
+                cls.add_rels_cache(None if clear_cache else deg)
 
     @classmethod
     def add_rels_data(cls, rels: Iterable[set], sorted_=False, clear_cache=False):
@@ -231,8 +245,8 @@ class GbAlgMod2(BA.AlgebraMod2):
         """Simplify `cls.rels`."""
         for m in cls.rels:
             cls.rels[m] = cls.simplify_data(cls.rels[m])
-        for i, item in enumerate(cls._rels_cache):
-            cls._rels_cache[i] = (item[0], item[1], cls.simplify_data(item[2]))
+        for i, rel_cache in enumerate(cls._rels_cache):
+            cls._rels_cache[i] = RelCache(rel_cache.deg, rel_cache.is_rel_gen, cls.simplify_data(rel_cache.rel))
 
     def simplify(self):
         """Simplify self by relations."""
@@ -252,6 +266,12 @@ class GbAlgMod2(BA.AlgebraMod2):
             return cls.deg_mon(m)
 
     @classmethod
+    def deg3d_data(cls, data: set):
+        """Return the degree of `data`."""
+        for m in data:
+            return cls.deg3d_mon(m)
+
+    @classmethod
     def get_lead(cls, data):
         """Return the leading term of `data`."""
         return max(data, key=cls.key) if cls.key else max(data)
@@ -268,9 +288,9 @@ class GbAlgMod2(BA.AlgebraMod2):
     @classmethod
     def gen(cls, k: str):
         """Return a generator."""
-        for index, name, _, _ in cls.generators:
-            if name == k:
-                m = ((index, -1),)
+        for gen in cls.generators:
+            if gen.name == k:
+                m = ((gen.index, -1),)
                 return cls(m).simplify() if cls.auto_simplify else cls(m)
         else:
             raise ValueError(f"No generator named {k}")
@@ -298,25 +318,52 @@ class GbAlgMod2(BA.AlgebraMod2):
         return rel_gens
 
     @classmethod
-    def basis_mons_max(cls, deg_max):
+    def basis_mons(cls, pred=None, basis: Dict[Vector, List[tuple]] = None):
         """Return a list of basis (mon, deg)."""
-        result = [(0, ())]  # type: List[Tuple[int, tuple]]
+        pred = pred or cls.pred
+        result = basis or {Vector((0, 0, 0)): [()]}
+        old_ds = set(result)
         leadings = sorted(cls.rels, key=lambda _m: _m[-1][0])
         leadings = {index: list(g) for index, g in groupby(leadings, key=lambda _m: _m[-1][0])}
-        for index, _, deg, _ in cls.generators:
-            for i in range(len(result)):
-                d, m = result[i]
-                for e in range(1, (deg_max - d) // deg + 1):
-                    m1 = m + ((index, -e),)
-                    if index in leadings and any(map(le_dtuple, leadings[index], repeat(m1))):
-                        break
-                    else:
-                        result.append((d + e * deg, m1))
+        for index, _, _, deg3d in cls.generators:
+            ds = list(result)
+            for d in ds:
+                if (d_ := d + deg3d) not in old_ds and pred(d_):
+                    for m in result[d]:
+                        i_m = m[-1][0] if m else -1
+                        if index == i_m and d in old_ds:
+                            e = 1
+                            while pred(d1 := d + deg3d * e):
+                                m1 = m[:-1] + ((m[-1][0], m[-1][1] - e),)
+                                if index in leadings and any(map(le_dtuple, leadings[index], repeat(m1))):
+                                    break
+                                elif d1 in result:
+                                    result[d1].append(m1)
+                                else:
+                                    result[d1] = [m1]
+                                e += 1
+                        elif index > i_m:
+                            e = 1
+                            while pred(d1 := d + deg3d * e):
+                                m1 = m + ((index, -e),)
+                                if index in leadings and any(map(le_dtuple, leadings[index], repeat(m1))):
+                                    break
+                                elif d1 in result:
+                                    result[d1].append(m1)
+                                else:
+                                    result[d1] = [m1]
+                                e += 1
         return result
 
     @classmethod
-    def basis_max(cls, deg_max):
-        return ((d, cls(m)) for d, m in cls.basis_mons_max(deg_max))
+    def basis(cls, pred=None):
+        if type(pred) is int:
+            basis = cls.basis_mons(pred=lambda d3d: d3d[0] <= pred)
+        else:
+            basis = cls.basis_mons(pred)
+        for basis_d in basis.values():
+            for m in basis_d:
+                yield cls(m)
 
     @classmethod
     def is_reducible(cls, mon):
@@ -343,14 +390,14 @@ class GbAlgMod2(BA.AlgebraMod2):
     @classmethod
     def print_latex_alg(cls, show_gb=True):
         """For latex."""
-        print(f"\\noindent Generators: {', '.join(f'${item[1]}$' for item in cls.generators)}.\n")
+        print(f"\\noindent Generators:\n\n {', '.join(f'${item[1]}$' for item in cls.generators)}.\\vspace{{3pt}}\n")
         print("\\noindent Relations:\n")
         if show_gb:
             for m in cls.rels:
                 if m in cls._rels_gen_leads:
-                    print(f"${cls(m)} = {cls(cls.rels[m])}$\n")
+                    print(f"${cls(m)} = {cls(cls.rels[m])}$\\vspace{{3pt}}\n")
                 else:
-                    print(f"$\\bullet\\hspace{{4pt}} {cls(m)} = {cls(cls.rels[m])}$\n")
+                    print(f"$\\bullet\\hspace{{4pt}} {cls(m)} = {cls(cls.rels[m])}$\\vspace{{3pt}}\n")
         else:
             for m in cls._rels_gen_leads:
                 print(f"${cls(m)} = {cls(cls.rels[m])}$\n")
@@ -368,7 +415,7 @@ class GbAlgMod2(BA.AlgebraMod2):
                 if m in cls._rels_gen_leads:
                     result += f"{cls(m)} &= {cls(cls.rels[m])}\\\\\n"
                 else:
-                    result += f"\\bullet {cls(m)} &= {cls(cls.rels[m])}\\\\\n"
+                    result += f"\\bullet\\hspace{{4pt}} {cls(m)} &= {cls(cls.rels[m])}\\\\\n"
             result += "\\end{align*}\n\n"
         else:
             result += "\\begin{align*}"
@@ -391,7 +438,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         from IPython.display import Latex
         result = "\\begin{align*}\n"
         for a in annilators:
-            s = "+".join(f"{name}{mymath.tex_parenthesis(coeff)}" for coeff, name, d in a)
+            s = "+".join(f"{name}{tex_parenthesis(coeff)}" for coeff, name, d in a)
             result += f"& {s}=0\\\\\n"
         result += "\\end{align*}"
         return Latex(result)
@@ -400,7 +447,7 @@ class GbAlgMod2(BA.AlgebraMod2):
     def repr_annilators(clsname, annilators:  List[List[Tuple["GbAlgMod2", str, int]]]):
         result = ""
         for a in annilators:
-            s = " + ".join(f"{clsname}.gen(\"{name}\") * {mymath.tex_parenthesis(coeff.repr_(clsname))}"
+            s = " + ".join(f"{clsname}.gen(\"{name}\") * {tex_parenthesis(coeff.repr_(clsname))}"
                            for coeff, name, d in a)
             result += f"{s}\n"
         return result
@@ -417,6 +464,17 @@ class GbAlgMod2(BA.AlgebraMod2):
         # noinspection PyTypeChecker
         return type(class_name, (GbDga,), dct)
 
+    @classmethod
+    def pred_default(cls, _) -> bool:
+        return True
+
+    def is_gen(self):
+        if len(self.data) == 1:
+            for m in self.data:
+                if sum(-e for i, e in m) == 1:
+                    return True
+        return False
+
     # algorithms --------------------------
     @classmethod
     def simplify_data(cls, data: set):
@@ -430,9 +488,9 @@ class GbAlgMod2(BA.AlgebraMod2):
             s.remove(mon)
             for m in cls.rels:
                 if le_dtuple(m, mon):
-                    q, r = mymath.div_mod_dtuple(mon, m)
+                    q, r = div_mod_dtuple(mon, m)
                     m_to_q = (cls(cls.rels[m]) ** q).data
-                    s ^= {mymath.add_dtuple(r, m1) for m1 in m_to_q}
+                    s ^= {add_dtuple(r, m1) for m1 in m_to_q}
                     break
             else:
                 result ^= {mon}
@@ -444,7 +502,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         """Add relations from cache up to deg `deg_max`."""
         hq = cls._rels_cache
         while hq and (deg_max is None or hq[0][0] <= deg_max):
-            deg, is_rel_gen, r = heapq.heappop(hq)
+            deg, is_rel_gen, r, _ = heapq.heappop(hq)
             r = cls.simplify_data(r)
             if r:
                 m = cls.get_lead(r)
@@ -454,26 +512,25 @@ class GbAlgMod2(BA.AlgebraMod2):
                 for m1, v1 in cls.rels.items():
                     if gcd_nonzero_dtuple(m, m1):
                         lcm = max_dtuple(m, m1)
-                        dif = mymath.sub_dtuple(lcm, m)
-                        dif1 = mymath.sub_dtuple(lcm, m1)
-                        new_rel = {mymath.add_dtuple(_m, dif) for _m in r}
-                        v1dif1 = {mymath.add_dtuple(_m, dif1) for _m in v1}
-                        new_rel -= {lcm}
-                        new_rel ^= v1dif1
-                        # print(cls.str_mon(m), cls.str_mon(m1), cls.str_mon(lcm), cls(new_rel))
-                        if le_dtuple(m, m1):
-                            BA.Monitor.count("redundant_leading_terms")  #
-                            redundant_leading_terms.append(m1)
-                            is_lead = m1 in cls._rels_gen_leads
-                            if new_rel:
-                                heapq.heappush(hq, (cls.deg_mon(lcm), is_lead, new_rel))
-                            if is_lead:
-                                cls._rels_gen_leads.remove(m1)
-                        elif new_rel:
-                            heapq.heappush(hq, (cls.deg_mon(lcm), False, new_rel))
+                        if cls.pred(cls.deg3d_mon(lcm)):
+                            dif = sub_dtuple(lcm, m)
+                            dif1 = sub_dtuple(lcm, m1)
+                            new_rel = {add_dtuple(_m, dif) for _m in r}
+                            v1dif1 = {add_dtuple(_m, dif1) for _m in v1}
+                            new_rel -= {lcm}
+                            new_rel ^= v1dif1
+                            if le_dtuple(m, m1):
+                                BA.Monitor.count("redundant_leading_terms")  #
+                                redundant_leading_terms.append(m1)
+                                is_lead = m1 in cls._rels_gen_leads
+                                if new_rel:
+                                    heapq.heappush(hq, RelCache(cls.deg_mon(lcm), is_lead, new_rel))
+                                if is_lead:
+                                    cls._rels_gen_leads.remove(m1)
+                            elif new_rel:
+                                heapq.heappush(hq, RelCache(cls.deg_mon(lcm), False, new_rel))
                 for m_redundant in redundant_leading_terms:
                     del cls.rels[m_redundant]
-                # print(cls.deg_mon(m), deg_max)
                 cls.rels[m] = r - {m}
 
     @classmethod
@@ -534,7 +591,7 @@ class GbAlgMod2(BA.AlgebraMod2):
                 a = []
                 for m1 in chain((m,), A.rels[m]):
                     gen = A.get_gen(m[-1][0])
-                    m11 = mymath.rstrip_tuple(m1[:-1] + (m1[-1][0], m1[-1][1] + 1))
+                    m11 = m1[:-1] + (m1[-1][0], m1[-1][1] + 1) if m1[-1][1] + 1 != 0 else m1[:-1]
                     a.append((m11, gen.name, gen.deg))
                 annilators.append(a)
         for en1, en2 in combinations(ele_names, 2):
@@ -572,13 +629,13 @@ class GbAlgMod2(BA.AlgebraMod2):
             x = A.add_gen(name, ele.deg())
             A.add_rel(x + ele)
         A.add_rels_cache()
-        A.generators = A.generators[bisect_left(A.generators, index + 1):]
+        A.generators = A.generators[bisect_left(A.generators, (index + 1,)):]
         A.key = key
         A._rels_gen_leads = set()
         rels, A.rels = A.rels, {}
         for m in rels:
             if m[0][0] > index:
-                rel_subalg = {m[:bisect_left(m, (index, 0))]} | {_m[:bisect_left(_m, (index, 0))] for _m in rels[m]}
+                rel_subalg = {m[bisect_left(m, (index, 0)):]} | {_m[bisect_left(_m, (index, 0)):] for _m in rels[m]}
                 A.add_rel_data(rel_subalg)
         A.add_rels_cache()
         return A
@@ -617,7 +674,7 @@ class GbDga(GbAlgMod2):
     def add_gen(cls, name: str, deg, deg3d=(0, 0, 0), diff=None):
         """Add a new generator and return it."""
         index = cls.generators[-1][0] + 1 if cls.generators else 0
-        cls.generators.append(DgaGen(index, name, deg, mymath.Vector(deg3d),
+        cls.generators.append(DgaGen(index, name, deg, Vector(deg3d),
                                      set() if diff is None else (diff if type(diff) is set else diff.data)))
         m = ((index, -1),)
         return cls(m).simplify() if cls.auto_simplify else cls(m)
@@ -634,10 +691,10 @@ class GbDga(GbAlgMod2):
         """Return the boundary of the chain."""
         result = set()
         for m in self.data:
-            for (i, (g, e)) in enumerate(m):
+            for (i, (index, e)) in enumerate(m):
                 if e % 2:
-                    m1 = m[:i] + (g, e - 1) + m[i+1:]
-                    m1_by_dg_i = {mymath.add_dtuple(m1, _m) for _m in self.get_gen(i).diff}
+                    m1 = m[:i] + ((index, e + 1),) + m[i+1:] if e + 1 else m[:i] + m[i+1:]
+                    m1_by_dg_i = {add_dtuple(m1, _m) for _m in self.get_gen(index).diff}
                     result ^= m1_by_dg_i
         return type(self)(result).simplify()
 
@@ -647,41 +704,68 @@ class GbDga(GbAlgMod2):
 
     # getters ----------------------------
     @classmethod
-    def homology(cls, deg_max) -> Type[GbAlgMod2]:
+    def homology(cls, pred, BH=None) -> Type[GbAlgMod2]:
         """Compute HA. Return (HA, list of representing cycles)."""
-        map_diff = linalg.GradedLinearMapKMod2()
-        for d, r in cls.basis_max(deg_max):
-            # noinspection PyUnresolvedReferences
-            map_diff.add_map(r, r.diff())
-        Z = [map_diff.kernel(d) for d in range(deg_max + 1)]
-        B = [map_diff.image(d) for d in range(deg_max + 1)]
-        H = [Z[d] / B[d] for d in range(deg_max + 1)]
+        B, H = BH or cls.basis_BH(pred)
+        ds = sorted(d for d in B if pred(d))
 
-        R = GbAlgMod2.new_alg()
-        R_basis_mons = [((), 0)]
+        R = GbAlgMod2.new_alg(pred=pred)
+        R_basis_mons = {Vector((0, 0, 0)): [()]}
         map_alg = linalg.GradedLinearMapKMod2()
         image_gens = {}
-        for d in range(1, deg_max + 1):
+        for d in ds:
+            if d == (0, 0, 0):
+                continue
             for x in (H[d] / map_alg.image(d)).basis(cls):
-                R.add_gen(f'[{x}]', d)
+                gen_name = str(x) if x.is_gen() else f'[{x}]'
+                R.add_gen(gen_name, d[1], d)
                 index = R.generators[-1][0]
-                image_gens[f'[{x}]'] = x
+                image_gens[gen_name] = x
 
-                length = len(R_basis_mons)
-                for i in range(length):
-                    m1, d1 = R_basis_mons[i]
-                    for e in range(1, (deg_max - d1) // d + 1):
-                        m2 = m1 + ((index, e),)
-                        d2 = d1 + e * d
-                        R_basis_mons.append((m2, d2))
-                        r2 = R(m2)
-                        fr2 = B[d2].res(r2.evaluation(image_gens))
-                        map_alg.add_map(r2, fr2)
-                        if map_alg.kernel(d2):
-                            R.add_rels_data(map_alg.kernel(d2).basis(set))
-                            map_alg.kernel(d2).clear()
-
+                ds_R_basis_mons = {d: len(R_basis_mons[d]) for d in R_basis_mons}
+                m2s_added = []
+                for d1 in ds_R_basis_mons:
+                    for i in range(ds_R_basis_mons[d1]):
+                        m1 = R_basis_mons[d1][i]
+                        e = 1
+                        while pred(d2 := d1 + d * e):
+                            m2 = m1 + ((index, -e),)  # type: tuple
+                            if any(map(le_dtuple, m2s_added, repeat(m2))):
+                                break
+                            if d2 in R_basis_mons:
+                                R_basis_mons[d2].append(m2)
+                            else:
+                                R_basis_mons[d2] = [m2]
+                            r2 = R(m2)
+                            fr2 = B[d2].res(r2.evaluation(image_gens)) if d2 in B else cls.zero()
+                            map_alg.add_maps_set([(r2.data, fr2.data)], d2)
+                            if map_alg.kernel(d2):
+                                R.add_rels_data(map_alg.kernel(d2).basis(set))
+                                map_alg.kernel(d2).clear()
+                                m2s_added.append(m2)
+                                break
+                            e += 1
+        R.add_rels_cache()
         return R
+
+    @classmethod
+    def basis_BH(cls, pred, basis=None, BH=None):
+        """Return the vector spaces of cycles and homologies."""
+        # TODO: improve by the fact that B\subset Z.
+        d_diff = Vector((1, 0, -1))
+        basis = basis or cls.basis_mons(pred=lambda _d: pred(d) or pred(d + d_diff))
+        B, H = BH or ({}, {})
+        Z = {}
+        map_diff = linalg.GradedLinearMapKMod2()
+        for d in basis:
+            if pred(d) or pred(d + d_diff):
+                if d not in B or d + d_diff not in B:
+                    map_diff.add_maps_set((((r := cls(m)).data, r.diff().data) for m in basis[d]), d)
+        ds = sorted(d for d in basis if pred(d) and d not in B)
+        Z.update((d, map_diff.kernel(d)) for d in ds)
+        B.update((d, map_diff.image(d - d_diff)) for d in ds)
+        H.update((d, Z[d] / B[d]) for d in ds)
+        return B, H
 
     @classmethod
     def print_latex_alg(cls, show_gb=False):
@@ -689,7 +773,7 @@ class GbDga(GbAlgMod2):
         super().print_latex_alg(show_gb)
         print("Differentials:\n")
         for gen in cls.generators:
-            print(f"$d({gen.name})={cls(gen.diff)}$\n")
+            print(f"$d({gen.name})={cls(gen.diff)}$\\vspace{{3pt}}\n")
 
     @classmethod
     def markdown_alg(cls, show_all=False):
@@ -704,7 +788,7 @@ class GbDga(GbAlgMod2):
                 if m in cls._rels_gen_leads:
                     result += f"{cls(m)} &= {cls(cls.rels[m])}\\\\\n"
                 else:
-                    result += f"\\bullet {cls(m)} &= {cls(cls.rels[m])}\\\\\n"
+                    result += f"\\bullet\\hspace{{4pt}} {cls(m)} &= {cls(cls.rels[m])}\\\\\n"
             result += "\\end{align*}\n\n"
         else:
             result += "\\begin{align*}"
