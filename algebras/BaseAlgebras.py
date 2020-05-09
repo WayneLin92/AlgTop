@@ -886,7 +886,7 @@ class Monitor:
     @classmethod
     def present(cls):
         frequent_functions = sorted(cls.dict_num_function_calls.items(), key=lambda item: -item[1])
-        print("\nnumber of function calls = {}".format(frequent_functions[:30]))
+        print("\nmy log = {}".format(frequent_functions[:30]))
 
 
 # 670, 615, 627, 643, 660, 693, 756, 764, 845, 851, 888, 884, 868, 885, 874, 852

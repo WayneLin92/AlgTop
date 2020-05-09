@@ -5,7 +5,7 @@ import heapq
 from itertools import chain, repeat, combinations, groupby
 import operator
 import pickle
-from typing import Tuple, List, Dict, Set, Type, Iterable
+from typing import Tuple, List, Dict, Set, Type, Iterable, Callable, Any
 from algebras import BaseAlgebras as BA, linalg, mymath
 
 
@@ -22,7 +22,7 @@ class GbAlgMod2(BA.AlgebraMod2):
     rels = None  # type: Dict[tuple, Set[Tuple[int]]]
     _rels_gen_leads = None  # type: Set[tuple]
     _rels_cache = None  # type: List[Tuple[int, bool, set]]
-    key = None  # key function: mon -> value
+    key = None  # type: Callable[[tuple], Any]
     auto_simplify = None  # type: bool
     _attributes = ["gen_names", "gen_degs", "_unit_deg", "rels",
                    "_rels_gen_leads", "_rels_cache", "key", "auto_simplify"]
@@ -62,14 +62,18 @@ class GbAlgMod2(BA.AlgebraMod2):
             pickle.dump([getattr(cls, attr) for attr in cls._attributes], file)
 
     @staticmethod
-    def load_alg(filename):
+    def load_alg(filename):  # TODO: change this
         """Create an algebra from a pickle file."""
         with open(filename, 'rb') as file:
             init_list = pickle.load(file)
             cls = GbAlgMod2
             class_name = f"GbAlgMod2_{cls._name_index}"
             cls._name_index += 1
-            dct = {attr: init_v for attr, init_v in zip(cls._attributes, init_list + [True])}  # TODO: change this
+            attributes = ["gen_names", "gen_degs", "_unit_deg", "rels",
+                          "_rels_gen_leads", "key"]
+            dct = {attr: init_v for attr, init_v in zip(cls._attributes, init_list)}
+            dct["_rels_cache"] = []
+            dct["auto_simplify"] = True
             # noinspection PyTypeChecker
             return type(class_name, (cls,), dct)
 
@@ -445,7 +449,6 @@ class GbAlgMod2(BA.AlgebraMod2):
                             heapq.heappush(hq, (cls.deg_mon(lcm), False, new_rel))
                 for m_redundant in redundant_leading_terms:
                     del cls.rels[m_redundant]
-                # print(cls.deg_mon(m), deg_max)
                 cls.rels[m] = r - {m}
 
     @classmethod
@@ -454,7 +457,6 @@ class GbAlgMod2(BA.AlgebraMod2):
 
         `ideal` is a list of [(ele, name, deg), ...].
         The names should not overlap with existing generator names of `cls`."""
-        # TODO: create class AugModuleMod2
         A = cls if inplace else cls.copy_alg()
         num_gen = len(A.gen_names)
         rels = []

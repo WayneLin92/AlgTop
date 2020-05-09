@@ -108,7 +108,7 @@ class VectorSpaceMod2:
     def __truediv__(self, other: "VectorSpaceMod2"):
         """Return the quotient space self/other."""
         result = VectorSpaceMod2()
-        result.add_vectors_set(map(other.res_set, self.basis(set)))
+        result.add_vectors_set(other.res_set(v.copy()) for v in self.basis())
         return result
 
     def __iadd__(self, other: "VectorSpaceMod2"):
@@ -118,6 +118,10 @@ class VectorSpaceMod2:
     def __bool__(self):
         """Return if the vector space is nontrivial."""
         return bool(self.data)
+
+    def __le__(self, other: "VectorSpaceMod2"):
+        """Return if self is a subspace of other."""
+        return not any(other.res_set(v.copy()) for v in self.basis())
 
 
 class GradedVectorSpaceMod2:
@@ -451,9 +455,9 @@ class GradedLinearMapKMod2:
         return self.data[deg].kernel if deg in self.data else VectorSpaceMod2()
 
     # functions -----------------
-    def g(self, vector):
+    def g(self, vector, deg=None):
         """Return f^{-1}(vector)."""
-        deg = vector.deg()
+        deg = deg or vector.deg()
         if deg in self.data:
             linmap = self.data[deg]
         else:
