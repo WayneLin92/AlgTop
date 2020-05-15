@@ -87,7 +87,7 @@ class GbAlgMod2(BA.AlgebraMod2):
     def save_alg(cls, filename):
         """Save to a pickle file."""
         with open(filename, 'wb') as file:
-            pickle.dump([getattr(cls, attr) for attr in cls._attributes], file)
+            pickle.dump(["5-11-2020"] + [getattr(cls, attr) for attr in cls._attributes], file)
 
     @staticmethod
     def load_alg(filename) -> "Type[GbAlgMod2]":
@@ -97,7 +97,10 @@ class GbAlgMod2(BA.AlgebraMod2):
             cls = GbAlgMod2
             class_name = f"GbAlgMod2_{cls._name_index}"
             cls._name_index += 1
-            dct = {attr: init_v for attr, init_v in zip(cls._attributes, init_list)}
+            if init_list[0] == "5-11-2020":
+                dct = {attr: init_v for attr, init_v in zip(cls._attributes, init_list[1:])}
+            else:
+                raise ValueError("file version not recognized")
             # noinspection PyTypeChecker
             return type(class_name, (cls,), dct)
 
@@ -325,7 +328,8 @@ class GbAlgMod2(BA.AlgebraMod2):
         old_ds = set(result)
         leadings = sorted(cls.rels, key=lambda _m: _m[-1][0])
         leadings = {index: list(g) for index, g in groupby(leadings, key=lambda _m: _m[-1][0])}
-        for index, _, _, deg3d in cls.generators:
+        for gen in cls.generators:
+            index, deg3d = gen.index, gen.deg3d
             ds = list(result)
             for d in ds:
                 if (d_ := d + deg3d) not in old_ds and pred(d_):
@@ -336,6 +340,7 @@ class GbAlgMod2(BA.AlgebraMod2):
                             while pred(d1 := d + deg3d * e):
                                 m1 = m[:-1] + ((m[-1][0], m[-1][1] - e),)
                                 if index in leadings and any(map(le_dtuple, leadings[index], repeat(m1))):
+
                                     break
                                 elif d1 in result:
                                     result[d1].append(m1)
@@ -390,8 +395,17 @@ class GbAlgMod2(BA.AlgebraMod2):
     @classmethod
     def print_latex_alg(cls, show_gb=True):
         """For latex."""
-        print(f"\\noindent Generators:\n\n {', '.join(f'${item[1]}$' for item in cls.generators)}.\\vspace{{3pt}}\n")
-        print("\\noindent Relations:\n")
+        print("\\section{Generators}\n")
+        gens = {}
+        for item in cls.generators:
+            if item.deg3d[0] in gens:
+                gens[item.deg3d[0]].append(item)
+            else:
+                gens[item.deg3d[0]] = [item]
+        for s in sorted(gens):
+            print(f"\\subsection*{{s={s}}}\n")
+            print(', '.join(f'${item.name}$' for item in gens[s]), end="\\vspace{3pt}\n\n")
+        print("\\section{Relations}\n")
         if show_gb:
             for m in cls.rels:
                 if m in cls._rels_gen_leads:
@@ -457,7 +471,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         class_name = f"GbDGA_{GbDga._name_index}"
         GbDga._name_index += 1
         # noinspection PyTypeChecker
-        dct = {'generators': [DgaGen(*gen, set()) for gen in cls.generators], 'rels': copy.deepcopy(cls.rels),
+        dct = {'generators': [DgaGen(*gen, None) for gen in cls.generators], 'rels': copy.deepcopy(cls.rels),
                '_rels_gen_leads': cls._rels_gen_leads.copy(),
                '_rels_cache': copy.deepcopy(cls._rels_cache),
                'key': cls.key, 'pred': cls.pred, 'auto_simplify': cls.auto_simplify}
@@ -680,12 +694,16 @@ class GbDga(GbAlgMod2):
         return cls(m).simplify() if cls.auto_simplify else cls(m)
 
     @classmethod
-    def set_diff(cls, k: str, diff):
+    def set_diff(cls, k: str, diff: Union[set, "GbDga"]):
+        i = None
         for i, gen in enumerate(cls.generators):
             if gen.name == k:
-                data = diff if type(diff) is set else diff.data
-                gen.diff.clear()
-                gen.diff.update(data)
+                break
+        if i is not None and cls.generators[i].diff is None:
+            # noinspection PyUnresolvedReferences
+            data = diff if type(diff) is set else diff.data
+            gen = cls.generators[i]
+            cls.generators[i] = DgaGen(gen.index, gen.name, gen.deg, gen.deg3d, data)
 
     def diff(self):
         """Return the boundary of the chain."""
@@ -704,7 +722,7 @@ class GbDga(GbAlgMod2):
 
     # getters ----------------------------
     @classmethod
-    def homology(cls, pred, BH=None) -> Type[GbAlgMod2]:
+    def homology(cls, pred, BH=None) -> Tuple[Type[GbAlgMod2], dict]:
         """Compute HA. Return (HA, list of representing cycles)."""
         B, H = BH or cls.basis_BH(pred)
         ds = sorted(d for d in B if pred(d))
@@ -713,51 +731,62 @@ class GbDga(GbAlgMod2):
         R_basis_mons = {Vector((0, 0, 0)): [()]}
         map_alg = linalg.GradedLinearMapKMod2()
         image_gens = {}
+        gen_index = 1
         for d in ds:
             if d == (0, 0, 0):
                 continue
+            BA.Monitor.print(f"{d=}")
             for x in (H[d] / map_alg.image(d)).basis(cls):
-                gen_name = str(x) if x.is_gen() else f'[{x}]'
+                BA.Monitor.print(f"{x=}", 1)
+                if x.is_gen():
+                    gen_name = str(x)
+                elif (name := str(x)).count("+") <= 1:
+                    gen_name = f'[{name}]'
+                else:
+                    gen_name = f"x_{{{4}, {d[1] - d[0]}, {gen_index}}}"
+                    gen_index += 1
                 R.add_gen(gen_name, d[1], d)
                 index = R.generators[-1][0]
                 image_gens[gen_name] = x
 
                 ds_R_basis_mons = {d: len(R_basis_mons[d]) for d in R_basis_mons}
-                m2s_added = []
+                leadings = []
                 for d1 in ds_R_basis_mons:
-                    for i in range(ds_R_basis_mons[d1]):
-                        m1 = R_basis_mons[d1][i]
-                        e = 1
-                        while pred(d2 := d1 + d * e):
-                            m2 = m1 + ((index, -e),)  # type: tuple
-                            if any(map(le_dtuple, m2s_added, repeat(m2))):
-                                break
-                            if d2 in R_basis_mons:
-                                R_basis_mons[d2].append(m2)
-                            else:
-                                R_basis_mons[d2] = [m2]
-                            r2 = R(m2)
-                            fr2 = B[d2].res(r2.evaluation(image_gens)) if d2 in B else cls.zero()
-                            map_alg.add_maps_set([(r2.data, fr2.data)], d2)
-                            if map_alg.kernel(d2):
-                                R.add_rels_data(map_alg.kernel(d2).basis(set))
-                                map_alg.kernel(d2).clear()
-                                m2s_added.append(m2)
-                                break
-                            e += 1
+                    if pred(d1 + d):
+                        for i in range(ds_R_basis_mons[d1]):
+                            m1 = R_basis_mons[d1][i]
+                            e = 1
+                            while pred(d2 := d1 + d * e):
+                                m2 = m1 + ((index, -e),)  # type: tuple
+                                if any(map(le_dtuple, leadings, repeat(m2))):
+                                    break
+                                if d2 in R_basis_mons:
+                                    R_basis_mons[d2].append(m2)
+                                else:
+                                    R_basis_mons[d2] = [m2]
+                                r2 = R(m2)
+                                fr2 = B[d2].res(r2.evaluation(image_gens)) if d2 in B else cls.zero()
+                                map_alg.add_maps_set([(r2.data, fr2.data)], d2)
+                                if map_alg.kernel(d2):
+                                    R.add_rels_data(map_alg.kernel(d2).basis(set))
+                                    map_alg.kernel(d2).clear()
+                                    leadings = [m for m in R.rels if m[-1][0] == index]
+                                    break
+                                e += 1
         R.add_rels_cache()
-        return R
+        return R, image_gens
 
     @classmethod
     def basis_BH(cls, pred, basis=None, BH=None):
         """Return the vector spaces of cycles and homologies."""
-        # TODO: improve by the fact that B\subset Z.
+        # TODO: improve by the fact that B\subset Z. Compute homology when compute BH
         d_diff = Vector((1, 0, -1))
-        basis = basis or cls.basis_mons(pred=lambda _d: pred(d) or pred(d + d_diff))
+        basis = basis or cls.basis_mons(pred=lambda _d: pred(_d) or pred(_d + d_diff))
         B, H = BH or ({}, {})
         Z = {}
         map_diff = linalg.GradedLinearMapKMod2()
-        for d in basis:
+        for d in sorted(basis):
+            print(f"{d}", end=" " * 10 + "\r")
             if pred(d) or pred(d + d_diff):
                 if d not in B or d + d_diff not in B:
                     map_diff.add_maps_set((((r := cls(m)).data, r.diff().data) for m in basis[d]), d)
@@ -771,7 +800,7 @@ class GbDga(GbAlgMod2):
     def print_latex_alg(cls, show_gb=False):
         """For latex."""
         super().print_latex_alg(show_gb)
-        print("Differentials:\n")
+        print("\\section{Differentials}\n")
         for gen in cls.generators:
             print(f"$d({gen.name})={cls(gen.diff)}$\\vspace{{3pt}}\n")
 
@@ -798,7 +827,7 @@ class GbDga(GbAlgMod2):
         result += "#### Differentials:\n"
         result += "\\begin{align*}"
         for gen in cls.generators:
-            result += f"d({gen.name})={cls(gen.diff)}\\\\\n"
+            result += f"d({gen.name}) &= {cls(gen.diff)}\\\\\n"
         result += "\\end{align*}\n\n"
         return Markdown(result)
 

@@ -6,6 +6,9 @@ class OperationsTestCase(unittest.TestCase):
     def setUp(self):
         import algebras.operations as op
         self.Sq = op.Steenrod.gen
+        self.SqM = op.SteenrodMilnor.gen
+        self.conj_Sq = op.Steenrod.conj_gen
+        self.Q = op.DyerLashof.gen
 
     def test_Sq(self):
         a = self.Sq(4) * self.Sq(4) * self.Sq(4)
@@ -16,9 +19,19 @@ class OperationsTestCase(unittest.TestCase):
         self.assertEqual(a, b)
 
         c = self.Sq(8) * self.Sq(1) + self.Sq(6) * self.Sq(2) * self.Sq(1)
-        self.assertEqual(conj_Sq(9), c)
+        self.assertEqual(self.conj_Sq(9), c)
+
+    def test_SqMilnor(self):
+        SqM = self.SqM
+        a = SqM(4, 5)
+        b = SqM(3, 3, 4)
+        c = SqM(7, 3, 4, 1) + SqM(3, 7, 5) + SqM(1, 3, 7)
+        self.assertTrue(a)
+        self.assertTrue(b)
+        self.assertEqual(a * b, c)
 
     def test_Q(self):
+        Q = self.Q
         a = Q(20) * Q(8)
         b = Q(18) * Q(10) + Q(17) * Q(11)
         self.assertEqual(a, b)
@@ -181,7 +194,7 @@ class ResolutionTestCase(unittest.TestCase):
         ext = self.Ext(15, 47)
         ext.compute_minimal(Steenrod)
         import algebras.BaseAlgebras as BC
-        BC.Monitor.present()
+        BC.Monitor.print_count()
         self.assertTrue(True)
 
     def test_subring_resolution(self):
@@ -347,7 +360,7 @@ class GroebnerTestCase(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         from algebras.BaseAlgebras import Monitor
-        Monitor.present()
+        Monitor.print_count()
 
 
 if __name__ == '__main__':

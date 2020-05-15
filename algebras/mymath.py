@@ -179,18 +179,13 @@ def choose_mod2(m: int, n: int) -> bool:
 
 def binom_mod2(m: int, n: int) -> bool:
     R"""Compute the binomial $(m, n)\text{ mod } 2$."""
-    return not m & n if m >= 0 and n >= 0 else 0
+    return m >= 0 and n >= 0 and not m & n
 
 
 def multinom_mod2(*args: int) -> bool:
     R"""Compute the multinomial $(arg1, arg2, ...)\text{ mod } 2$."""
-    for i in args:
-        if i < 0:
-            return False
-    s = sum(args)
-    num_s = bin(s).count('1')
-    num_sum = sum(bin(i).count('1') for i in args)
-    return num_s == num_sum
+    s = 0
+    return all(i >= 0 and not i & ((s := s + i) - i) for i in args)
 
 
 def choose(m: int, n: int) -> int:

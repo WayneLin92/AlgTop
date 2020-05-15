@@ -4,7 +4,8 @@
 import math
 from typing import Union, List
 from algebras import BaseAlgebras as BA
-from algebras.mymath import choose_mod2, tex_pow
+from algebras.mymath import choose_mod2, tex_pow, add_tuple, sub_tuple
+# todo: add operations at odd primes
 
 
 # Classes -----------------------------------------------
@@ -49,6 +50,10 @@ class DyerLashof(BA.OperationsMod2):
         return set((mon[:index] + (mon[index] + mon[index + 1] - j, j) + mon[index + 2:])
                    for j in range((mon[index] + 1) // 2, (mon[index] + mon[index + 1]) // 2 + 1)
                    if choose_mod2(j - mon[index + 1] - 1, 2 * j - mon[index]) == 1)
+
+    @staticmethod
+    def repr_mon(mon, clsname) -> str:
+        pass
 
     # methods -------------
     @classmethod
@@ -105,6 +110,10 @@ class DyerLashofX(BA.BasePolyMod2):
     @classmethod
     def gen(cls, key: tuple = ()):
         return cls(((key, 1),))
+
+    @staticmethod
+    def repr_mon(mon, clsname) -> str:
+        pass
 
     # methods ----------------
     def __rmul__(self, other):
@@ -214,7 +223,7 @@ class Steenrod(BA.HopfAlgWithDualMod2, BA.OperationsMod2):
 
     @staticmethod
     def str_mon(mon: tuple):
-        result = "".join(tex_pow('Sq', i) for i in mon)
+        result = "".join(f"\\mathit{{Sq}}^{i}" if i < 10 else f"Sq^{{{i}}}" for i in mon)
         if result == "":
             result = "1"
         return result
@@ -586,5 +595,61 @@ class AR(BA.AlgebraT2Mod2):
         return sum((DyerLashof.gen(r + k) * Steenrod.gen(k) for k in range(k_max + 1)), AR.zero())
 
 
-# 712, 627, 621, 591, 583, 575, 599
-# todo: add operations at odd primes
+class SteenrodMilnor(BA.AlgebraMod2):
+    """Steenrod algebra using the Milnor basis."""
+
+    # -- AlgebraMod2 -----------------
+    @staticmethod
+    def mul_mons(mon1, mon2):
+        result = set()
+        for X in SteenrodMilnor._get_Xs(mon1, mon2):
+            T = X[0][1:]
+            for i, row in enumerate(X[1:]):
+                T = add_tuple(T, (0,) * i + row)
+            result ^= {T}
+        return result
+
+    @staticmethod
+    def str_mon(mon) -> str:
+        return f"\\mathit{{Sq}}({', '.join(map(str, mon))})" if mon else "1"
+
+    @staticmethod
+    def repr_mon(mon, clsname) -> str:
+        pass
+
+    @staticmethod
+    def deg_mon(mon: tuple):
+        return sum((e << i + 1) - e for i, e in enumerate(mon))
+
+    # Methods -----------------------
+    @classmethod
+    def gen(cls, *args: int):
+        return cls(tuple(args))
+
+    @staticmethod
+    def _get_rows(r, S, j_max=None, allow_trailing_zeros=False, B=()):
+        R"""Return (x_1,...) such that $\sum 2^ix_i=r$ and $x_i<=s_{i-1}$ and not x_i & b_i"""
+        if j_max is None:
+            j_max = len(S)
+        if j_max == 0:
+            yield r,
+            return
+        s = S[j_max - 1] if len(S) >= j_max else 0
+        x = min(s, r >> j_max)
+        for x_j_max in reversed(range(x + 1)):
+            if len(B) <= j_max or not x_j_max & B[j_max]:
+                for X in SteenrodMilnor._get_rows(r - (x_j_max << j_max), S, j_max - 1,
+                                                   allow_trailing_zeros or x_j_max, B):
+                    yield X + (x_j_max,) if allow_trailing_zeros or x_j_max else X
+
+    @staticmethod
+    def _get_Xs(R, S, B=()):
+        if not R:
+            if all(not s & b for s, b in zip(S, B[1:])):
+                yield (None,) + S,
+            return
+        for row in SteenrodMilnor._get_rows(R[-1], S, None, False, B):
+            for X in SteenrodMilnor._get_Xs(R[:-1], sub_tuple(S, row[1:]), (0,) + add_tuple(B, row)):
+                yield X + (row,)
+
+

@@ -874,19 +874,24 @@ class HopfAlgWithDualMod2(HopfAlgebra, AlgebraMod2, ABC):
 
 # Monitor ---------------------------------------
 class Monitor:
-    dict_num_function_calls = {}
+    dict_count = {}
+    dict_print = {}
 
     @classmethod
     def count(cls, key):
-        if key not in cls.dict_num_function_calls:
-            cls.dict_num_function_calls[key] = 1
+        if key not in cls.dict_count:
+            cls.dict_count[key] = 1
         else:
-            cls.dict_num_function_calls[key] += 1
+            cls.dict_count[key] += 1
 
     @classmethod
-    def present(cls):
-        frequent_functions = sorted(cls.dict_num_function_calls.items(), key=lambda item: -item[1])
+    def print_count(cls):
+        frequent_functions = sorted(cls.dict_count.items(), key=lambda item: -item[1])
         print("\nmy log = {}".format(frequent_functions[:30]))
 
-
-# 670, 615, 627, 643, 660, 693, 756, 764, 845, 851, 888, 884, 868, 885, 874, 852
+    @classmethod
+    def print(cls, msg: str, slot: int = 0):
+        cls.dict_print[slot] = msg
+        for s in sorted(_s for _s in cls.dict_print if _s <= slot):
+            print(cls.dict_print[s], end=" ")
+        print(" " * 5, end="\r")

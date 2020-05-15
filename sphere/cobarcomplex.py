@@ -1,8 +1,10 @@
+"""This module implements the cobarcomplex of the dual Steenrod algebra."""
 import itertools
 from algebras.mymath import Vector, orderedpartition
 import algebras.BaseAlgebras as BA
 from algebras.operations import DualSteenrod
 from algebras.mymath import two_expansion
+# TODO: autocomplete the representing cycle
 
 
 class CobarSteenrod(BA.AlgebraMod2):
@@ -35,7 +37,7 @@ class CobarSteenrod(BA.AlgebraMod2):
     @classmethod
     def tensor(cls, *args: DualSteenrod):
         """Return $a_1\\otimes\\cdots\\otimes a_n$."""
-        multi_data = tuple(r.data for r in args)
+        multi_data = reversed(tuple(r.data for r in args))
         iter_prod = itertools.product(*multi_data)
         data = set(m for m in iter_prod)
         return cls(data)
@@ -61,8 +63,13 @@ class CobarSteenrod(BA.AlgebraMod2):
             return m
 
     @classmethod
+    def R(cls, i, j):
+        R"""Return [\xi^{i}_{j-i}]"""
+        return DualSteenrod.gen(j - i, 2 ** i)
+
+    @classmethod
     def h(cls, i: int, S: tuple = ()):
-        """Return h_i(S)."""
+        """Return the representing cycle for h_i(S)."""
         n = len(S) + 1
         seq = set(range(i, i + 2 * n))
         S = {i + s for s in S} | {i}
@@ -95,6 +102,16 @@ class CobarSteenrod(BA.AlgebraMod2):
                             data.add(m)
         return cls(data)
 
+    @classmethod
+    def b(cls, i, j):
+        """Return the representing cycle for b_{ij}."""
+        data = {(cls._xi(i, j), cls._xi(i, j))}
+        for k in range(i + 1, j):
+            mon1 = (cls._xi(i, j, k, j), cls._xi(i, k))
+            mon2 = (cls._xi(k, j), cls._xi(i, j, i, k))
+            data ^= {mon1, mon2}
+        return cls(data)
+
     @staticmethod
     def basis_mon(s, t, u):
         """Return a basis of degree s, t and weight <= u."""
@@ -115,6 +132,16 @@ class CobarSteenrod(BA.AlgebraMod2):
         tw = self.weight()
         data = {m for m in self.data if self.weight_mon(m) == tw}
         return type(self)(data)
+
+    @staticmethod
+    def is_simple(mon):
+        for m in mon:
+            if len(m) != 1 or bin(m[0][1]).count("1") != 1:
+                return False
+        return True
+
+    def terms_simple(self):
+        return type(self)({mon for mon in self.data if self.is_simple(mon)})
 
     def diff(self):
         """Return the differential."""

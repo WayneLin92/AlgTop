@@ -307,7 +307,7 @@ def relations6(j_max):
 
 def pred_E2(d3d):
     s, t, u = d3d
-    return t - s <= 150 and s <= 87
+    return t - s <= 500
 
 
 with open("output/E2_9_generators.json", "r") as fp:
