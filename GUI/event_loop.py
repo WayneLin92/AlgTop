@@ -9,7 +9,7 @@ def draw_ss(spec_seq):
     pygame.display.set_caption("Spectral Sequence")
 
     app = App(spec_seq, surface)
-    app.bg()
+    app.render_grid_lines()
 
     loop_init = 0
     loop_exit = 1

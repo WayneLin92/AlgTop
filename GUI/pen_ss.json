@@ -1,8 +1,8 @@
 {
   "margin_bottom": 100,
   "margin_left": 40,
-  "win_width": 1300,
-  "win_height": 800,
+  "win_width": 1400,
+  "win_height": 900,
   "x_max": 200,
   "y_max": 100,
   "grid_color": [180, 180, 200],

@@ -244,14 +244,23 @@ class App:
         if msg['key'] == 306:  # Ctrl
             self.ctrl_down = False
 
-    def bg(self):
+    def render_grid_lines(self):
         """Draw the grid lines."""
         self.paint.clear_screen()
-        n_label_step = math.ceil(config["axis_text_sep_screen"] / self.camera.unit_screen)
         for i in range(0, config["y_max"] + 1):
             left = self.camera.wp2sp((0, i))
             right = self.camera.wp2sp((config["x_max"], i))
             self.paint.draw_line(config["grid_color"], left, right, 1)
+        for i in range(0, config["x_max"] + 1):
+            bottom = self.camera.wp2sp((i, 0))
+            top = self.camera.wp2sp((i, config["y_max"]))
+            self.paint.draw_line(config["grid_color"], top, bottom, 1)
+
+    def render_grid_numbers(self):
+        """Draw the grid numbers."""
+        n_label_step = math.ceil(config["axis_text_sep_screen"] / self.camera.unit_screen)
+        for i in range(0, config["y_max"] + 1):
+            left = self.camera.wp2sp((0, i))
             if i % n_label_step == 0:
                 text_pos = left - Vector([30, 0])
                 if text_pos[0] < 16:
@@ -259,8 +268,6 @@ class App:
                 self.paint.draw_text(str(i), text_pos, config["axis_numbers_color"])
         for i in range(0, config["x_max"] + 1):
             bottom = self.camera.wp2sp((i, 0))
-            top = self.camera.wp2sp((i, config["y_max"]))
-            self.paint.draw_line(config["grid_color"], top, bottom, 1)
             if i % n_label_step == 0:
                 text_pos = bottom + Vector([0, 30])
                 if text_pos[1] > config["win_height"] - 16:
@@ -277,7 +284,7 @@ class App:
         bullet_radius = self.get_bullet_radius()
 
         # draw background
-        self.bg()
+        self.render_grid_lines()
 
         # draw expansions
         for deg in self.expansion:
@@ -363,5 +370,10 @@ class App:
 
         # draw label
         if self.id_hover_on is not None:
+            addr = self.id2addr[self.id_hover_on]
+            sp = self.addr2sp(addr)
             s = self.ss.get_bullet_by_id(self.id_hover_on).label
-            self.paint.draw_text(s, (config["win_width"] // 2, config["win_height"] - config["margin_bottom"] // 2))
+            self.paint.draw_text(s, sp + Vector((0, -20)))
+
+        # draw grid numbers
+        self.render_grid_numbers()
