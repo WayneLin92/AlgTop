@@ -304,6 +304,12 @@ def interpolation(alpha, t1: tuple, t2: tuple):
     return tuple(alpha * i + (1 - alpha) * j for i, j in zip(t1, t2))
 
 
+def get_from_singleton(singleton):
+    """When singleton is a set of one element, return this element."""
+    for e in singleton:
+        return e
+
+
 # ---- latex --------
 def tex_pow(base, exp: int) -> str:
     """Return base^exp in latex."""

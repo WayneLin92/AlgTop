@@ -895,3 +895,25 @@ class Monitor:
         for s in sorted(_s for _s in cls.dict_print if _s <= slot):
             print(cls.dict_print[s], end=" ")
         print(" " * 5, end="\r")
+
+
+# Errors ----------------------------------------
+class MyError(Exception):
+    pass
+
+
+class MyKeyError(MyError):
+    pass
+
+
+class MyDegreeError(MyError):
+    pass
+
+
+class MyValueError(MyError):
+    pass
+
+
+class MyClassError(MyError):
+    """This error means that the current class is broken due to prior constructions."""
+    pass
