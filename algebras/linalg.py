@@ -7,12 +7,25 @@ a shallow copy of it.
 """
 import copy
 import operator
-import collections
-from typing import TypeVar, Tuple, List, Set, Dict, Iterable, Any
+from typing import NamedTuple, TypeVar, Tuple, List, Set, Dict, Iterable, Any
 
 _t_mon = TypeVar('_t_mon')
 _t_v = Set[_t_mon]
 _t_data = List[Tuple[_t_v, _t_mon]]
+
+
+class MyTupleK(NamedTuple):
+    image: list
+    g: list
+    kernel: "VectorSpaceMod2"
+
+
+class MyTuple(NamedTuple):
+    domain: list
+    f: list
+    image: list
+    g: list
+    kernel: "VectorSpaceMod2"
 
 
 class VectorSpaceMod2:
@@ -328,17 +341,15 @@ class LinearMapMod2(LinearMapKMod2):
 
 class GradedLinearMapMod2:
     """A graded version of LinearMapMod2."""
-    MyTuple = collections.namedtuple('MyTuple', ('domain', 'f', 'image', 'g', 'kernel'))
-
     def __init__(self, *, key=None):
         self.key = key
-        self.data = {}  # type: Dict[Any, GradedLinearMapMod2.MyTuple]
+        self.data = {}  # type: Dict[Any, MyTuple]
 
     # setters ----------------
     def add_maps_set(self, maps: Iterable[Tuple[set, set]], deg):
         """Add maps efficiently."""
         if deg not in self.data:
-            self.data[deg] = self.MyTuple([], [], [], [], VectorSpaceMod2(key=self.key))
+            self.data[deg] = MyTuple([], [], [], [], VectorSpaceMod2(key=self.key))
         linmap = self.data[deg]
         for v, fv in maps:
             for vm1, fv1 in zip(linmap.domain, linmap.f):
@@ -416,17 +427,15 @@ class GradedLinearMapMod2:
 
 class GradedLinearMapKMod2:
     """A graded version of LinearMapKMod2."""
-    MyTupleK = collections.namedtuple('MyTupleK', ('image', 'g', 'kernel'))
-
     def __init__(self, *, key=None):
         self.key = key
-        self.data = {}  # type: Dict[Any, GradedLinearMapKMod2.MyTupleK]
+        self.data = {}  # type: Dict[Any, MyTupleK]
 
     # setters ----------------
     def add_maps_set(self, maps: Iterable[Tuple[set, set]], deg):
         """Add maps efficiently."""
         if deg not in self.data:
-            self.data[deg] = self.MyTupleK([], [], VectorSpaceMod2(key=self.key))
+            self.data[deg] = MyTupleK([], [], VectorSpaceMod2(key=self.key))
         linmap = self.data[deg]
         for gw, w in maps:
             for wm1, gw1 in zip(linmap.image, linmap.g):
@@ -455,20 +464,30 @@ class GradedLinearMapKMod2:
         return self.data[deg].kernel if deg in self.data else VectorSpaceMod2()
 
     # functions -----------------
-    def g(self, vector, deg=None):
+    def g_data(self, data, deg):
         """Return f^{-1}(vector)."""
-        deg = deg or vector.deg()
         if deg in self.data:
             linmap = self.data[deg]
-        else:
+        elif data:
             return None
-        w = vector.data.copy()
+        else:
+            return set()
+        w = data.copy()
         result = set()
         for wm1, gw1 in zip(linmap.image, linmap.g):
             if wm1[1] in w:
                 w ^= wm1[0]
                 result ^= gw1
-        return None if w else type(vector)(result)
+        return None if w else result
+
+    def g(self, vector, cls_target=None, deg=None):
+        """Return f^{-1}(vector)."""
+        deg = deg or vector.deg()
+        result = self.g_data(vector.data, deg)
+        if cls_target:
+            if result is not None:
+                return cls_target(result)
+        return result
 
 
 class Matrix:

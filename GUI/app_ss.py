@@ -188,7 +188,7 @@ class App:
             if addr2 is not None and addr2[1] is not None:
                 if addr1[0] != addr2[0]:
                     id1, id2 = self.addr2id[addr1], self.addr2id[addr2]
-                    self.ss.add_arrow(id1, id2)
+                    self.ss.add_remove_arrow(id1, id2)
                     # print(len(self.ss.arrows))
                     self.id_hover_on = None
                 self.status = "start"
@@ -229,6 +229,11 @@ class App:
     def key_down(self, msg):
         if msg['unicode'] == '\x03':  # Ctrl+C => output for tex
             pass
+        if msg['unicode'] == '\x13':  # Ctrl+S => save
+            import pickle
+            save_path = R"C:\Users\lwnpk\Documents\MyProgramData\Math_AlgTop\pickle\spec.pickle"
+            with open(save_path, "wb") as fp:
+                pickle.dump(self.ss, fp)
         elif msg['key'] == 127:  # Del -> initialize every thing
             pass
         elif msg['key'] == 8:  # Backspace -> delete an arrow

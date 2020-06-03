@@ -84,15 +84,29 @@ class SpecSeq:
         self.arrows.append(arrow)
         self.arrow_id += 1
 
+    def add_remove_arrow(self, src, tgt, *, by_label=False):
+        if by_label:  # Warning: labels might be non-unique
+            src = self.get_bullet_by_label(src).id
+            tgt = self.get_bullet_by_label(tgt).id
+        for i, arrow in enumerate(self.arrows):
+            if arrow.src_id == src and arrow.tgt_id == tgt:
+                break
+        else:
+            arrow = ArrowProperties(self.arrow_id, src, tgt)
+            self.arrows.append(arrow)
+            self.arrow_id += 1
+            return
+        del self.arrows[i]
+
     def add_text(self, text: str, deg: Tuple[int, int], offset: Tuple[float, float] = (0.0, 0.0), color=None):
         text_p = TextProperties(self.text_id, text, deg, offset, color)
         self.texts.append(text_p)
         self.text_id += 1
 
     # methods ----------------------------
-    def draw(self):
+    def draw(self, caption=None):
         import GUI.event_loop
-        GUI.event_loop.draw_ss(self)
+        GUI.event_loop.draw_ss(self, caption)
 
 
 def test():

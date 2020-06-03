@@ -2,11 +2,11 @@ import pygame
 from GUI.app_ss import App, config
 
 
-def draw_ss(spec_seq):
+def draw_ss(spec_seq, caption=None):
     """Interface for drawing spectral sequences."""
     pygame.init()
     surface = pygame.display.set_mode([config["win_width"], config["win_height"]])
-    pygame.display.set_caption("Spectral Sequence")
+    pygame.display.set_caption(caption or "Spectral Sequence")
 
     app = App(spec_seq, surface)
     app.render_grid_lines()

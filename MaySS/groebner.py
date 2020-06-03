@@ -16,7 +16,9 @@ from collections import defaultdict
 from itertools import chain, repeat, combinations, groupby, combinations_with_replacement
 from typing import Tuple, List, Dict, Set, Type, Iterable, NamedTuple, Union, Callable, Any
 from algebras import BaseAlgebras as BA, linalg
-from algebras.mymath import add_dtuple, sub_dtuple, div_mod_dtuple, Vector, tex_parenthesis, tex_pow, two_expansion
+from algebras.mymath import add_dtuple, sub_dtuple, div_mod_dtuple, Vector, get_one_element, \
+    tex_parenthesis, tex_pow, two_expansion
+_S_MAX = 1000
 
 
 class Gen(NamedTuple):
@@ -56,7 +58,8 @@ class GbAlgMod2(BA.AlgebraMod2):
     key = None  # type: Callable[[tuple], Any]
     pred = None  # type: Callable[[tuple], Any]
     auto_simplify = None  # type: bool
-    _attributes = ["generators", "rels", "_rels_gen_leads", "_rels_cache", "key", "pred", "auto_simplify"]
+    _attributes = ["generators", "rels", "_rels_gen_l"
+                                         "eads", "_rels_cache", "key", "pred", "auto_simplify"]
     _name_index = 0
 
     @staticmethod
@@ -91,7 +94,7 @@ class GbAlgMod2(BA.AlgebraMod2):
             pickle.dump(["5-11-2020"] + [getattr(cls, attr) for attr in cls._attributes], file)
 
     @classmethod
-    def load_alg(cls, filename):
+    def load_alg(cls, filename) -> Union[Type["GbAlgMod2"], Type["GbDga"]]:
         """Create an algebra from a pickle file."""
         with open(filename, 'rb') as file:
             init_list = pickle.load(file)
@@ -110,15 +113,18 @@ class GbAlgMod2(BA.AlgebraMod2):
             return type(class_name, (cls,), dct)
 
     @staticmethod
-    def construct_alg(pred, basis, cls_basis, fn: Callable[[Any], set], page=None):
+    def construct_alg(pred, basis, cls_basis, fn: Callable[[Any], set], naming: Callable):
         """Construct an algebra from basis."""
         R = GbAlgMod2.new_alg(pred=pred)
         # noinspection PyArgumentList
         R_basis_mons = defaultdict(list, {Vector((0, 0, 0)): [()]})
         map_alg = linalg.GradedLinearMapKMod2()
         image_gens = {}
-        gen_index = {}
-        basis_V = {d: linalg.VectorSpaceMod2({m} for m in basis[d]) for d in basis}
+        basis_V = basis
+        if basis:
+            d = get_one_element(basis)
+            if type(basis[d]) is not linalg.VectorSpaceMod2:
+                basis_V = {d: linalg.VectorSpaceMod2({m} for m in basis[d]) for d in basis}
 
         ds = sorted(d for d in basis if pred(d))
         for d in ds:
@@ -127,19 +133,7 @@ class GbAlgMod2(BA.AlgebraMod2):
             BA.Monitor.print(f"{d=}")
             for x in (basis_V[d] / map_alg.image(d)).basis(cls_basis):
                 BA.Monitor.print(f"{x=}", 1)
-                y = type(x)({_m[1:] for _m in x.data})  # #######
-                if y.is_gen():
-                    gen_name = str(y)
-                elif (name := str(y)).count("+") <= 1:
-                    gen_name = f'[{name}]'
-                else:
-                    if d[0] not in gen_index:
-                        gen_index[d[0]] = 0
-                    if page is None:
-                        gen_name = f"x_{{{d[0]}, {gen_index[d[0]]}}}"
-                    else:
-                        gen_name = f"x_{{{page}, {d[0]}, {gen_index[d[0]]}}}"
-                    gen_index[d[0]] += 1
+                gen_name = naming(x, d)
                 R.add_gen(gen_name, d[1], d)
                 index = R.generators[-1][0]
                 image_gens[gen_name] = x
@@ -166,9 +160,9 @@ class GbAlgMod2(BA.AlgebraMod2):
                                     break
                                 e += 1
         R.add_rels_cache()
-        return R, image_gens
+        return R, image_gens, map_alg
 
-    # ----- AlgebraMod2 -------------
+    # ----- AlgebraMod2
     @classmethod
     def mul_mons(cls, mon1: tuple, mon2: tuple):
         m = add_dtuple(mon1, mon2)
@@ -396,7 +390,7 @@ class GbAlgMod2(BA.AlgebraMod2):
         """Return a list of basis (mon, deg)."""
         pred = pred or cls.pred
         # noinspection PyArgumentList
-        result = defaultdict(list, {Vector((0, 0, 0)): [()]})
+        result = basis or defaultdict(list, {Vector((0, 0, 0)): [()]})
         old_ds = set(result)
         leadings = sorted(cls.rels, key=lambda _m: _m[-1][0])
         leadings = {index: list(g) for index, g in groupby(leadings, key=lambda _m: _m[-1][0])}
@@ -444,26 +438,26 @@ class GbAlgMod2(BA.AlgebraMod2):
         """Return a list of $h_0$-structure lines."""
         pred = pred or cls.pred
 
-        def pred1(d3d):
-            return pred((0, d3d[1] - d3d[0], d3d[2] - d3d[0]))
+        def d3d_h0(d3d):
+            return d3d - ((d3d0 := d3d[0]), d3d0, d3d0)
 
         # noinspection PyArgumentList
-        result = defaultdict(list, {Vector((1000, 1000, 1000)): [((0, -1000),)]})
+        result = defaultdict(list, {Vector((0, 0, 0)): [((0, -_S_MAX),)]})
         old_ds = set(result)
         leadings = sorted(cls.rels, key=lambda _m: _m[-1][0])
         leadings = {index: list(g) for index, g in groupby(leadings, key=lambda _m: _m[-1][0])}
         for gen in cls.generators:
             if gen.index == 0:
                 continue
-            index, deg3d = gen.index, gen.deg3d
+            index, deg3d = gen.index, d3d_h0(gen.deg3d)
             ds = list(result)
             for d in ds:
-                if (d_ := d + deg3d) not in old_ds and pred1(d_):
+                if (d_ := d + deg3d) not in old_ds and pred(d_):
                     for m in result[d]:
                         i_m = m[-1][0] if m else -1
                         if index == i_m and d in old_ds:
                             e = 1
-                            while pred1(d1 := d + deg3d * e):
+                            while pred(d1 := d + deg3d * e):
                                 m1 = m[:-1] + ((m[-1][0], m[-1][1] - e),)
                                 if index in leadings and any(map(le_dtuple, leadings[index], repeat(m1))):
                                     break
@@ -471,23 +465,27 @@ class GbAlgMod2(BA.AlgebraMod2):
                                 e += 1
                         elif index > i_m:
                             e = 1
-                            while pred1(d1 := d + deg3d * e):
+                            while pred(d1 := d + deg3d * e):
                                 m1 = m + ((index, -e),)
                                 if index in leadings and any(map(le_dtuple, leadings[index], repeat(m1))):
                                     break
                                 result[d1].append(m1)
                                 e += 1
-        return {d - (d[0], d[0], d[0]): v for d, v in result.items()}
+        return result
 
     @classmethod
-    def invert_h0(cls, pred=None, page=None):
+    def invert_h0(cls, pred=None):
         """Return the localization with h_0 inverted."""
         pred = pred or cls.pred
         basis = cls.basis_mons_h0(pred)
 
         def fn(x):
-            return {((0, -1000),) + _m[1:] for _m in x.data}
-        return cls.construct_alg(pred, basis, cls, fn, page)
+            return {((0, -_S_MAX),) + _m[1:] for _m in x.data}
+
+        def naming(x, _):
+            y = type(x)({_m[1:] for _m in x.data})
+            return str(y)
+        return cls.construct_alg(pred, basis, cls, fn, naming)[0]
 
     @classmethod
     def is_reducible(cls, mon):
@@ -825,7 +823,6 @@ class GbDga(GbAlgMod2):
     @classmethod
     def set_diff(cls, gen_name: str, diff: Union[None, set, "GbDga"]):
         """Define the differential of gen_name."""
-        i = None
         for i, gen in enumerate(cls.generators):
             if gen.name == gen_name:
                 break
@@ -862,75 +859,106 @@ class GbDga(GbAlgMod2):
 
     # getters ----------------------------
     @classmethod
-    def homology(cls, pred, BH=None, page=4) -> Tuple[Type[GbAlgMod2], dict]:
+    def homology(cls, pred, BH=None, page=4) -> Tuple[Type[GbAlgMod2], dict, linalg.GradedLinearMapKMod2]:
         """Compute HA. Return (HA, list of representing cycles)."""
         B, H = BH or cls.basis_BH(pred)
-        ds = sorted(d for d in B if pred(d))
+        gen_index = [0]
 
-        R = GbAlgMod2.new_alg(pred=pred)
-        # noinspection PyArgumentList
-        R_basis_mons = defaultdict(list, {Vector((0, 0, 0)): [()]})
-        map_alg = linalg.GradedLinearMapKMod2()
-        image_gens = {}
-        gen_index = 1
-        for d in ds:
-            if d == (0, 0, 0):
-                continue
-            BA.Monitor.print(f"{d=}")
-            for x in (H[d] / map_alg.image(d)).basis(cls):
-                BA.Monitor.print(f"{x=}", 1)
-                if x.is_gen():
-                    gen_name = str(x)
-                elif (name := str(x)).count("+") <= 1:
-                    gen_name = f'[{name}]'
+        def fn(x):
+            return B[d3d].res_set(x.data) if (d3d := x.deg3d()) in B else set()
+
+        def naming(x, d):
+            if x.is_gen():
+                gen_name = str(x)
+            elif (name := str(x)).count("+") <= 1:
+                gen_name = f'[{name}]'
+            else:
+                gen_name = f"x_{{{page}, {d[1] - d[0]}, {gen_index[0]}}}"
+                gen_index[0] += 1
+            return gen_name
+        R, image_gens, map_alg = cls.construct_alg(pred, H, cls, fn, naming)
+        return R, image_gens, map_alg
+
+    @classmethod
+    def homology_h0(cls, pred, BH, page) -> Tuple[Type[GbAlgMod2], dict, linalg.GradedLinearMapKMod2]:
+        """Compute h_0^{-1}HA. Return (HA, list of representing cycles, map for localization)."""
+        B, H = BH or cls.basis_BH_h0(pred)
+        gen_index = defaultdict(int)
+
+        def fn_invert_h0(x):
+            data = set()
+            for m in x.data:
+                data ^= {((0, -_S_MAX),) + m[1:]}
+            d3d = cls.deg3d_data(data)
+            if d3d:
+                s = d3d[0]
+                d3d = d3d - (s, s, s)
+            return d3d, data
+
+        def fn(x):
+            d3d, data = fn_invert_h0(x)
+            return B[d3d].res_set(data) if d3d in B else set()
+
+        def naming(x, d):
+            y = type(x)({_m[1:] for _m in x.data})
+            if y.is_gen():
+                gen_name = str(y)
+            elif (name := str(y)).count("+") <= 1:
+                gen_name = f'[{name}]'
+            else:
+                if page is None:
+                    gen_name = f"x_{{{d[1]}, {gen_index[d[1]]}}}"
                 else:
-                    gen_name = f"x_{{{page}, {d[1] - d[0]}, {gen_index}}}"
-                    gen_index += 1
-                R.add_gen(gen_name, d[1], d)
-                index = R.generators[-1][0]
-                image_gens[gen_name] = x
-
-                ds_R_basis_mons = {d: len(R_basis_mons[d]) for d in R_basis_mons}
-                leadings = []
-                for d1 in ds_R_basis_mons:
-                    if pred(d1 + d):
-                        for i in range(ds_R_basis_mons[d1]):
-                            m1 = R_basis_mons[d1][i]
-                            e = 1
-                            while pred(d2 := d1 + d * e):
-                                m2 = m1 + ((index, -e),)  # type: tuple
-                                if any(map(le_dtuple, leadings, repeat(m2))):
-                                    break
-                                R_basis_mons[d2].append(m2)
-                                r2 = R(m2)
-                                fr2 = B[d2].res(r2.evaluation(image_gens)) if d2 in B else cls.zero()
-                                map_alg.add_maps_set([(r2.data, fr2.data)], d2)
-                                if map_alg.kernel(d2):
-                                    R.add_rels_data(map_alg.kernel(d2).basis(set))
-                                    map_alg.kernel(d2).clear()
-                                    leadings = [m for m in R.rels if m[-1][0] == index]
-                                    break
-                                e += 1
-        R.add_rels_cache()
-        return R, image_gens
+                    gen_name = f"x_{{{page}, {d[1]}, {gen_index[d[1]]}}}"
+                gen_index[d[1]] += 1
+            return gen_name
+        R, image_gens, map_alg = cls.construct_alg(pred, H, cls, fn, naming)
+        return R, image_gens, map_alg
 
     @classmethod
     def basis_BH(cls, pred, basis=None, BH=None):
-        """Return the vector spaces of cycles and homologies."""
-        # TODO: improve by the fact that B\subset Z. Compute homology when compute BH
+        """Return the basis of cycles and homologies."""
         basis = basis or cls.basis_mons(pred=lambda _d: pred(_d) or pred(_d + cls.deg_diff))
         B, H = BH or ({}, {})
-        Z = {}
         map_diff = linalg.GradedLinearMapKMod2()
+        print_end = " " * 10 + "\r"
         for d in sorted(basis):
-            print(f"{d}", end=" " * 10 + "\r")
+            print(d, end=print_end)
             if pred(d) or pred(d + cls.deg_diff):
                 if d not in B or d + cls.deg_diff not in B:
-                    map_diff.add_maps_set((((r := cls(m)).data, r.diff().data) for m in basis[d]), d)
+                    B_d = set(map_diff.image(d - cls.deg_diff).get_mons())
+                    map_diff.add_maps_set((((r := cls(m)).data, r.diff().data) for m in basis[d]
+                                           if m not in B_d), d)
         ds = sorted(d for d in basis if pred(d) and d not in B)
-        Z.update((d, map_diff.kernel(d)) for d in ds)
         B.update((d, map_diff.image(d - cls.deg_diff)) for d in ds)
-        H.update((d, Z[d] / B[d]) for d in ds)
+        H.update((d, map_diff.kernel(d)) for d in ds)
+        return B, H
+
+    @classmethod
+    def basis_BH_h0(cls, pred, basis=None, BH=None):
+        """Return the basis of cycles and homologies with $h_0$ inverted."""
+        s = cls.deg_diff[0]
+        deg_diff = cls.deg_diff - (s, s, s)
+        basis = basis or cls.basis_mons_h0(pred=lambda _d: pred(_d) or pred(_d + deg_diff))
+        B, H = BH or ({}, {})
+        map_diff = linalg.GradedLinearMapKMod2()
+        print_end = " " * 10 + "\r"
+
+        def fn_invert_h0(x):
+            data = set()
+            for m in x.data:
+                data ^= {((0, -_S_MAX),) + m[1:]}
+            return data
+        for d in sorted(basis, key=lambda _d: (-_d[2], _d[1])):
+            print(d, end=print_end)
+            if pred(d) or pred(d + deg_diff):
+                if d not in B or d + deg_diff not in B:
+                    B_d = set(map_diff.image(d - deg_diff).get_mons())
+                    map_diff.add_maps_set((((r := cls(m)).data, fn_invert_h0(r.diff())) for m in basis[d]
+                                           if m not in B_d), d)
+        ds = sorted(d for d in basis if pred(d) and d not in B)
+        B.update((d, map_diff.image(d - deg_diff)) for d in ds)
+        H.update((d, map_diff.kernel(d)) for d in ds)
         return B, H
 
     @classmethod
@@ -940,15 +968,28 @@ class GbDga(GbAlgMod2):
                 return False
         return True
 
+    @classmethod
+    def is_differentiable_data(cls, data):
+        return all(map(cls.is_differentiable_mon, data))
+
+    def is_differentiable(self):
+        return self.is_differentiable_data(self.data)
+
     @staticmethod
-    def contains_gen(mon, index):
+    def contains_gen_mon(mon, index):
+        """Return if the monomial contains the generator identified by index."""
         for i, e in mon:
             if i == index:
                 return True
         return False
 
+    @staticmethod
+    def contains_gen_data(data, index):
+        """Return if the data contains the generator identified by index."""
+        return any(map(GbDga.contains_gen_mon, data, repeat(index)))
+
     @classmethod
-    def determine_diff(cls, g: Union[str, int], basis: dict):
+    def determine_diff(cls, g: Union[str, int], basis: dict, image_gens=None):
         """Determine differentials by relations."""
         if type(g) is str:
             for gen in cls.generators:
@@ -971,7 +1012,7 @@ class GbDga(GbAlgMod2):
         cls.set_diff(g, set())
         for m in cls.rels:
             if cls.is_differentiable_mon(m) and all(map(cls.is_differentiable_mon, cls.rels[m])):
-                if cls.contains_gen(m, gen.index) or any(map(cls.contains_gen, cls.rels[m], repeat(gen.index))):
+                if cls.contains_gen_mon(m, gen.index) or any(map(cls.contains_gen_mon, cls.rels[m], repeat(gen.index))):
                     rels.append({m} | cls.rels[m])
         possible_diffs = []
         for n in range(1 << len(basis[deg_target])):
@@ -984,24 +1025,27 @@ class GbDga(GbAlgMod2):
                 if cls(rel).diff():
                     compatible = False
                     break
+            if image_gens and image_gens[gen.name].is_differentiable() and\
+                    cls(data).evaluation(image_gens) != image_gens[gen.name].diff():
+                compatible = False
             if compatible:
                 possible_diffs.append(data)
         if len(possible_diffs) == 1:
             cls.set_diff(g, possible_diffs[0])
             print(f"set d({g})={cls(possible_diffs[0])}")
         elif len(possible_diffs) == 0:
-            raise BA.MyClassError("invalid DGA")
+            raise BA.MyClassError(f"Invalid DGA. d({g})=?")
         else:
             for data in possible_diffs:
                 print(f"d({g})={cls(data)} is possible.")
             cls.set_diff(g, None)
 
     @classmethod
-    def determine_diffs(cls, basis: dict):
+    def determine_diffs(cls, basis: dict, image_gens=None):
         for gen in sorted((gen for gen in cls.generators if gen.diff is None),
                           key=lambda _gen: _gen.deg3d[1] - _gen.deg3d[0]):
             if gen.diff is None:
-                cls.determine_diff(gen.index, basis)
+                cls.determine_diff(gen.index, basis, image_gens)
 
     @classmethod
     def print_latex_alg(cls, show_gb=False):

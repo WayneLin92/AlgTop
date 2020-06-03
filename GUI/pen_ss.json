@@ -3,7 +3,7 @@
   "margin_left": 40,
   "win_width": 1400,
   "win_height": 900,
-  "x_max": 200,
+  "x_max": 256,
   "y_max": 100,
   "grid_color": [180, 180, 200],
   "auto_expand_rate": 0.85,
