@@ -1,10 +1,8 @@
-""" Provides the classes for the Dyer-Lashof operations
-    and the Steenrod operations and its dual
-"""
+"""Steenrod operations and Dyer-Lashof operations"""
 import math
-from typing import Union, List
+from typing import Union, List, Hashable
 from algebras import BaseAlgebras as BA
-from algebras.mymath import choose_mod2, tex_pow, add_tuple, sub_tuple
+from algebras.mymath import choose_mod2, tex_pow, tex_sub, add_tuple, sub_tuple
 # todo: add operations at odd primes
 # todo: use mul_data instead of mul
 
@@ -672,5 +670,121 @@ class SteenrodMilnor(BA.AlgebraMod2):
         for row in SteenrodMilnor._get_rows(R[-1], S, None, False, B):
             for X in SteenrodMilnor._get_Xs(R[:-1], sub_tuple(S, row[1:]), (0,) + add_tuple(B, row)):
                 yield X + (row,)
+
+
+class DualSteenrodDense(BA.AlgebraMod2):
+    """Dual Steenrod algebra with dense data structure."""
+
+    # -- AlgebraMod2 -------------
+    @staticmethod
+    def mul_mons(mon1, mon2):
+        return add_tuple(mon1, mon2)
+
+    @staticmethod
+    def str_mon(mon) -> str:
+        return "".join(tex_pow(tex_sub("\\xi", i + 1), e) for i, e in enumerate(mon) if e) if mon else "1"
+
+    @staticmethod
+    def deg_mon(mon: tuple):
+        return sum(e * ((1 << i + 1) - 1) for i, e in enumerate(mon))
+
+    @classmethod
+    def gen(cls, n: int, e: int = 1):
+        return cls(cls._mon_gen(n, e))
+
+    @staticmethod
+    def repr_mon(mon, clsname) -> str:
+        pass
+
+    # -- HopfAlgebra --------------
+    @classmethod
+    def coprod_gen(cls, n):
+        data = {(cls._mon_gen(n - i, 1 << i), cls._mon_gen(i)) for i in range(n + 1)}
+        return cls.type_T2()(data)
+
+    @classmethod
+    def coprod_gen_E0(cls, n):
+        R"""Coproduct of $\xi_n$ in $E^0A_*$"""
+        data = {((), cls._mon_gen(n)), (cls._mon_gen(n), ())}
+        return cls.type_T2()(data)
+
+    @staticmethod
+    def is_gen(mon):
+        if sum(map(bool, mon)) == 1:
+            return True, len(mon)
+        else:
+            return False, None
+
+    @classmethod
+    def is_gen_E0(cls, mon):
+        return cls.is_gen(mon)[0] and bin(mon[-1]).count('1') == 1
+
+    def coprod(self):
+        type_T2 = self.type_T2()
+        result = type_T2.zero_data()
+        for m in self.data:
+            product = type_T2.unit_data()
+            for i, e in enumerate(m):
+                product = type_T2.mul_data(product, (self.coprod_gen(i + 1) ** e).data)
+            result ^= product
+        return type_T2(result)
+
+    def coprod_E0(self):
+        type_T2 = self.type_T2()
+        result = type_T2.zero_data()
+        for m in self.data:
+            product = type_T2.unit_data()
+            for gen, exp in m:
+                product = type_T2.mul_data(product, (self.coprod_gen_E0(gen) ** exp).data)
+            result += product
+        return type_T2(result)
+
+    @staticmethod
+    def type_T2():
+        return DualSteenrodDenseT2
+
+    # methods ---------------------
+    @staticmethod
+    def weight_mon(mon: tuple):
+        """Return the weight of the the monomial."""
+        return sum(((1 << i + 1) - 1) * bin(e).count('1') for i, e in enumerate(mon))
+
+    @staticmethod
+    def _mon_gen(n, e=1):
+        if n < 0:
+            raise ValueError(f"n(={n}) should be nonnegative")
+        return (0,) * (n - 1) + (e,) if n > 0 else ()
+
+    @staticmethod
+    def basis_mons(deg, index_max=None):
+        this_cls = DualSteenrod
+        if deg == 0:
+            yield ()
+            return
+        if index_max is None:
+            index_max = int(math.log2(deg + 1))
+        if index_max == 1:
+            yield ((1, deg),) if deg > 0 else ()
+        else:
+            for i in range(deg // this_cls.deg_gen(index_max), -1, -1):
+                for mon in this_cls.basis_mons(deg - i * this_cls.deg_gen(index_max), index_max - 1):
+                    if i > 0:
+                        yield mon + ((index_max, i),)
+                    else:
+                        yield mon
+
+    @classmethod
+    def basis(cls, deg):
+        return (cls(m) for m in DualSteenrod.basis_mons(deg))
+
+
+class DualSteenrodDenseT2(BA.AlgebraT2Mod2):
+    """ Tensor product of two DualSteenrod """
+    type_c0 = DualSteenrodDense
+    type_c1 = DualSteenrodDense
+
+    @staticmethod
+    def repr_mon(mon, clsname) -> str:
+        pass
 
 
