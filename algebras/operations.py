@@ -6,6 +6,7 @@ from typing import Union, List
 from algebras import BaseAlgebras as BA
 from algebras.mymath import choose_mod2, tex_pow, add_tuple, sub_tuple
 # todo: add operations at odd primes
+# todo: use mul_data instead of mul
 
 
 # Classes -----------------------------------------------
@@ -412,6 +413,12 @@ class DualSteenrod(BA.HopfAlgWithDualMod2, BA.BasePolyMod2):
         data = {(cls._mon_gen(n - i, 1 << i), cls._mon_gen(i)) for i in range(n + 1)}
         return DualSteenrodT2(data)
 
+    @classmethod
+    def coprod_gen_E0(cls, n):
+        R"""Coproduct of $\xi_n$ in $E^0A_*$"""
+        data = {((), cls._mon_gen(n)), (cls._mon_gen(n), ())}
+        return DualSteenrodT2(data)
+
     @staticmethod
     def complexity(mon):
         return (sum(m[1] for m in mon) - 1) * 2 + 1
@@ -435,6 +442,10 @@ class DualSteenrod(BA.HopfAlgWithDualMod2, BA.BasePolyMod2):
             return False, None
 
     @staticmethod
+    def is_gen_E0(mon):
+        return len(mon) == 1 and bin(mon[0][1]).count('1') == 1
+
+    @staticmethod
     def decompose(mon):
         if len(mon) == 1:
             return ((mon[0][0], 1),), ((mon[0][0], mon[0][1] - 1),)
@@ -451,6 +462,16 @@ class DualSteenrod(BA.HopfAlgWithDualMod2, BA.BasePolyMod2):
             product = result.unit()
             for gen, exp in m:
                 product = product * (self.coprod_gen(gen) ** exp)
+            result += product
+        return result
+
+    def coprod_E0(self):
+        """Coproduct in $E_0A_*$"""
+        result = self.type_T2().zero()
+        for m in self.data:
+            product = result.unit()
+            for gen, exp in m:
+                product = product * (self.coprod_gen_E0(gen) ** exp)
             result += product
         return result
 

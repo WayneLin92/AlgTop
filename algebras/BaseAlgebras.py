@@ -890,8 +890,8 @@ class Monitor:
         print("\nmy log = {}".format(frequent_functions[:30]))
 
     @classmethod
-    def print(cls, msg: str, slot: int = 0):
-        cls.dict_print[slot] = msg
+    def print(cls, msg, slot: int = 0):
+        cls.dict_print[slot] = str(msg)
         for s in sorted(_s for _s in cls.dict_print if _s <= slot):
             print(cls.dict_print[s], end=" ")
         print(" " * 5, end="\r")

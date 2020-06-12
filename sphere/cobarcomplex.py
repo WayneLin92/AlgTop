@@ -23,7 +23,7 @@ class CobarSteenrod(BA.AlgebraMod2):
             return "1"
         result = "["
         for i in reversed(range(len(mon))):
-            result += CobarSteenrod.str_mon_xi(mon[i])  #
+            result += CobarSteenrod.str_mon_R(mon[i])
             if i > 0:
                 result += "|"
         result += "]"
@@ -43,28 +43,30 @@ class CobarSteenrod(BA.AlgebraMod2):
         return cls(data)
 
     @staticmethod
-    def str_mon_xi(m):
+    def str_mon_R(m):
         result = ""
         for g, e in m:
             for s in two_expansion(e):
-                result += f"\\xi_{{{s}{s + g}}}"
+                result += f"R_{{{s}{s + g}}}"
         if result == "":
             result = "1"
         return result
 
     @staticmethod
-    def _xi(*args):
-        """Return the monomial $\\prod\\xi_{t_i-s_i}^{2^{s_i}}$."""
+    def R_mon(*args):
+        R"""Return the monomial $\prod R_{ij}$.
+
+        args is i1, j1, i2, j2, ..."""
         result = DualSteenrod.unit()
         for i in range(len(args) // 2):
-            s, t = args[2*i], args[2*i+1]
+            s, t = args[2*i], args[2 * i + 1]
             result *= DualSteenrod.gen(t - s, 2 ** s)
         for m in result.data:
             return m
 
-    @classmethod
-    def R(cls, i, j):
-        R"""Return [\xi^{i}_{j-i}]"""
+    @staticmethod
+    def R(i, j):
+        """Return $R_{ij}$"""
         return DualSteenrod.gen(j - i, 2 ** i)
 
     @classmethod
@@ -79,37 +81,14 @@ class CobarSteenrod(BA.AlgebraMod2):
         data = set()
         for T1 in itertools.permutations(T):
             if all(t - s > 0 for s, t in zip(S, T1)):
-                m = tuple(cls._xi(s, t) for s, t in reversed(tuple(zip(S, T1))))
+                m = tuple(cls.R_mon(s, t) for s, t in reversed(tuple(zip(S, T1))))
                 data.add(m)
-
-                for i, j in itertools.combinations(range(n), 2):
-                    if S[j] < T1[i] < T1[j]:
-                        m = tuple(cls._xi(S[i], S[j]) if ell == i else
-                                  cls._xi(S[j], T1[i], S[j], T1[j]) if ell == j else
-                                  cls._xi(S[ell], T1[ell]) for ell in reversed(range(n)))
-                        data.add(m)
-                    if S[j] < T1[i]:
-                        for k in range(i + 1, j):
-                            m = tuple(cls._xi(S[i], S[j]) if ell == i else
-                                      cls._xi(S[j], T1[i], S[k], T1[k]) if ell == k else
-                                      cls._xi(S[ell], T1[ell]) for ell in reversed(range(n)))
-                            data.add(m)
-                    if S[i] < T1[j] < T1[i]:
-                        for k in range(i + 1, j + 1):
-                            m = tuple(cls._xi(S[i], T1[j]) if ell == i else
-                                      cls._xi(T1[j], T1[i], S[k], T1[k]) if ell == k else
-                                      cls._xi(S[ell], T1[ell]) for ell in reversed(range(n)))
-                            data.add(m)
         return cls(data)
 
     @classmethod
     def b(cls, i, j):
         """Return the representing cycle for b_{ij}."""
-        data = {(cls._xi(i, j), cls._xi(i, j))}
-        for k in range(i + 1, j):
-            mon1 = (cls._xi(i, j, k, j), cls._xi(i, k))
-            mon2 = (cls._xi(k, j), cls._xi(i, j, i, k))
-            data ^= {mon1, mon2}
+        data = {(cls.R_mon(i, j), cls.R_mon(i, j))}
         return cls(data)
 
     @staticmethod
@@ -128,7 +107,7 @@ class CobarSteenrod(BA.AlgebraMod2):
     def weight(self):
         return max(map(self.weight_mon, self.data))
 
-    def terms_topweight(self):
+    def summands_topweight(self):
         tw = self.weight()
         data = {m for m in self.data if self.weight_mon(m) == tw}
         return type(self)(data)
@@ -140,8 +119,56 @@ class CobarSteenrod(BA.AlgebraMod2):
                 return False
         return True
 
-    def terms_simple(self):
+    def summands_simple(self):
         return type(self)({mon for mon in self.data if self.is_simple(mon)})
+
+    @staticmethod
+    def key_mon(mon):
+        return [(DualSteenrod.is_gen_E0(m), m) for m in mon]
+
+    @staticmethod
+    def _get_i(mon):
+        for i in range(len(mon)):
+            if DualSteenrod.is_gen_E0(mon[i]):
+                if i > 0 and mon[i] < mon[i - 1]:
+                    return i - 1
+            else:
+                if i > 0 and all((g, 1 << s) < mon[i - 1][0] for g, e in mon[i] for s in two_expansion(e)):
+                    return i - 1
+                else:
+                    break
+        return None
+
+    @classmethod
+    def d0_inv_data(cls, data: set):
+        """Find a cycle c such that $d_0c = data$."""
+        data = data.copy()
+        result = set()
+        while data:
+            mon = max(data, key=cls.key_mon)
+            i = cls._get_i(mon)
+            if i is None:
+                print(cls(tuple(reversed(mon))))
+                raise BA.MyValueError("Not d0 invertible")
+                print("Not d0 invertible")
+                break
+            m_d0_inv = mon[:i] + (DualSteenrod.mul_mons(mon[i + 1], mon[i]),) + mon[i + 2:]
+            assert m_d0_inv not in result
+            result ^= {m_d0_inv}
+            data ^= cls(m_d0_inv).d0().data
+            BA.Monitor.print(len(data))
+        return result
+
+    def d0_inv(self):
+        return type(self)(self.d0_inv_data(self.data))
+
+    def chain_d3(self):
+        """Add chains to make it a d3 chain."""
+        b1 = self.diff()
+        a1 = b1.d0_inv()
+        b2 = (self + a1).diff().summands_topweight()
+        a2 = b2.d0_inv()
+        return self + a1 + a2
 
     def diff(self):
         """Return the differential."""
@@ -155,5 +182,14 @@ class CobarSteenrod(BA.AlgebraMod2):
                         data ^= {mon[:i] + (m1, m2) + mon[i+1:]}
         return type(self)(data)
 
-
-
+    def d0(self):
+        """Return the d_0 differential."""
+        data = set()
+        for mon in self.data:
+            for i in range(len(mon)):
+                m = mon[i]
+                coprod = DualSteenrod(m).coprod_E0()
+                for m1, m2 in coprod.data:
+                    if m1 and m2:
+                        data ^= {mon[:i] + (m1, m2) + mon[i+1:]}
+        return type(self)(data)

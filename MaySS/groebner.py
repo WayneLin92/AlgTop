@@ -845,7 +845,7 @@ class GbDga(GbAlgMod2):
                     m1 = m[:i] + ((index, e + 1),) + m[i+1:] if e + 1 else m[:i] + m[i+1:]
                     m1_by_dg_i = {add_dtuple(m1, _m) for _m in self.get_gen(index).diff}
                     result ^= m1_by_dg_i
-        return type(self)(result).simplify()
+        return type(self)(result).simplify() if self.auto_simplify else type(self)(result)
 
     @classmethod
     def rename_gen(cls, old_name, new_name):
