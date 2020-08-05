@@ -118,7 +118,7 @@ class VectorSpaceMod2:
         self.res_set(v)
         return v if type(vector) is set else type(vector)(v)
 
-    def __truediv__(self, other: "VectorSpaceMod2"):
+    def __truediv__(self, other: "VectorSpaceMod2") -> "VectorSpaceMod2":
         """Return the quotient space self/other."""
         result = VectorSpaceMod2()
         result.add_vectors_set(other.res_set(v.copy()) for v in self.basis())

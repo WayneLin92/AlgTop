@@ -131,7 +131,7 @@ class GbAlgMod2(BA.AlgebraMod2):
             if d == (0, 0, 0):
                 continue
             BA.Monitor.print(f"{d=}")
-            for x in (basis_V[d] / map_alg.image(d)).basis(cls_basis):
+            for x in (basis_V[d] / map_alg.image(d)).simplify().basis(cls_basis):
                 BA.Monitor.print(f"{x=}", 1)
                 gen_name = naming(x, d)
                 R.add_gen(gen_name, d[1], d)
@@ -161,6 +161,22 @@ class GbAlgMod2(BA.AlgebraMod2):
                                 e += 1
         R.add_rels_cache()
         return R, image_gens, map_alg
+
+    # --------- SQLite Interfaces --------------
+    @classmethod
+    def str_sqlite_mon(cls, mon: tuple):
+        """Convert mon to a string to be stored in sqlite."""
+        return ",".join(f"{i},{-e}" for i, e in mon)
+
+    def str_sqlite(self):
+        """Convert mon to a string to be stored in sqlite."""
+        return ";".join(self.str_sqlite_mon(mon) for mon in sorted(self.data, key=self.key, reverse=True))
+
+    @classmethod
+    def deg3d_sqlite(cls, d3d):
+        """Convert mon to a string to be stored in sqlite."""
+        s, t, u = d3d
+        return s, t, u - s
 
     # ----- AlgebraMod2
     @classmethod
@@ -251,13 +267,14 @@ class GbAlgMod2(BA.AlgebraMod2):
     def reorder_gens(cls, index_map=None, key=None):  # TODO: create a new alg instead
         """Reorganize the relations by a new ordering of generators and a new key function.
         The new i'th generator is the old `index_map[i]`'th generator."""
-        index_map_inv = {}
-        for i, fi in enumerate(index_map):
-            index_map_inv[fi] = i
         num_gens = len(cls.generators)
         rel_generators = cls.get_rel_gens()
         cls.key = key
         if index_map:
+            index_map_inv = {}
+            for i, fi in enumerate(index_map):
+                index_map_inv[fi] = i
+
             def f(m):
                 return tuple((index_map_inv[_i], _e) for _i, _e in m)
             assert num_gens == len(index_map)
@@ -406,7 +423,6 @@ class GbAlgMod2(BA.AlgebraMod2):
                             while pred(d1 := d + deg3d * e):
                                 m1 = m[:-1] + ((m[-1][0], m[-1][1] - e),)
                                 if index in leadings and any(map(le_dtuple, leadings[index], repeat(m1))):
-
                                     break
                                 result[d1].append(m1)
                                 e += 1
@@ -780,7 +796,7 @@ class GbDga(GbAlgMod2):
     @staticmethod
     def new_alg(*, key=None, pred=None, deg_diff=None) -> "Type[GbDga]":
         """Return a dynamically created subclass of GbDga."""
-        cls = GbAlgMod2
+        cls = GbDga
         class_name = f"GbAlgMod2_{cls._name_index}"
         cls._name_index += 1
         if deg_diff is not None:
@@ -788,7 +804,7 @@ class GbDga(GbAlgMod2):
         else:
             raise BA.MyDegreeError("degree of differential not supplied")
         dct = {'generators': [], 'rels': {}, '_rels_gen_leads': set(), '_rels_cache': [],
-               'key': key, 'pred': pred, 'auto_simplify': True, 'deg_diff': deg_diff}
+               'key': key, 'pred': pred or GbAlgMod2.pred_default, 'auto_simplify': True, 'deg_diff': deg_diff}
         # noinspection PyTypeChecker
         return type(class_name, (cls,), dct)
 
@@ -859,9 +875,9 @@ class GbDga(GbAlgMod2):
 
     # getters ----------------------------
     @classmethod
-    def homology(cls, pred, BH=None, page=4) -> Tuple[Type[GbAlgMod2], dict, linalg.GradedLinearMapKMod2]:
+    def homology(cls, pred, BH=None, page=4, reverse=False) -> Tuple[Type[GbAlgMod2], dict, linalg.GradedLinearMapKMod2]:
         """Compute HA. Return (HA, list of representing cycles)."""
-        B, H = BH or cls.basis_BH(pred)
+        B, H = BH or cls.basis_BH(pred, reverse=reverse)
         gen_index = [0]
 
         def fn(x):
@@ -916,13 +932,13 @@ class GbDga(GbAlgMod2):
         return R, image_gens, map_alg
 
     @classmethod
-    def basis_BH(cls, pred, basis=None, BH=None):
+    def basis_BH(cls, pred, basis=None, BH=None, reverse=False):
         """Return the basis of cycles and homologies."""
         basis = basis or cls.basis_mons(pred=lambda _d: pred(_d) or pred(_d + cls.deg_diff))
         B, H = BH or ({}, {})
         map_diff = linalg.GradedLinearMapKMod2()
         print_end = " " * 10 + "\r"
-        for d in sorted(basis):
+        for d in sorted(basis, reverse=reverse):
             print(d, end=print_end)
             if pred(d) or pred(d + cls.deg_diff):
                 if d not in B or d + cls.deg_diff not in B:

@@ -9,6 +9,7 @@ class OperationsTestCase(unittest.TestCase):
         self.SqM = op.SteenrodMilnor.gen
         self.conj_Sq = op.Steenrod.conj_gen
         self.Q = op.DyerLashof.gen
+        self.xi = op.DualSteenrod.gen
 
     def test_Sq(self):
         a = self.Sq(4) * self.Sq(4) * self.Sq(4)
@@ -46,7 +47,8 @@ class OperationsTestCase(unittest.TestCase):
         self.assertEqual(a, b)
 
     def test_xi(self):
-        self.assertTrue(len(str(psi_xi(4))) == 92)
+        print(self.xi(4).coprod())
+        self.assertTrue(len(str(self.xi(4).coprod())) == 100)
 
     def test_dyerlashofx(self):
         from algebras.operations import DyerLashofX

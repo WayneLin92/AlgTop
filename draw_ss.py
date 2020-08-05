@@ -20,6 +20,10 @@ def pred_graph(d3d):
     return d3d[1] - d3d[0] <= args.pred[0] and d3d[0] <= args.pred[1]
 
 
+def pred_500(d3d):
+    return d3d[1] - d3d[0] <= 500
+
+
 def pred_E4_149_86(d3d):
     return d3d[1] - d3d[0] <= 149 and d3d[0] <= 86
 
@@ -58,6 +62,10 @@ def pred_124_62(d3d):
 
 def pred_123_61(d3d):
     return d3d[1] - d3d[0] <= 123 and d3d[0] <= 61
+
+
+def pred_200(d3d):
+    return d3d[1] <= 200
 
 
 if __name__ == "__main__":

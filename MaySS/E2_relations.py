@@ -306,11 +306,11 @@ def relations6(j_max):
 
 
 def pred_E2(d3d):
-    s, t, u = d3d
-    return t - s <= 500
+    return d3d[1] <= 500
 
 
-with open("output/E2_9_generators.json", "r") as fp:
+save_dir = "C:\\Users\\lwnpk\\Documents\\MyProgramData\\Math_AlgTop\\"
+with open(save_dir + "E2_9_generators.json", "r") as fp:
     generators = json.load(fp)
 A = GbAlgMod2.new_alg(pred=pred_E2)
 for name, *d3d in generators:

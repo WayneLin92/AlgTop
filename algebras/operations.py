@@ -1,6 +1,6 @@
 """Steenrod operations and Dyer-Lashof operations"""
 import math
-from typing import Union, List, Hashable
+from typing import Union, List
 from algebras import BaseAlgebras as BA
 from algebras.mymath import choose_mod2, tex_pow, tex_sub, add_tuple, sub_tuple
 # todo: add operations at odd primes
@@ -519,7 +519,7 @@ class DualSteenrod(BA.HopfAlgWithDualMod2, BA.BasePolyMod2):
 
     @classmethod
     def basis(cls, deg):
-        return (cls(m) for m in DualSteenrod.basis_mons(deg))
+        return (cls(m) for m in cls.basis_mons(deg))
 
 
 class DualSteenrodT2(BA.AlgebraT2Mod2):
@@ -541,6 +541,11 @@ class AR(BA.AlgebraT2Mod2):
     type_c1 = Steenrod
 
     # -- AlgebraMod2 ----------
+
+    @staticmethod
+    def repr_mon(mon, clsname) -> str:
+        pass
+
     def __init__(self, data: Union[DyerLashof, Steenrod, set, tuple]):
         if type(data) is self.type_c0:
             self.data = set((m, ()) for m in data.data)
@@ -658,7 +663,7 @@ class SteenrodMilnor(BA.AlgebraMod2):
         for x_j_max in reversed(range(x + 1)):
             if len(B) <= j_max or not x_j_max & B[j_max]:
                 for X in SteenrodMilnor._get_rows(r - (x_j_max << j_max), S, j_max - 1,
-                                                   allow_trailing_zeros or x_j_max, B):
+                                                  allow_trailing_zeros or x_j_max, B):
                     yield X + (x_j_max,) if allow_trailing_zeros or x_j_max else X
 
     @staticmethod
@@ -734,9 +739,9 @@ class DualSteenrodDense(BA.AlgebraMod2):
         result = type_T2.zero_data()
         for m in self.data:
             product = type_T2.unit_data()
-            for gen, exp in m:
-                product = type_T2.mul_data(product, (self.coprod_gen_E0(gen) ** exp).data)
-            result += product
+            for i, e in enumerate(m):
+                product = type_T2.mul_data(product, (self.coprod_gen_E0(i + 1) ** e).data)
+            result ^= product
         return type_T2(result)
 
     @staticmethod
@@ -755,27 +760,27 @@ class DualSteenrodDense(BA.AlgebraMod2):
             raise ValueError(f"n(={n}) should be nonnegative")
         return (0,) * (n - 1) + (e,) if n > 0 else ()
 
-    @staticmethod
-    def basis_mons(deg, index_max=None):
-        this_cls = DualSteenrod
+    @classmethod
+    def basis_mons(cls, deg, index_max=None):
         if deg == 0:
             yield ()
             return
         if index_max is None:
             index_max = int(math.log2(deg + 1))
         if index_max == 1:
-            yield ((1, deg),) if deg > 0 else ()
+            yield (deg,) if deg > 0 else ()
         else:
-            for i in range(deg // this_cls.deg_gen(index_max), -1, -1):
-                for mon in this_cls.basis_mons(deg - i * this_cls.deg_gen(index_max), index_max - 1):
+            deg_index_max = (1 << index_max) - 1
+            for i in range(deg // deg_index_max, -1, -1):
+                for mon in cls.basis_mons(deg - i * deg_index_max, index_max - 1):
                     if i > 0:
-                        yield mon + ((index_max, i),)
+                        yield mon + (0,) * (index_max - 1 - len(mon)) + (i,)
                     else:
                         yield mon
 
     @classmethod
     def basis(cls, deg):
-        return (cls(m) for m in DualSteenrod.basis_mons(deg))
+        return (cls(m) for m in cls.basis_mons(deg))
 
 
 class DualSteenrodDenseT2(BA.AlgebraT2Mod2):
@@ -788,3 +793,8 @@ class DualSteenrodDenseT2(BA.AlgebraT2Mod2):
         pass
 
 
+if __name__ == "__main__":
+    xi = DualSteenrodDense.gen
+    print(xi(3), xi(3).deg())
+    for x in DualSteenrodDense.basis(10):
+        print(x)

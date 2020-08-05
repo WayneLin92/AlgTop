@@ -2,7 +2,7 @@
 import itertools
 from algebras.mymath import Vector, orderedpartition
 import algebras.BaseAlgebras as BA
-from algebras.operations import DualSteenrod
+from algebras.operations import DualSteenrodDense
 from algebras.mymath import two_expansion
 # TODO: autocomplete the representing cycle
 
@@ -15,7 +15,7 @@ class CobarSteenrod(BA.AlgebraMod2):
 
     @staticmethod
     def deg_mon(mon: tuple):
-        return Vector((len(mon), sum(DualSteenrod.deg_mon(m) for m in mon)))
+        return Vector((len(mon), sum(DualSteenrodDense.deg_mon(m) for m in mon)))
 
     @staticmethod
     def str_mon(mon: tuple):
@@ -35,7 +35,7 @@ class CobarSteenrod(BA.AlgebraMod2):
 
     # Methods -----------------
     @classmethod
-    def tensor(cls, *args: DualSteenrod):
+    def tensor(cls, *args: DualSteenrodDense):
         """Return $a_1\\otimes\\cdots\\otimes a_n$."""
         multi_data = reversed(tuple(r.data for r in args))
         iter_prod = itertools.product(*multi_data)
@@ -45,9 +45,9 @@ class CobarSteenrod(BA.AlgebraMod2):
     @staticmethod
     def str_mon_R(m):
         result = ""
-        for g, e in m:
+        for i, e in enumerate(m):
             for s in two_expansion(e):
-                result += f"R_{{{s}{s + g}}}"
+                result += f"R_{{{s}{s + i + 1}}}"
         if result == "":
             result = "1"
         return result
@@ -57,17 +57,17 @@ class CobarSteenrod(BA.AlgebraMod2):
         R"""Return the monomial $\prod R_{ij}$.
 
         args is i1, j1, i2, j2, ..."""
-        result = DualSteenrod.unit()
+        result = DualSteenrodDense.unit()
         for i in range(len(args) // 2):
             s, t = args[2*i], args[2 * i + 1]
-            result *= DualSteenrod.gen(t - s, 2 ** s)
+            result *= DualSteenrodDense.gen(t - s, 2 ** s)
         for m in result.data:
             return m
 
     @staticmethod
     def R(i, j):
         """Return $R_{ij}$"""
-        return DualSteenrod.gen(j - i, 2 ** i)
+        return DualSteenrodDense.gen(j - i, 2 ** i)
 
     @classmethod
     def h(cls, i: int, S: tuple = ()):
@@ -95,14 +95,14 @@ class CobarSteenrod(BA.AlgebraMod2):
     def basis_mon(s, t, u):
         """Return a basis of degree s, t and weight <= u."""
         for d in orderedpartition(s, t):
-            iters = (DualSteenrod.basis_mons(d[i]) for i in range(s))
+            iters = (DualSteenrodDense.basis_mons(d[i]) for i in range(s))
             for mon in itertools.product(*iters):
                 if CobarSteenrod.weight_mon(mon) <= u:
                     yield mon
 
     @staticmethod
     def weight_mon(mon: tuple):
-        return sum(DualSteenrod.weight_mon(m) for m in mon)
+        return sum(DualSteenrodDense.weight_mon(m) for m in mon)
 
     def weight(self):
         return max(map(self.weight_mon, self.data))
@@ -124,12 +124,12 @@ class CobarSteenrod(BA.AlgebraMod2):
 
     @staticmethod
     def key_mon(mon):
-        return [(DualSteenrod.is_gen_E0(m), m) for m in mon]
+        return [(DualSteenrodDense.is_gen_E0(m), m) for m in mon]
 
     @staticmethod
     def _get_i(mon):
         for i in range(len(mon)):
-            if DualSteenrod.is_gen_E0(mon[i]):
+            if DualSteenrodDense.is_gen_E0(mon[i]):
                 if i > 0 and mon[i] < mon[i - 1]:
                     return i - 1
             else:
@@ -150,9 +150,7 @@ class CobarSteenrod(BA.AlgebraMod2):
             if i is None:
                 print(cls(tuple(reversed(mon))))
                 raise BA.MyValueError("Not d0 invertible")
-                print("Not d0 invertible")
-                break
-            m_d0_inv = mon[:i] + (DualSteenrod.mul_mons(mon[i + 1], mon[i]),) + mon[i + 2:]
+            m_d0_inv = mon[:i] + (DualSteenrodDense.mul_mons(mon[i + 1], mon[i]),) + mon[i + 2:]
             assert m_d0_inv not in result
             result ^= {m_d0_inv}
             data ^= cls(m_d0_inv).d0().data
@@ -176,7 +174,7 @@ class CobarSteenrod(BA.AlgebraMod2):
         for mon in self.data:
             for i in range(len(mon)):
                 m = mon[i]
-                coprod = DualSteenrod(m).coprod()
+                coprod = DualSteenrodDense(m).coprod()
                 for m1, m2 in coprod.data:
                     if m1 and m2:
                         data ^= {mon[:i] + (m1, m2) + mon[i+1:]}
@@ -188,7 +186,7 @@ class CobarSteenrod(BA.AlgebraMod2):
         for mon in self.data:
             for i in range(len(mon)):
                 m = mon[i]
-                coprod = DualSteenrod(m).coprod_E0()
+                coprod = DualSteenrodDense(m).coprod_E0()
                 for m1, m2 in coprod.data:
                     if m1 and m2:
                         data ^= {mon[:i] + (m1, m2) + mon[i+1:]}
