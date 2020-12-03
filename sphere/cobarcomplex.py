@@ -2,7 +2,7 @@
 import itertools
 from algebras.mymath import Vector, orderedpartition
 import algebras.BaseAlgebras as BA
-from algebras.operations import DualSteenrodDense
+from algebras.operations import DualSteenrodDense # TODO: use DualSteenrod instead
 from algebras.mymath import two_expansion
 # TODO: autocomplete the representing cycle
 
@@ -114,26 +114,25 @@ class CobarSteenrod(BA.AlgebraMod2):
 
     @staticmethod
     def is_simple(mon):
-        for m in mon:
-            if len(m) != 1 or bin(m[0][1]).count("1") != 1:
-                return False
-        return True
+        return all(map(DualSteenrodDense.is_gen_E0, mon))
 
     def summands_simple(self):
         return type(self)({mon for mon in self.data if self.is_simple(mon)})
 
     @staticmethod
     def key_mon(mon):
-        return [(DualSteenrodDense.is_gen_E0(m), m) for m in mon]
+        return [(DualSteenrodDense.is_gen_E0(m), len(m), m[-1]) for m in mon]
 
     @staticmethod
     def _get_i(mon):
+        """$R_{ij}<R_{kl}$ if (j-i, i)<(l-k,k)"""
         for i in range(len(mon)):
             if DualSteenrodDense.is_gen_E0(mon[i]):
-                if i > 0 and mon[i] < mon[i - 1]:
+                if i > 0 and (len(mon[i]), mon[i][-1]) < (len(mon[i - 1]), mon[i - 1][-1]):
                     return i - 1
             else:
-                if i > 0 and all((g, 1 << s) < mon[i - 1][0] for g, e in mon[i] for s in two_expansion(e)):
+                if i > 0 and all((g + 1, 1 << s) < (len(mon[i - 1]), mon[i - 1][-1])
+                                 for g, e in enumerate(mon[i]) if e > 0 for s in two_expansion(e)):
                     return i - 1
                 else:
                     break
@@ -141,14 +140,13 @@ class CobarSteenrod(BA.AlgebraMod2):
 
     @classmethod
     def d0_inv_data(cls, data: set):
-        """Find a cycle c such that $d_0c = data$."""
+        """Find a cycle $c$ such that $d_0c = data$."""
         data = data.copy()
         result = set()
         while data:
             mon = max(data, key=cls.key_mon)
             i = cls._get_i(mon)
             if i is None:
-                print(cls(tuple(reversed(mon))))
                 raise BA.MyValueError("Not d0 invertible")
             m_d0_inv = mon[:i] + (DualSteenrodDense.mul_mons(mon[i + 1], mon[i]),) + mon[i + 2:]
             assert m_d0_inv not in result

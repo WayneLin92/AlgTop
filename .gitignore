@@ -11,6 +11,7 @@ __pycache__/
 output/
 work/
 log/
+tex/
 
 relations-9.txt
 run_cprofile.py

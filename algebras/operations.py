@@ -714,7 +714,7 @@ class DualSteenrodDense(BA.AlgebraMod2):
         return cls.type_T2()(data)
 
     @staticmethod
-    def is_gen(mon):
+    def is_gen(mon): #???
         if sum(map(bool, mon)) == 1:
             return True, len(mon)
         else:
@@ -752,7 +752,7 @@ class DualSteenrodDense(BA.AlgebraMod2):
     @staticmethod
     def weight_mon(mon: tuple):
         """Return the weight of the the monomial."""
-        return sum(((1 << i + 1) - 1) * bin(e).count('1') for i, e in enumerate(mon))
+        return sum((2 * j + 1) * bin(e).count('1') for j, e in enumerate(mon))
 
     @staticmethod
     def _mon_gen(n, e=1):

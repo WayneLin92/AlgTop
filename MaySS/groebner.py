@@ -526,26 +526,27 @@ class GbAlgMod2(BA.AlgebraMod2):
         return result
 
     @classmethod
-    def print_latex_alg(cls, show_gb=True):
+    def latex_alg(cls, show_gb=True):
         """For latex."""
-        print("\\section{Generators}\n")
+        result = "\\section{Generators}\n\n"
         # noinspection PyArgumentList
         gens = defaultdict(list)
         for item in cls.generators:
             gens[item.deg3d[0]].append(item)
         for s in sorted(gens):
-            print(f"\\subsection*{{s={s}}}\n")
-            print(', '.join(f'${item.name}$' for item in gens[s]), end="\\vspace{3pt}\n\n")
-        print("\\section{Relations}\n")
+            result += f"\\subsection*{{s={s}}}\n"
+            result += ', '.join(f'${item.name}$' for item in gens[s]) + "\\vspace{3pt}\n\n"
+        result += "\\section{Relations}\n\n"
         if show_gb:
             for m in cls.rels:
                 if m in cls._rels_gen_leads:
-                    print(f"${cls(m)} = {cls(cls.rels[m])}$\\vspace{{3pt}}\n")
+                    result += f"${cls(m)} = {cls(cls.rels[m])}$\\vspace{{3pt}}\n\n"
                 else:
-                    print(f"$\\bullet\\hspace{{4pt}} {cls(m)} = {cls(cls.rels[m])}$\\vspace{{3pt}}\n")
+                    result += f"$\\bullet\\hspace{{4pt}} {cls(m)} = {cls(cls.rels[m])}$\\vspace{{3pt}}\n\n"
         else:
             for m in cls._rels_gen_leads:
-                print(f"${cls(m)} = {cls(cls.rels[m])}$\n")
+                result += f"${cls(m)} = {cls(cls.rels[m])}$\n\n"
+        return result
 
     @classmethod
     def markdown_alg(cls, show_all=True):
@@ -647,7 +648,7 @@ class GbAlgMod2(BA.AlgebraMod2):
     def add_rels_cache(cls, deg_max=None):
         """Add relations from cache up to deg `deg_max`."""
         hq = cls._rels_cache
-        while hq and (deg_max is None or hq[0][0] <= deg_max):
+        while hq and (deg_max is None or hq[0].deg <= deg_max):
             deg, is_rel_gen, r, _ = heapq.heappop(hq)
             r = cls.simplify_data(r)
             if r:
@@ -721,14 +722,14 @@ class GbAlgMod2(BA.AlgebraMod2):
     def ann_seq(cls, ele_names: List[Tuple["GbAlgMod2", str]]):
         """Return relations among elements: $\\sum a_ie_i=0$."""
         A = cls.copy_alg()
-        index = A.generators[-1][0] if A.generators else -1
+        index = A.generators[-1].index if A.generators else -1
         if cls.key:
-            A.key = lambda _m: (_m[bisect_left(_m, (index, 0)):], cls.key(_m))
+            A.key = lambda _m: (not (_m1 := _m[bisect_left(_m, (index, 0)):]), _m1, cls.key(_m))
         else:
-            A.key = lambda _m: (_m[bisect_left(_m, (index, 0)):], _m)
+            A.key = lambda _m: (not (_m1 := _m[bisect_left(_m, (index, 0)):]), _m1, _m)
         rels_new = []
         for ele, name in ele_names:
-            x = A.add_gen(name, ele.deg())
+            x = A.add_gen(name, ele.deg(), ele.deg3d())
             rels_new.append(x + ele)
         A.add_rels(rels_new, clear_cache=True)
         annilators = []
@@ -737,7 +738,7 @@ class GbAlgMod2(BA.AlgebraMod2):
                 a = []
                 for m1 in chain((m,), A.rels[m]):
                     gen = A.get_gen(m[-1][0])
-                    m11 = m1[:-1] + (m1[-1][0], m1[-1][1] + 1) if m1[-1][1] + 1 != 0 else m1[:-1]
+                    m11 = m1[:-1] + ((m1[-1][0], m1[-1][1] + 1),) if m1[-1][1] + 1 != 0 else m1[:-1]
                     a.append((m11, gen.name, gen.deg))
                 annilators.append(a)
         for en1, en2 in combinations(ele_names, 2):
@@ -772,7 +773,7 @@ class GbAlgMod2(BA.AlgebraMod2):
             return cls.deg_mon(_m1), (cls.key(_m1) if cls.key else _m1), (key(_m2) if key else _m2)
         A.key = key1
         for ele, name in ele_names:
-            x = A.add_gen(name, ele.deg())
+            x = A.add_gen(name, ele.deg(), ele.deg3d())
             A.add_rel(x + ele)
         A.add_rels_cache()
         A.generators = A.generators[bisect_left(A.generators, (index + 1,)):]
@@ -811,15 +812,15 @@ class GbDga(GbAlgMod2):
     @classmethod
     def copy_alg(cls) -> "Type[GbDga]":
         """Return a copy of current algebra."""
-        class_name = f"GbAlgMod2_{GbAlgMod2._name_index}"
-        GbAlgMod2._name_index += 1
+        class_name = f"GbDga_{cls._name_index}"
+        cls._name_index += 1
         dct = {'generators': cls.generators.copy(), 'rels': copy.deepcopy(cls.rels),
                '_rels_gen_leads': cls._rels_gen_leads.copy(),
                '_rels_cache': copy.deepcopy(cls._rels_cache),
                'key': cls.key, 'pred': cls.pred, 'auto_simplify': cls.auto_simplify,
                'deg_diff': cls.deg_diff}
         # noinspection PyTypeChecker
-        return type(class_name, (GbAlgMod2,), dct)
+        return type(class_name, (GbDga,), dct)
 
     # setters ----------------------------
     @classmethod

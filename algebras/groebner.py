@@ -302,20 +302,21 @@ class GbAlgMod2(BA.AlgebraMod2):
         return result
 
     @classmethod
-    def print_latex_alg(cls, show_gb=True):
+    def latex_alg(cls, show_gb=True):
         """For latex."""
-        print(f"Generators: ${', '.join(cls.gen_names)}$.\\\\")
-        print(f"Degrees: ${', '.join(map(str, cls.gen_degs))}$")
-        print("Relations:\\\\")
+        result = f"Generators: ${', '.join(cls.gen_names)}$.\\\\\n"
+        f"Degrees: ${', '.join(map(str, cls.gen_degs))}$\n"
+        "Relations:\\\\\n"
         if show_gb:
             for m in cls.rels:
                 if m in cls._rels_gen_leads:
-                    print(f"${cls(m)} = {cls(cls.rels[m])}$\n")
+                    result += f"${cls(m)} = {cls(cls.rels[m])}$\n\n"
                 else:
-                    print(f"$\\bullet {cls(m)} = {cls(cls.rels[m])}$\n")
+                    result += f"$\\bullet {cls(m)} = {cls(cls.rels[m])}$\n\n"
         else:
             for m in cls._rels_gen_leads:
-                print(f"${cls(m)} = {cls(cls.rels[m])}$\\\\")
+                result += f"${cls(m)} = {cls(cls.rels[m])}$\\\\\n"
+        return result
 
     @classmethod
     def markdown_alg(cls, show_gb=True):

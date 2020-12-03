@@ -296,7 +296,7 @@ class Benchmark(unittest.TestCase):
 
 class GroebnerTestCase(unittest.TestCase):
     def setUp(self):
-        from algebras.groebner import GbAlgMod2
+        from MaySS.groebner import GbAlgMod2
         from itertools import permutations
         self.GbAlgMod2 = GbAlgMod2
         self.permutations = permutations
