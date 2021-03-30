@@ -264,20 +264,18 @@ class App:
     def render_grid_numbers(self):
         """Draw the grid numbers."""
         n_label_step = math.ceil(config["axis_text_sep_screen"] / self.camera.unit_screen)
-        for i in range(0, config["y_max"] + 1):
+        for i in range(0, config["y_max"] + 1, n_label_step):
             left = self.camera.wp2sp((0, i))
-            if i % n_label_step == 0:
-                text_pos = left - Vector([30, 0])
-                if text_pos[0] < 16:
-                    text_pos = Vector((16, text_pos[1]))
-                self.paint.draw_text(str(i), text_pos, config["axis_numbers_color"])
-        for i in range(0, config["x_max"] + 1):
+            text_pos = left - Vector([config["axis_text_sep_screen"], 0])
+            if text_pos[0] < 16:
+                text_pos[0] = 16
+            self.paint.draw_text(str(i), text_pos, config["axis_numbers_color"])
+        for i in range(0, config["x_max"] + 1, n_label_step):
             bottom = self.camera.wp2sp((i, 0))
-            if i % n_label_step == 0:
-                text_pos = bottom + Vector([0, 30])
-                if text_pos[1] > config["win_height"] - 16:
-                    text_pos = Vector((text_pos[0], config["win_height"] - 16))
-                self.paint.draw_text(str(i), text_pos, config["axis_numbers_color"])
+            text_pos = bottom + Vector([0, config["axis_text_sep_screen"]])
+            if text_pos[1] > config["win_height"] - 16:
+                text_pos[1] = config["win_height"] - 16
+            self.paint.draw_text(str(i), text_pos, config["axis_numbers_color"])
 
     def render(self):
         """Draw on the screen."""
