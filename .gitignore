@@ -12,6 +12,7 @@ output/
 work/
 log/
 tex/
+archive/
 
 relations-9.txt
 run_cprofile.py
